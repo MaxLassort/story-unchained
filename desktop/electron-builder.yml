@@ -20,6 +20,7 @@ mac:
   category: public.app-category.utilities
   identity: null
   icon: assets/icon.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
   target:
     - target: dmg
       arch: [arm64]
@@ -28,6 +29,7 @@ mac:
 
 win:
   icon: assets/icon.png
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
   target:
     - target: nsis
       arch: [x64]
