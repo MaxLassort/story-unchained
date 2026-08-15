@@ -27,22 +27,6 @@
           }
         </button>
 
-        <button
-          mat-icon-button
-          matTooltip="Sync library"
-          [disabled]="syncing()"
-          (click)="startSync()"
-          aria-label="Sync library"
-        >
-          @if (syncing()) {
-            <mat-spinner [diameter]="20" />
-          } @else {
-            <mat-icon>sync</mat-icon>
-          }
-        </button>
-
-
-
         <button mat-icon-button class="pack__device-toggle" (click)="toggleSidenav()" [attr.aria-label]="isPlugged() ? 'Toggle device panel' : 'Toggle device panel'">
           <mat-icon>phone_android</mat-icon>
           @if (isPlugged()) {

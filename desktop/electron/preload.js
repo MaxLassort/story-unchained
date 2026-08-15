@@ -1,4 +1,4 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('studioDesktop', {
   apiUrl: 'http://localhost:9090',
@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('studioDesktop', {
     chrome: process.versions.chrome,
     node: process.versions.node,
   },
+  selectPath: (options) => ipcRenderer.invoke('dialog:openPath', options),
 });

@@ -1,6 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { HealthService } from './core/services/health.service';
+import { SyncService } from './core/services/sync.service';
 import { AppHeaderComponent } from './shared/components/app-header/app-header.component';
 
 @Component({
@@ -11,5 +12,17 @@ import { AppHeaderComponent } from './shared/components/app-header/app-header.co
 })
 export class App {
   private readonly health = inject(HealthService);
+  private readonly syncService = inject(SyncService);
   readonly connected = this.health.connected;
+
+  private startupSyncTriggered = false;
+
+  constructor() {
+    effect(() => {
+      if (this.connected() && !this.startupSyncTriggered) {
+        this.startupSyncTriggered = true;
+        void this.syncService.startSync({ silent: true });
+      }
+    });
+  }
 }

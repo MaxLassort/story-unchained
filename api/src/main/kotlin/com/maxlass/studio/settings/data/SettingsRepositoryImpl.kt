@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Repository
 import java.io.File
 
-private val settingsJson = Json { prettyPrint = true }
+private val settingsJson = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
 /** [SettingsRepository] implementation using a JSON file (path from [StudioProperties]). */
 @Repository
@@ -35,7 +35,6 @@ class SettingsRepositoryImpl(
 
             val defaultSettings = Settings(
                 libraryPath = defaultLibrary.absolutePath,
-                unofficialDbPath = null,
                 targetDeviceType = null
             )
             saveSettings(defaultSettings)

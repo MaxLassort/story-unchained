@@ -29,7 +29,6 @@ class SettingsController(
             settingsService.updateLibraryPath(body.libraryPath)
             settingsService.saveSettings(current.copy(
                 libraryPath = body.libraryPath,
-                unofficialDbPath = body.unofficialDbPath,
                 targetDeviceType = body.targetDeviceType
             ))
         } else {

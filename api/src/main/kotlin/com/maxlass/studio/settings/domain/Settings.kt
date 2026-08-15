@@ -7,8 +7,6 @@ import kotlinx.serialization.Serializable
 data class Settings(
     /** Directory where the user stores pack files (.zip, FS, RAW). */
     val libraryPath: String,
-    /** Path to Studio Core unofficial.json (e.g. ~/.studio/db/unofficial.json). Used when syncing from Studio Core. */
-    val unofficialDbPath: String? = null,
     /** Preferred Lunii target type when no device is plugged ("RAW", "FS"), or null for auto mode. */
     val targetDeviceType: String? = null
 )

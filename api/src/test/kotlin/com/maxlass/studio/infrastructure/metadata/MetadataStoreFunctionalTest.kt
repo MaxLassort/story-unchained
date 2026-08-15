@@ -9,18 +9,15 @@ import java.nio.file.Path
  * Functional test for [MetadataStore] against a real temporary filesystem.
  *
  * Seuls les scénarios sur le catalogue OFFICIEL (official.json) sont couverts pour l'instant.
- * La partie non officielle (unofficial.json) sera testée plus tard (comportement à confirmer).
  */
 class MetadataStoreFunctionalTest : StringSpec({
 
     lateinit var tempDir: Path
     lateinit var officialJsonPath: Path
-    lateinit var unofficialJsonPath: Path
 
     beforeTest {
         tempDir = Files.createTempDirectory("metadata-store-test")
         officialJsonPath = tempDir.resolve("official.json")
-        unofficialJsonPath = tempDir.resolve("unofficial.json")
     }
 
     afterTest {
@@ -29,7 +26,6 @@ class MetadataStoreFunctionalTest : StringSpec({
 
     fun store() = MetadataStore(
         officialJsonPath = officialJsonPath,
-        unofficialJsonPath = unofficialJsonPath,
     )
 
     fun writeOfficialDatabase(content: String) {

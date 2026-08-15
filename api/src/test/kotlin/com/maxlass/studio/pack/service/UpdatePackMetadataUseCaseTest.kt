@@ -7,7 +7,6 @@ import com.maxlass.studio.pack.domain.model.PackMetadata
 import com.maxlass.studio.pack.domain.model.PackVariant
 import com.maxlass.studio.pack.port.external.PackFileMetadata
 import com.maxlass.studio.pack.port.external.UpdatePackFileMetadataPort
-import com.maxlass.studio.pack.port.external.UpdateUnofficialMetadataPort
 import com.maxlass.studio.pack.port.persistence.PackRepositoryPort
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
@@ -28,12 +27,10 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     beforeTest { clearAllMocks() }
 
     val packRepository = mockk<PackRepositoryPort>()
-    val updateUnofficialMetadataPort = mockk<UpdateUnofficialMetadataPort>()
     val updatePackFileMetadataPort = mockk<UpdatePackFileMetadataPort>()
 
     fun useCase() = UpdatePackMetadataUseCase(
         packRepository = packRepository,
-        updateUnofficialMetadataPort = updateUnofficialMetadataPort,
         updatePackFileMetadataPort = updatePackFileMetadataPort,
     )
 
@@ -89,13 +86,11 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
         }
 
         coVerify(exactly = 0) { packRepository.savePack(any()) }
-        verify(exactly = 0) { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) }
     }
 
-    "updates unofficial metadata and persists the pack" {
+    "updates pack metadata and persists the pack" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack())
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         runBlocking {
             useCase().invoke(
@@ -112,7 +107,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
             )
         }
 
-        verify { updateUnofficialMetadataPort.updateUnofficialMetadata("pack-1", "New title", "New description", "data:image/png;base64,AAA=") }
         coVerify {
             packRepository.savePack(
                 match { saved ->
@@ -131,7 +125,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     "encodes thumbnailPngBytes as a data URI before persisting" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack())
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         runBlocking { useCase().invoke(command(thumbnailPngBytes = byteArrayOf(0x01, 0x02))) }
 
@@ -145,7 +138,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
         val archiveVariant = PackVariant(PackFormat.ARCHIVE, "/tmp/pack.zip")
         coEvery { packRepository.getAllPacks() } returns listOf(pack(variants = listOf(archiveVariant)))
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
         every { updatePackFileMetadataPort.updateArchiveMetadata(any(), any()) } returns Path.of("/tmp/pack.zip")
 
         runBlocking { useCase().invoke(command(title = "New title", description = "New description")) }
@@ -164,7 +156,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
             pack(id = "official-1", official = true),
         )
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         runBlocking { useCase().invoke(command(linkedOfficialPackId = "official-1")) }
 
@@ -174,7 +165,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     "resolves the linked official pack id for a fork" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack(id = "pack-1"), pack(id = "official-1", official = true))
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         runBlocking { useCase().invoke(command(packId = "pack-1", linkedOfficialPackId = "official-1")) }
 
@@ -184,7 +174,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     "throws IllegalArgumentException when the linked pack is not official" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack(id = "pack-1"), pack(id = "other-2"))
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         shouldThrow<IllegalArgumentException> {
             runBlocking { useCase().invoke(command(packId = "pack-1", linkedOfficialPackId = "other-2")) }
@@ -195,7 +184,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     "throws IllegalArgumentException when the referenced official pack is not found" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack(id = "pack-1"))
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         shouldThrow<IllegalArgumentException> {
             runBlocking { useCase().invoke(command(packId = "pack-1", linkedOfficialPackId = "missing-official")) }
@@ -205,7 +193,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     "keeps linkedOfficialPackId null when the pack is already official" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack(official = true))
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         runBlocking { useCase().invoke(command(linkedOfficialPackId = "official-1")) }
 
@@ -215,7 +202,6 @@ class UpdatePackMetadataUseCaseTest : StringSpec({
     "uses the existing pack thumbnail when no new thumbnail is provided" {
         coEvery { packRepository.getAllPacks() } returns listOf(pack())
         coEvery { packRepository.savePack(any()) } just runs
-        every { updateUnofficialMetadataPort.updateUnofficialMetadata(any(), any(), any(), any()) } just runs
 
         runBlocking { useCase().invoke(command(title = "New title")) }
 

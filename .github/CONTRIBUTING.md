@@ -98,6 +98,17 @@ Une PR courte et claire est bien plus vite revue et mergée. 👍
 - **Seul le maintainer** peut merger dans `main` — les contributeurs proposent, le maintainer valide.
 - `main` ne reçoit que des changements validés.
 
+## 7. Outils IA / agents
+
+Si tu utilises des outils IA/agents en dev (assistant de code, **graphify**, analyse de code, etc.) :
+
+- **Ne commite jamais les fichiers générés par ces outils** : `graphify-out/` (graphes `graph.html`,
+  `graph.json`, `GRAPH_REPORT.md`, caches, manifest), et tout autre artefact produit par un agent.
+  Ces répertoires sont ignorés par le `.gitignore` — garde-le comme tel.
+- Les sorties d'agents sont des **artefacts locaux**, pas des sources : chacun les régénère chez lui
+  (`/graphify` ou l'outil concerné) plutôt que de les versionner.
+- Seuls les fichiers de code et de config **écrits à la main** entrent dans une PR.
+
 ## Droits & licence
 
 - Le projet est sous **Non-Commercial Source-Available License** — voir `LICENSE`.

@@ -6,7 +6,6 @@ import com.maxlass.studio.pack.domain.model.PackFormat
 import com.maxlass.studio.pack.domain.model.PackMetadata
 import com.maxlass.studio.pack.port.external.PackFileMetadata
 import com.maxlass.studio.pack.port.external.UpdatePackFileMetadataPort
-import com.maxlass.studio.pack.port.external.UpdateUnofficialMetadataPort
 import com.maxlass.studio.pack.port.persistence.PackRepositoryPort
 import org.springframework.stereotype.Service
 import java.nio.file.Path
@@ -18,7 +17,6 @@ import java.util.Base64
 @Service
 class UpdatePackMetadataUseCase(
     private val packRepository: PackRepositoryPort,
-    private val updateUnofficialMetadataPort: UpdateUnofficialMetadataPort,
     private val updatePackFileMetadataPort: UpdatePackFileMetadataPort
 ) {
 
@@ -26,13 +24,6 @@ class UpdatePackMetadataUseCase(
         val packs = packRepository.getAllPacks()
         val pack = packs.find { it.id == command.packId }
             ?: throw NoSuchElementException("Pack not found: ${command.packId}")
-
-        updateUnofficialMetadataPort.updateUnofficialMetadata(
-            command.packId,
-            command.title,
-            command.description,
-            pack.metadata.thumbnail
-        )
 
         val newLinkedId = resolveLinkedOfficialPackId(pack, command.linkedOfficialPackId, packs)
 

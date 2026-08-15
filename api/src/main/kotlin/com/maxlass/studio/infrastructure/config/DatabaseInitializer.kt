@@ -1,25 +1,20 @@
 package com.maxlass.studio.infrastructure.config
 
-import com.maxlass.studio.infrastructure.metadata.MetadataStore
 import jakarta.annotation.PostConstruct
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 
 /**
  * Startup initialization (parity with the old `DatabaseFactory.init()`):
- * initializes the unofficial metadata database (legacy `DatabaseMetadataService(false)`
- * behavior: create file if missing, then drop entries that became official).
+ * widens legacy metadata text columns to TEXT (CLOB).
  */
 @Component
 class DatabaseInitializer(
-    private val metadataStore: MetadataStore,
     private val jdbcTemplate: JdbcTemplate,
 ) {
 
     @PostConstruct
     fun init() {
-        metadataStore.ensureUnofficialDatabaseExists()
-        metadataStore.cleanUnofficialDatabase()
         widenPackMetadataTextColumns()
     }
 

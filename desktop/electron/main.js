@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -95,6 +95,19 @@ function stopBackend() {
   }
   backendProcess = null;
 }
+
+ipcMain.handle('dialog:openPath', async (event, options = {}) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  const result = await dialog.showOpenDialog(win, {
+    title: options.title,
+    defaultPath: options.defaultPath,
+    buttonLabel: options.buttonLabel,
+    properties: options.properties || ['openFile'],
+    filters: options.filters,
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

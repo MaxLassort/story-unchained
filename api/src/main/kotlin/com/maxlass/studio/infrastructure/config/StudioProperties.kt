@@ -9,7 +9,7 @@ import java.nio.file.Path
  */
 @ConfigurationProperties(prefix = "studio")
 data class StudioProperties(
-    val storageDir: Path = Path.of(System.getProperty("user.home"), ".studio_kmp"),
+    val storageDir: Path = Path.of(System.getProperty("user.home"), ".luniiUnchained"),
     val settingsFileName: String = "settings.json",
     val officialJsonFileName: String = "official.json",
 ) {
@@ -20,15 +20,11 @@ data class StudioProperties(
     val officialJsonPath: Path
         get() = metadataDbDir.resolve(officialJsonFileName)
 
-    /** Default path for unofficial.json when not set in settings (~/.studio/db/unofficial.json). */
-    val defaultUnofficialJsonPath: Path
-        get() = Path.of(System.getProperty("user.home"), ".studio", "db", "unofficial.json")
-
     /** User settings file. */
     val settingsFile: Path
         get() = storageDir.resolve(settingsFileName)
 
-    /** H2 database file (no extension), under .studio_kmp/db/. */
+    /** H2 database file (no extension), under .luniiUnchained/db/. */
     val dbFile: Path
         get() = metadataDbDir.resolve("studio_db")
 
@@ -36,7 +32,7 @@ data class StudioProperties(
     val configFile: Path
         get() = Path.of("config.json")
 
-    /** Default library path for packs (Documents/StudioKMP/Packs). */
+    /** Default library path for packs (Documents/luniiUnchained/Packs). */
     val defaultLibraryPath: Path
-        get() = Path.of(System.getProperty("user.home"), "Documents", "StudioKMP", "Packs")
+        get() = Path.of(System.getProperty("user.home"), "Documents", "luniiUnchained", "Packs")
 }

@@ -10,6 +10,7 @@ import com.maxlass.studio.infrastructure.persistence.PackScanIndexJpaRepository
 import com.maxlass.studio.infrastructure.persistence.PackVariantJpaRepository
 import com.maxlass.studio.infrastructure.persistence.SyncJobEntity
 import com.maxlass.studio.infrastructure.persistence.SyncJobJpaRepository
+import com.maxlass.studio.infrastructure.config.StudioProperties
 import com.maxlass.studio.pack.cache.ThumbnailCache
 import com.maxlass.studio.pack.domain.dto.OfficialMetadataDto
 import com.maxlass.studio.pack.domain.dto.SyncJobStartResponse
@@ -62,6 +63,7 @@ class SyncPacksService(
     private val variantRepository: PackVariantJpaRepository,
     private val fingerprinter: PackFingerprinter,
     transactionManager: PlatformTransactionManager,
+    private val studioProperties: StudioProperties,
 ) {
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queueProcessing = AtomicBoolean(false)
@@ -131,7 +133,7 @@ class SyncPacksService(
             finishJob(jobId, JOB_FAILED, "Dossier de synchronisation introuvable: $directoryPath")
             return
         }
-        val invalidPacksDir = File(File(System.getProperty("user.home"), "Documents/StudioKMP"), "invalid")
+        val invalidPacksDir = studioProperties.defaultLibraryPath.parent.resolve("invalid").toFile()
             .apply { if (!exists()) mkdirs() }
 
         val entries = directory.listFiles()

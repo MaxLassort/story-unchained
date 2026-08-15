@@ -15,14 +15,10 @@ object MetadataDb {
     const val LUNII_GUEST_TOKEN_URL = "https://server-auth-prod.lunii.com/guest/create"
 
     const val LUNII_PACKS_DATABASE_URL = "https://server-data-prod.lunii.com/v2/packs"
-
-    const val UNOFFICIAL_DB_PROP = "studio.db.unofficial"
-
-    const val UNOFFICIAL_DB_JSON_PATH = "/.studio/db/unofficial.json"
 }
 
 /**
- * Metadata record as stored in official.json / unofficial.json.
+ * Metadata record as stored in official.json.
  * Replaces `studio.metadata.DatabasePackMetadata`.
  */
 data class DatabasePackMetadata(

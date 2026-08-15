@@ -20,13 +20,4 @@ export class MetadataService {
       this.refreshing.set(false);
     }
   }
-
-  async refreshUnofficial(): Promise<ApiStatusResponse> {
-    this.refreshing.set(true);
-    try {
-      return await firstValueFrom(this.http.post<ApiStatusResponse>(`${this.baseUrl}/refresh-unofficial`, {}));
-    } finally {
-      this.refreshing.set(false);
-    }
-  }
 }

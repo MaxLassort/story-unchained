@@ -4,11 +4,20 @@
     <mat-label>Library path</mat-label>
     <input
       matInput
-      [(ngModel)]="libraryPath"
+      [formField]="form.libraryPath"
       placeholder="/Users/me/LuniiPacks"
       autocomplete="off"
     />
-    <mat-icon matSuffix>folder</mat-icon>
+    <button
+      matSuffix
+      mat-icon-button
+      type="button"
+      matTooltip="Browse for folder"
+      aria-label="Browse for library folder"
+      (click)="browseLibraryPath()"
+    >
+      <mat-icon>folder_open</mat-icon>
+    </button>
     <mat-hint>Absolute path to the folder containing your pack files</mat-hint>
   </mat-form-field>
 
@@ -25,7 +34,7 @@
 
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Target device type</mat-label>
-    <mat-select [(ngModel)]="target">
+    <mat-select [formField]="form.target">
       @for (opt of targetOptions; track opt.value) {
         <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
       }
@@ -33,12 +42,30 @@
     <mat-hint>Preferred format when no device is plugged</mat-hint>
   </mat-form-field>
 
-  @if (libraryChanged) {
+  @if (libraryChanged()) {
     <div class="settings-dialog__warning">
       <mat-icon>warning</mat-icon>
       <span>Changing the library path will clear the database and trigger a full re-sync.</span>
     </div>
   }
+
+  <div class="settings-dialog__actions">
+    <button
+      mat-flat-button
+      color="accent"
+      [disabled]="syncing()"
+      (click)="startSync()"
+    >
+      <span class="settings-dialog__sync">
+        @if (syncing()) {
+          <mat-spinner [diameter]="18" />
+        } @else {
+          <mat-icon>sync</mat-icon>
+        }
+        <span>Sync library</span>
+      </span>
+    </button>
+  </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button mat-dialog-close>Cancel</button>

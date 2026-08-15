@@ -1,17 +1,26 @@
-import { Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, computed, inject, signal } from '@angular/core';
+import { form, FormField } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import type { Settings } from '../../../core/models';
+import { DesktopService } from '../../../core/services/desktop.service';
+import { SyncService } from '../../../core/services/sync.service';
 
 type TargetType = 'AUTO' | 'RAW' | 'FS';
 
 interface DialogData {
   settings: Settings;
+}
+
+interface SettingsFormModel {
+  libraryPath: string;
+  target: TargetType;
 }
 
 const TARGET_OPTIONS: { label: string; value: TargetType }[] = [
@@ -26,38 +35,68 @@ function settingsToTarget(s: Settings): TargetType {
   return 'AUTO';
 }
 
+function settingsToModel(s: Settings): SettingsFormModel {
+  return {
+    libraryPath: s.libraryPath ?? '',
+    target: settingsToTarget(s),
+  };
+}
+
 @Component({
   selector: 'app-settings-dialog',
-  imports: [FormsModule, MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatIconModule],
+  imports: [
+    FormField,
+    MatButtonModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatTooltipModule,
+  ],
   templateUrl: './settings-dialog.component.html',
   styleUrl: './settings-dialog.component.scss',
 })
 export class SettingsDialogComponent {
   protected readonly data = inject<DialogData>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject<MatDialogRef<SettingsDialogComponent, Settings>>(MatDialogRef);
+  private readonly desktop = inject(DesktopService);
+  private readonly syncService = inject(SyncService);
 
   protected readonly targetOptions = TARGET_OPTIONS;
 
-  protected libraryPath: string;
-  protected target: TargetType;
-  private readonly originalLibraryPath: string;
+  protected readonly syncing = this.syncService.syncing;
 
-  constructor() {
-    const s = this.data.settings;
-    this.libraryPath = s.libraryPath ?? '';
-    this.target = settingsToTarget(s);
-    this.originalLibraryPath = this.libraryPath;
+  protected readonly model = signal<SettingsFormModel>(settingsToModel(this.data.settings));
+  protected readonly form = form(this.model);
+
+  private readonly originalLibraryPath = this.data.settings.libraryPath ?? '';
+
+  protected readonly libraryChanged = computed(
+    () => this.model().libraryPath !== this.originalLibraryPath,
+  );
+
+  protected async browseLibraryPath(): Promise<void> {
+    const selected = await this.desktop.selectDirectory({
+      title: 'Select library folder',
+      defaultPath: this.model().libraryPath || undefined,
+      buttonLabel: 'Select folder',
+    });
+    if (selected) {
+      this.model.update((m) => ({ ...m, libraryPath: selected }));
+    }
   }
 
-  protected get libraryChanged(): boolean {
-    return this.libraryPath !== this.originalLibraryPath;
+  protected async startSync(): Promise<void> {
+    await this.syncService.startSync();
   }
 
   protected save(): void {
+    const m = this.model();
     const next: Settings = {
-      libraryPath: this.libraryPath,
-      unofficialDbPath: this.data.settings.unofficialDbPath,
-      targetDeviceType: this.target === 'AUTO' ? null : this.target,
+      libraryPath: m.libraryPath,
+      targetDeviceType: m.target === 'AUTO' ? null : m.target,
     };
     this.dialogRef.close(next);
   }

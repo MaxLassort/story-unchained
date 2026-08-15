@@ -42,10 +42,10 @@ filtrer et gérer vos packs beaucoup plus facilement qu'en parcourant des fichie
 
 ### Au premier lancement / sync, l'application :
 
-1. **Scanne votre bibliothèque** (par défaut `~/Documents/StudioKMP/Packs`) : elle inspecte
+1. **Scanne votre bibliothèque** (par défaut `~/Documents/luniiUnchained/Packs`) : elle inspecte
    chaque fichier ou dossier et reconnaît les formats de packs Lunii (Archive `.zip`, RAW `.pack`,
    dossier FS).
-2. **Crée une base de données** locale (H2, dans `~/.studio_kmp/db/`) qui indexe tous vos packs :
+2. **Crée une base de données** locale (H2, dans `~/.luniiUnchained/db/`) qui indexe tous vos packs :
    titre, description, version, vignette, format, statut **officiel / non officiel** (via le
    catalogue Lunii officiel), etc.
 3. **Trie tout cela pour vous** : recherche, filtres (officiel / non officiel / fork),
@@ -54,12 +54,11 @@ filtrer et gérer vos packs beaucoup plus facilement qu'en parcourant des fichie
 
 ### Les dossiers créés
 
-- **`~/Documents/StudioKMP/Packs`** — votre bibliothèque de packs (le dossier par défaut).
-- **`~/Documents/StudioKMP/invalid`** — le **dossier "erreur"** : les fichiers/dossiers qui ne
+- **`~/Documents/luniiUnchained/Packs`** — votre bibliothèque de packs (le dossier par défaut).
+- **`~/Documents/luniiUnchained/invalid`** — le **dossier "erreur"** : les fichiers/dossiers qui ne
   sont pas des packs valides y sont déplacés automatiquement au sync, pour garder votre
   bibliothèque propre.
-- **`~/.studio_kmp/db/`** — la base de données (H2) + le catalogue officiel (`official.json`) et
-  les métadonnées non officielles (`unofficial.json`).
+- **`~/.luniiUnchained/db/`** — la base de données (H2) + le catalogue officiel (`official.json`).
 
 ### Et aussi
 

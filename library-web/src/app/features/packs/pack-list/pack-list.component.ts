@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -15,7 +14,6 @@ import { PackFiltersComponent } from '../components/pack-filters/pack-filters.co
 import { PackCardComponent } from '../components/pack-card/pack-card.component';
 import { PaginationBarComponent } from '../components/pagination-bar/pagination-bar.component';
 import { DevicePanelComponent } from '../../devices/device-panel/device-panel.component';
-import { SyncProgressDialogComponent } from '../../settings/sync-progress-dialog/sync-progress-dialog.component';
 
 @Component({
   selector: 'app-pack-list',
@@ -38,7 +36,6 @@ export class PackListComponent {
   private readonly packsService = inject(PacksService);
   private readonly sseService = inject(SseService);
   private readonly metadataService = inject(MetadataService);
-  private readonly dialog = inject(MatDialog);
   private readonly snackbar = inject(SnackbarService);
   private readonly sidenav = viewChild(MatSidenav);
 
@@ -50,7 +47,6 @@ export class PackListComponent {
   readonly pageSize = this.packsService.pageSize;
   protected readonly isPlugged = this.sseService.isPlugged;
   protected readonly metadataRefreshing = this.metadataService.refreshing;
-  protected readonly syncing = signal(false);
 
   constructor() {
   }
@@ -81,24 +77,6 @@ export class PackListComponent {
   setPageSize(size: number): void {
     this.pageSize.set(size);
     this.page.set(0);
-  }
-
-  protected startSync(): void {
-    if (this.syncing()) return;
-    this.syncing.set(true);
-    this.packsService.sync()
-      .then((res) => {
-        const ref = this.dialog.open(SyncProgressDialogComponent, {
-          data: { jobId: res.jobId },
-          width: '640px',
-          disableClose: false,
-        });
-        ref.afterClosed().subscribe(() => this.syncing.set(false));
-      })
-      .catch(() => {
-        this.snackbar.error('Failed to start synchronization');
-        this.syncing.set(false);
-      });
   }
 
   protected async refreshMetadata(): Promise<void> {
