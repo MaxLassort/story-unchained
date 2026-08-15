@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'com.maxlass'
-version = '0.0.1-SNAPSHOT'
+version = findProperty('appVersion') ?: '0.0.1-SNAPSHOT'
 description = 'story_unchained backend API'
 
 java {

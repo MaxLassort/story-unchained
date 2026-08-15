@@ -132,6 +132,19 @@ cd api && ./gradlew bootJar        # api/build/libs/api-0.0.1-SNAPSHOT.jar
 cd library-web && npm install && npm run build
 ```
 
+## Release (packages macOS + Windows)
+
+Un tag `X.Y.Z` poussé déclenche la pipeline GitHub Actions (`.github/workflows/release.yml`) :
+elle build le backend, le frontend, le desktop (macOS arm64 + Windows x64), et publie une
+**GitHub Release** avec les packages nommés `StoryUnchained-<version>-arm64.dmg/.zip` et
+`StoryUnchained-Setup-<version>-x64.exe`. La version du tag est injectée dans le front
+(`library-web`), le back (`api`) et le desktop.
+
+```shell
+git tag 0.1.0
+git push origin 0.1.0
+```
+
 ## Tests
 
 ```shell
