@@ -1,0 +1,39 @@
+<header class="app-header">
+  <a class="brand" routerLink="/packs" aria-label="Go to StoryUnchained library">
+    <img class="brand__logo" src="images/favicon.svg" alt="" />
+    <span class="brand__copy">
+      <span class="brand__name">StoryUnchained</span>
+      <span class="brand__subtitle">PACK MANAGER</span>
+    </span>
+  </a>
+
+  <nav class="app-nav" aria-label="Main navigation">
+    <a routerLink="/packs" routerLinkActive="app-nav__link--active" [routerLinkActiveOptions]="{ exact: true }">
+      Library
+    </a>
+    <a routerLink="/devices" routerLinkActive="app-nav__link--active">Device History</a>
+  </nav>
+
+  <div class="app-header__tools">
+    <label class="search-box">
+      <mat-icon class="search-box__icon" aria-hidden="true">search</mat-icon>
+      <span class="sr-only">Search packs</span>
+      <input
+        type="search"
+        [value]="searchTerm()"
+        (input)="updateSearch($any($event.target).value)"
+        placeholder="Search packs..."
+      />
+    </label>
+
+    <app-import-pack-button />
+    <button
+      mat-icon-button
+      matTooltip="Settings"
+      (click)="openSettings()"
+      aria-label="Settings"
+    >
+      <mat-icon>settings</mat-icon>
+    </button>
+  </div>
+</header>

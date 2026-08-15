@@ -1,0 +1,89 @@
+@if (!loading() && pack(); as p) {
+  <div class="detail__header">
+    <a mat-icon-button routerLink="/packs" aria-label="Back">
+      <mat-icon>arrow_back</mat-icon>
+    </a>
+    <span class="detail__uuid">{{ p.id }}</span>
+    <button mat-icon-button aria-label="Copy UUID" [cdkCopyToClipboard]="p.id" title="Click to copy">
+      <mat-icon>content_copy</mat-icon>
+    </button>
+  </div>
+
+  <div class="detail__body">
+    <div class="detail__thumbnail" (click)="onThumbnailClick()" title="Click to change thumbnail">
+      <img [src]="thumbnailUrl()" alt="" class="detail__thumbnail-img" />
+      <div class="detail__thumbnail-overlay">
+        <mat-icon>edit</mat-icon>
+      </div>
+    </div>
+
+    <form class="detail__form" (submit)="onSave(); $event.preventDefault()">
+      @if (isOfficial()) {
+        <div class="detail__warning">
+          <mat-icon>warning</mat-icon>
+          This is an official pack. Any manual changes will be overwritten during the next library synchronization.
+        </div>
+      }
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Title</mat-label>
+        <input matInput [formField]="metadataForm.title" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Description</mat-label>
+        <textarea matInput [formField]="metadataForm.description" rows="4"></textarea>
+      </mat-form-field>
+
+      <div class="detail__row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="detail__locale">
+          <mat-label>Language</mat-label>
+          <mat-select [formField]="metadataForm.locale">
+            <mat-option value="">—</mat-option>
+            @for (l of locales; track l.value) {
+              <mat-option [value]="l.value">{{ l.label }}</mat-option>
+}
+
+<app-loading-overlay [visible]="loading() || busy()" [label]="loading() ? 'Loading...' : busyLabel()" />
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="detail__age">
+          <mat-label>Age min</mat-label>
+          <input matInput type="number" [formField]="metadataForm.ageMin" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="detail__age">
+          <mat-label>Age max</mat-label>
+          <input matInput type="number" [formField]="metadataForm.ageMax" />
+        </mat-form-field>
+      </div>
+
+      <div class="detail__row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="detail__number">
+          <mat-label>Duration (min)</mat-label>
+          <input matInput type="number" [formField]="metadataForm.durationMs" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="detail__number">
+          <mat-label>Stories</mat-label>
+          <input matInput type="number" [formField]="metadataForm.storyCount" />
+        </mat-form-field>
+      </div>
+
+      <div class="detail__variants">
+        <h3>Variants</h3>
+        @for (variant of p.variants; track variant.storagePath) {
+          <div class="detail__variant">
+            <app-format-badge [format]="variant.format" />
+            <code class="detail__variant-path">{{ variant.storagePath }}</code>
+          </div>
+        }
+      </div>
+
+      <div class="detail__actions">
+        <button mat-flat-button color="primary" [disabled]="metadataForm().invalid() || metadataForm().pending()">Save</button>
+      </div>
+    </form>
+  </div>
+}

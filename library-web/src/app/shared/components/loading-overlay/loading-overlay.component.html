@@ -1,0 +1,8 @@
+@if (visible()) {
+  <div class="loading-overlay" [class.loading-overlay--fullscreen]="fullscreen()">
+    <mat-spinner diameter="48" />
+    @if (label()) {
+      <span class="loading-overlay__text">{{ label() }}</span>
+    }
+  </div>
+}

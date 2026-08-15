@@ -1,0 +1,28 @@
+:host {
+  display: inline-flex;
+}
+
+.import-button {
+  --mdc-filled-button-container-color: var(--mat-sys-primary);
+  --mdc-filled-button-label-text-color: var(--mat-sys-on-primary);
+
+  min-height: 2rem;
+  padding: 0 0.8rem;
+  border-radius: 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.import-button mat-icon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.2rem;
+  font-size: 1rem;
+}
+
+@media (max-width: 700px) {
+  .import-button {
+    padding: 0 0.55rem;
+  }
+}

@@ -1,0 +1,24 @@
+<mat-chip-listbox class="filters__chips" multiple aria-label="Pack filters">
+  <mat-chip-option [selected]="showOfficial()" (selectionChange)="showOfficial.set($event.selected)">
+    Official
+  </mat-chip-option>
+  <mat-chip-option [selected]="showUnavailable()" (selectionChange)="showUnavailable.set($event.selected)">
+    Show unavailable
+  </mat-chip-option>
+  <mat-chip-option [selected]="showFrFr()" (selectionChange)="showFrFr.set($event.selected)">
+    French only
+  </mat-chip-option>
+</mat-chip-listbox>
+
+<mat-chip
+  class="filters__sort"
+  role="button"
+  tabindex="0"
+  (click)="toggleSort()"
+  (keydown.enter)="toggleSort()"
+  (keydown.space)="toggleSort()"
+  [attr.aria-label]="sortOrder() === 'asc' ? 'Sort ascending' : 'Sort descending'"
+>
+  <mat-icon>sort</mat-icon>
+  Sort by: {{ sortOrder() === 'asc' ? 'Title A-Z' : 'Title Z-A' }}
+</mat-chip>

@@ -1,0 +1,60 @@
+<h2 mat-dialog-title>
+  <mat-icon class="sync-progress__title-icon">sync</mat-icon>
+  Library Synchronization
+</h2>
+
+<mat-dialog-content class="sync-progress__content">
+  <div class="sync-progress__status-row">
+    <span class="sync-progress__status" [class]="statusClass()">
+      {{ statusLabel() }}
+    </span>
+    @if (isRunning()) {
+      <mat-spinner [diameter]="18" />
+    }
+  </div>
+
+  <mat-progress-bar
+    class="sync-progress__bar"
+    [value]="progressPercent()"
+    [mode]="total() > 0 ? 'determinate' : 'indeterminate'"
+  />
+
+  <div class="sync-progress__counter">
+    <span>{{ processed() }} / {{ total() }}</span>
+    <span>{{ progressPercent() }}%</span>
+  </div>
+
+  <div class="sync-progress__stats">
+    <div class="sync-progress__stat">
+      <mat-icon>check_circle</mat-icon>
+      <span>{{ status()?.synchronizedCount ?? 0 }} synced</span>
+    </div>
+    <div class="sync-progress__stat">
+      <mat-icon class="sync-progress__stat--warn">warning</mat-icon>
+      <span>{{ status()?.invalidQueuedCount ?? 0 }} invalid</span>
+    </div>
+    <div class="sync-progress__stat">
+      <mat-icon class="sync-progress__stat--error">error</mat-icon>
+      <span>{{ status()?.failedCount ?? 0 }} failed</span>
+    </div>
+  </div>
+
+  @if (status()?.message) {
+    <p class="sync-progress__message">{{ status()?.message }}</p>
+  }
+
+  @if (isFailed()) {
+    <div class="sync-progress__error">
+      <mat-icon>error_outline</mat-icon>
+      <span>Synchronization failed. Check server logs for details.</span>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (isRunning()) {
+    <button mat-button (click)="close()">Run in background</button>
+  } @else {
+    <button mat-flat-button color="primary" (click)="close()">Close</button>
+  }
+</mat-dialog-actions>

@@ -1,0 +1,82 @@
+<mat-sidenav-container class="pack-container">
+  <mat-sidenav position="end" mode="side" [opened]="isPlugged()" style="width: 400px">
+    <app-device-panel />
+  </mat-sidenav>
+
+  <mat-sidenav-content class="pack-content">
+    <div class="pack__header">
+      <app-pack-filters
+        [(showOfficial)]="showOfficial"
+        [(showUnavailable)]="showUnavailable"
+        [(showFrFr)]="showFrFr"
+        [(sortOrder)]="sortOrder"
+      />
+
+      <div class="pack__actions">
+        <button
+          mat-icon-button
+          matTooltip="Refresh metadata"
+          [disabled]="metadataRefreshing()"
+          (click)="refreshMetadata()"
+          aria-label="Refresh metadata"
+        >
+          @if (metadataRefreshing()) {
+            <mat-spinner [diameter]="20" />
+          } @else {
+            <mat-icon>cloud_download</mat-icon>
+          }
+        </button>
+
+        <button
+          mat-icon-button
+          matTooltip="Sync library"
+          [disabled]="syncing()"
+          (click)="startSync()"
+          aria-label="Sync library"
+        >
+          @if (syncing()) {
+            <mat-spinner [diameter]="20" />
+          } @else {
+            <mat-icon>sync</mat-icon>
+          }
+        </button>
+
+
+
+        <button mat-icon-button class="pack__device-toggle" (click)="toggleSidenav()" [attr.aria-label]="isPlugged() ? 'Toggle device panel' : 'Toggle device panel'">
+          <mat-icon>phone_android</mat-icon>
+          @if (isPlugged()) {
+            <span class="pack__device-dot"></span>
+          }
+        </button>
+      </div>
+    </div>
+
+    <div class="pack-grid">
+      @if (loading()) {
+        <div class="pack-grid__spinner">
+          <mat-spinner [diameter]="36" />
+        </div>
+      } @else if (sortedPacks().length === 0) {
+        <div class="pack-grid__empty">
+          <mat-icon class="pack-grid__empty-icon">inventory_2</mat-icon>
+          <span>No packs found</span>
+        </div>
+      } @else {
+        @for (pack of sortedPacks(); track pack.id) {
+          <app-pack-card [pack]="pack" />
+        }
+      }
+    </div>
+
+    <app-pagination-bar
+      [page]="page()"
+      [pageSize]="pageSize()"
+  [total]="total()"
+  [totalPages]="totalPages()"
+      (pageChange)="setPage($event)"
+      (pageSizeChange)="setPageSize($event)"
+    />
+  </mat-sidenav-content>
+</mat-sidenav-container>
+Ï

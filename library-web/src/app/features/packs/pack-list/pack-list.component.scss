@@ -1,0 +1,92 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+.pack-container {
+  height: 100%;
+  min-height: 0;
+}
+
+.pack-container mat-sidenav {
+  height: 100%;
+}
+
+.pack-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0 1.5rem;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.pack__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pack__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+.pack__device-toggle {
+  position: relative;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+.pack__device-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  border: 1px solid var(--mat-sys-surface);
+}
+
+.pack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  flex: 1;
+  align-content: start;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.pack-grid__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  color: var(--mat-sys-on-surface-variant);
+  gap: 0.5rem;
+}
+
+.pack-grid__empty-icon {
+  font-size: 3rem;
+  width: 3rem;
+  height: 3rem;
+  opacity: 0.3;
+}
+
+.pack-grid__spinner {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+}

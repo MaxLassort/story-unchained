@@ -1,0 +1,23 @@
+{
+  "name": "story-unchained",
+  "version": "0.1.0",
+  "description": "StoryUnchained desktop app (backend Spring Boot + frontend Angular)",
+  "main": "electron/main.js",
+  "author": "maxlass",
+  "license": "MIT",
+  "scripts": {
+    "dev": "STUDIO_DEV=1 electron .",
+    "build:native": "./scripts/build-native.sh",
+    "build:jar": "./scripts/build-jar.sh",
+    "build:jre": "./scripts/build-jre.sh",
+    "build:front": "./scripts/build-front.sh",
+    "build": "npm run build:native && npm run build:jar && npm run build:jre && npm run build:front",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  }
+}

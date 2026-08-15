@@ -1,0 +1,18 @@
+  <mat-form-field class="pagination__size" appearance="outline" subscriptSizing="dynamic">
+    <mat-select [value]="pageSize()" (selectionChange)="onPageSizeChange($event.value)">
+      @for (size of pageSizes; track size) {
+        <mat-option [value]="size">{{ size }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+
+<div class="pagination__center">
+  <button mat-icon-button (click)="prev()" [disabled]="isFirstPage()">
+    <mat-icon>chevron_left</mat-icon>
+  </button>
+  <span class="pagination__info">{{ range() }}</span>
+  <button mat-icon-button (click)="next()" [disabled]="isLastPage()">
+    <mat-icon>chevron_right</mat-icon>
+  </button>
+</div>

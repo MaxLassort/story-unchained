@@ -1,0 +1,76 @@
+<div class="devices-page">
+  <div class="devices-page__header">
+    <button mat-icon-button (click)="goBack()" aria-label="Back to packs">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h1 class="devices-page__title">Devices</h1>
+  </div>
+
+  @if (loading()) {
+    <div class="devices-page__loading">
+      <mat-spinner [diameter]="36" />
+    </div>
+  } @else if (snapshots().length === 0) {
+    <div class="devices-page__empty">
+      <mat-icon class="devices-page__empty-icon">usb_off</mat-icon>
+      <h2>No devices seen yet</h2>
+      <p>Plug in a Lunii and its pack list will be saved here automatically.</p>
+    </div>
+  } @else {
+    <mat-tab-group
+      class="devices-page__tabs"
+      [selectedIndex]="selectedIndex()"
+      (selectedIndexChange)="selectedIndex.set($event)"
+      mat-stretch-tabs="false"
+    >
+      @for (snap of snapshots(); track snap.uuid; let i = $index) {
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="devices-tab__label">
+              <mat-icon class="devices-tab__icon">phone_android</mat-icon>
+              <span class="devices-tab__uuid">{{ shortUuid(snap.uuid) }}</span>
+              @if (isPluggedUuid(snap.uuid)) {
+                <span class="devices-tab__dot" matTooltip="Currently plugged"></span>
+              }
+              <span class="devices-tab__count">{{ snap.packCount }}</span>
+            </span>
+          </ng-template>
+
+          <div class="devices-tab__content">
+            <div class="devices-tab__meta">
+              <span><strong>UUID:</strong> <code>{{ snap.uuid }}</code></span>
+              <span><strong>Last seen:</strong> {{ formatDate(snap.lastSeenAtEpochMs) }}</span>
+            </div>
+
+            @if (snap.packs.length === 0) {
+              <div class="devices-tab__no-packs">
+                <mat-icon>inventory_2</mat-icon>
+                <span>No packs recorded on this device.</span>
+              </div>
+            } @else {
+              <mat-list class="devices-tab__list">
+                @for (pack of snap.packs; track pack.uuid) {
+                  <mat-list-item>
+                    <img
+                      matListItemAvatar
+                      [src]="thumbnailUrl(pack)"
+                      alt=""
+                      class="devices-tab__thumb"
+                    />
+                    <span matListItemTitle [matTooltip]="pack.title ?? pack.uuid">
+                      {{ pack.title ?? pack.uuid }}
+                    </span>
+                    <span matListItemLine class="devices-tab__pack-meta">
+                      <code>{{ pack.uuid }}</code>
+                      <span class="devices-tab__pack-size">{{ formatSize(pack.sizeInBytes) }}</span>
+                    </span>
+                  </mat-list-item>
+                }
+              </mat-list>
+            }
+          </div>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  }
+</div>

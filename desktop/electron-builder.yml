@@ -1,0 +1,43 @@
+appId: com.maxlass.storyunchained
+productName: StoryUnchained
+copyright: © 2026 maxlass
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - electron/**
+  - dist/browser/**
+
+extraResources:
+  - from: resources/api.jar
+    to: api.jar
+  - from: resources/jre
+    to: jre
+
+mac:
+  category: public.app-category.utilities
+  identity: null
+  icon: assets/icon.png
+  target:
+    - target: dmg
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
+
+win:
+  icon: assets/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+npmRebuild: false
+
+electronLanguages:
+  - fr
+  - en

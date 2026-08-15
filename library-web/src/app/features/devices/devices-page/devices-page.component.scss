@@ -1,0 +1,158 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.devices-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.devices-page__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0 0.5rem;
+}
+
+.devices-page__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.devices-page__loading,
+.devices-page__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}
+
+.devices-page__empty h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.devices-page__empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.devices-page__empty-icon {
+  font-size: 3rem;
+  width: 3rem;
+  height: 3rem;
+  opacity: 0.3;
+}
+
+.devices-page__tabs {
+  flex: 1;
+  min-height: 0;
+}
+
+.devices-tab__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.devices-tab__icon {
+  font-size: 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.devices-tab__uuid {
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.devices-tab__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  margin-left: 0.15rem;
+}
+
+.devices-tab__count {
+  background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+  color: var(--mat-sys-primary);
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 1.25rem;
+  text-align: center;
+}
+
+.devices-tab__content {
+  padding: 1rem 0;
+}
+
+.devices-tab__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--mat-sys-surface-container-low);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.devices-tab__meta code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface);
+}
+
+.devices-tab__no-packs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.devices-tab__list {
+  padding: 0;
+}
+
+.devices-tab__thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--mat-sys-surface-container);
+}
+
+.devices-tab__pack-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.devices-tab__pack-meta code {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.devices-tab__pack-size {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}

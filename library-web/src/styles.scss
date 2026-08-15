@@ -1,0 +1,83 @@
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$orange-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  // StoryUnchained brand primary, matching the first UI mockup.
+  --mat-sys-primary: #ff542d;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #ffdbd0;
+  --mat-sys-on-primary-container: #3b0800;
+}
+
+body {
+  // Default the application to a light color theme. This can be changed to
+  // `dark` to enable the dark color theme, or to `light dark` to defer to the
+  // user's system settings.
+  color-scheme: light;
+
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+  height: 100%;
+}
+
+// Angular inserts routed component hosts immediately after router-outlet.
+// Make that host consume the height left below the global header.
+app-root .app-content > router-outlet + * {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.snackbar-success {
+  --mdc-snackbar-container-color: #2e7d32;
+  --mdc-snackbar-supporting-text-color: #fff;
+  --mat-snack-bar-actions-color: #fff;
+
+  .mdc-button__label {
+    color: #fff;
+  }
+}
+
+.snackbar-error {
+  --mdc-snackbar-container-color: #c62828;
+  --mdc-snackbar-supporting-text-color: #fff;
+  --mat-snack-bar-actions-color: #fff;
+
+  .mdc-button__label {
+    color: #fff;
+  }
+}
+
+// Material's MatDialogContainer ships component-encapsulated styles with
+// `padding-top: 0` on the content adjacent to the title. That rule has higher
+// specificity than a plain global selector because of the encapsulation
+// attributes, so a normal override silently loses. `!important` is required
+// to push the content below the title and prevent floating-label inputs
+// from being visually overlapped.
+.mat-mdc-dialog-container .mat-mdc-dialog-title + .mat-mdc-dialog-content {
+  padding-top: 1rem !important;
+}

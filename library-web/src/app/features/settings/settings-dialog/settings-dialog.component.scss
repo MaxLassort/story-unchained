@@ -1,0 +1,60 @@
+:host {
+  display: block;
+}
+
+.settings-dialog__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.settings-dialog__warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
+  color: var(--mat-sys-error);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.settings-dialog__warning mat-icon {
+  flex-shrink: 0;
+}
+
+.settings-dialog__help {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.25rem;
+  background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.settings-dialog__help mat-icon {
+  flex-shrink: 0;
+  color: var(--mat-sys-primary);
+}
+
+.settings-dialog__help ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.settings-dialog__help kbd {
+  background: var(--mat-sys-surface-container);
+  padding: 0 0.25rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.85em;
+  border: 1px solid var(--mat-sys-outline-variant);
+}

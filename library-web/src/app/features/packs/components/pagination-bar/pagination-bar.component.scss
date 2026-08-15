@@ -1,0 +1,16 @@
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+.pagination__info {
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+  min-width: 120px;
+  text-align: center;
+}
+.pagination__size {
+  width: 80px;
+}

@@ -1,0 +1,64 @@
+<div class="card" [class.card--flipped]="flipped()" (click)="toggleFlip()">
+  <div class="card__face">
+    <div class="card__thumbnail">
+      <img class="card__thumbnail-img" [src]="thumbnailUrl()" alt="" (error)="imgError.set(true)" [hidden]="imgError()" />
+      @if (imgError()) {
+        <mat-icon class="card__placeholder-icon">image</mat-icon>
+      }
+      <div class="card__badges">
+        @for (format of formats(); track format) {
+          <app-format-badge [format]="format" />
+        }
+        @if (isOfficial()) { <span class="card__official-badge">Official</span> }
+      </div>
+      <div class="card__flip-hint">
+        <mat-icon class="card__flip-icon">info</mat-icon> Details
+      </div>
+
+      <div class="card__fab" (click)="$event.stopPropagation()">
+        <button mat-mini-fab color="primary" [matMenuTriggerFor]="menu">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="edit()">
+            <mat-icon>edit</mat-icon> Edit
+          </button>
+          <button mat-menu-item [matMenuTriggerFor]="convertMenu">
+            <mat-icon>transform</mat-icon> Convert
+          </button>
+          <button mat-menu-item (click)="copyToDevice()">
+            <mat-icon>phone_android</mat-icon> Copy to device
+          </button>
+          <mat-divider />
+          <button mat-menu-item (click)="delete()">
+            <mat-icon color="warn">delete</mat-icon> Delete
+          </button>
+        </mat-menu>
+        <mat-menu #convertMenu="matMenu">
+          <button mat-menu-item (click)="convert()">
+            <mat-icon>compare_arrows</mat-icon> Choose formats...
+          </button>
+        </mat-menu>
+      </div>
+    </div>
+    <p class="card__title">{{ title() }}</p>
+  </div>
+
+  <div class="card__face card__back">
+    <p class="card__title">{{ title() }}</p>
+    <span class="card__age">{{ ageRange() }}</span>
+    @if (description()) {
+      @if (isOfficial()) {
+        <p
+          class="card__description"
+          [innerHTML]="description()"
+        ></p>
+      } @else {
+        <p class="card__description">{{ description() }}</p>
+      }
+    }
+  </div>
+
+  <app-loading-overlay [visible]="converting()" label="Converting..." [fullscreen]="false" />
+  <app-loading-overlay [visible]="copyingToDevice() || deleting()" [label]="deleting() ? 'Deleting...' : 'Copying to device...'" />
+</div>

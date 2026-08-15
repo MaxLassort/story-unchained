@@ -1,0 +1,46 @@
+<h2 mat-dialog-title>Settings</h2>
+<mat-dialog-content class="settings-dialog__content">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Library path</mat-label>
+    <input
+      matInput
+      [(ngModel)]="libraryPath"
+      placeholder="/Users/me/LuniiPacks"
+      autocomplete="off"
+    />
+    <mat-icon matSuffix>folder</mat-icon>
+    <mat-hint>Absolute path to the folder containing your pack files</mat-hint>
+  </mat-form-field>
+
+  <div class="settings-dialog__help">
+    <mat-icon>info_outline</mat-icon>
+    <div>
+      <strong>How to get the absolute path on macOS:</strong>
+      <ul>
+        <li>In Finder, hold <kbd>⌥ Option</kbd> and right-click the folder → "Copy &lt;name&gt; as Pathname"</li>
+        <li>Or drag the folder from Finder into a Terminal window</li>
+      </ul>
+    </div>
+  </div>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Target device type</mat-label>
+    <mat-select [(ngModel)]="target">
+      @for (opt of targetOptions; track opt.value) {
+        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+      }
+    </mat-select>
+    <mat-hint>Preferred format when no device is plugged</mat-hint>
+  </mat-form-field>
+
+  @if (libraryChanged) {
+    <div class="settings-dialog__warning">
+      <mat-icon>warning</mat-icon>
+      <span>Changing the library path will clear the database and trigger a full re-sync.</span>
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button color="primary" (click)="save()">Save</button>
+</mat-dialog-actions>
