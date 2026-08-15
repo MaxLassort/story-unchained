@@ -1,0 +1,181 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    name: Build macOS (arm64)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute version
+        run: echo "VERSION=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: arm64
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            library-web/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: library-web
+        run: corepack enable && npm ci
+
+      - name: Install desktop deps
+        working-directory: desktop
+        run: corepack enable && npm ci
+
+      - name: Set frontend version
+        working-directory: library-web
+        run: npm pkg set version="$VERSION"
+
+      - name: Set desktop version
+        working-directory: desktop
+        run: npm pkg set version="$VERSION"
+
+      - name: Build backend jar
+        working-directory: desktop
+        run: APP_VERSION="$VERSION" npm run build:jar
+
+      - name: Build JRE (arm64)
+        working-directory: desktop
+        run: ARM64_JDK="$JAVA_HOME" npm run build:jre
+
+      - name: Build frontend
+        working-directory: desktop
+        run: npm run build:front
+
+      - name: Package macOS app
+        working-directory: desktop
+        run: npx electron-builder --mac
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: mac-arm64
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute version
+        shell: bash
+        run: echo "VERSION=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: x64
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            library-web/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: library-web
+        shell: pwsh
+        run: corepack enable; npm ci
+
+      - name: Install desktop deps
+        working-directory: desktop
+        shell: pwsh
+        run: corepack enable; npm ci
+
+      - name: Set frontend version
+        working-directory: library-web
+        shell: pwsh
+        run: npm pkg set "version=$env:VERSION"
+
+      - name: Set desktop version
+        working-directory: desktop
+        shell: pwsh
+        run: npm pkg set "version=$env:VERSION"
+
+      - name: Build backend jar
+        shell: pwsh
+        run: |
+          Push-Location api
+          .\gradlew.bat bootJar "-PappVersion=$env:VERSION"
+          Pop-Location
+          New-Item -ItemType Directory -Force -Path desktop/resources | Out-Null
+          Copy-Item "api/build/libs/api-$env:VERSION.jar" desktop/resources/api.jar
+
+      - name: Build JRE (x64)
+        shell: pwsh
+        run: |
+          $modules = 'java.base,java.compiler,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.transaction.xa,java.xml,jdk.unsupported,jdk.crypto.ec,jdk.localedata'
+          Remove-Item -Recurse -Force desktop/resources/jre -ErrorAction SilentlyContinue
+          & "$env:JAVA_HOME\bin\jlink" --add-modules $modules --output desktop/resources/jre --strip-debug --no-man-pages --no-header-files --compress=2
+
+      - name: Build frontend
+        shell: pwsh
+        run: |
+          Push-Location library-web
+          npx ng build --base-href ./
+          Pop-Location
+          Remove-Item -Recurse -Force desktop/dist -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path desktop/dist | Out-Null
+          Copy-Item -Recurse library-web/dist/library-web/browser desktop/dist/browser
+
+      - name: Package Windows app
+        working-directory: desktop
+        shell: pwsh
+        run: npx electron-builder --win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-x64
+          path: desktop/release/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            artifacts/mac-arm64/*.dmg
+            artifacts/mac-arm64/*.zip
+            artifacts/windows-x64/*.exe
+          generate_release_notes: true
