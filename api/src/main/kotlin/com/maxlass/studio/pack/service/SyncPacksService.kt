@@ -64,6 +64,7 @@ class SyncPacksService(
     private val fingerprinter: PackFingerprinter,
     transactionManager: PlatformTransactionManager,
     private val studioProperties: StudioProperties,
+    private val syncUnofficialMetadata: SyncUnofficialMetadataUseCase,
 ) {
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queueProcessing = AtomicBoolean(false)
@@ -186,6 +187,8 @@ class SyncPacksService(
         }
         finishJob(jobId, JOB_DONE, finalMessage)
         triggerBackgroundQueueProcessing()
+        runCatching { syncUnofficialMetadata.invoke() }
+            .onFailure { log.warn("Sync des métadonnées Studio non officielles échoué: {}", it.message) }
     }
 
     private fun insertOfficialCatalogPacks(officialCache: Map<String, OfficialMetadataDto>) {

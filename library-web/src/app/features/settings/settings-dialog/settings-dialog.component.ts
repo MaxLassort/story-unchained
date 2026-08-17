@@ -21,6 +21,7 @@ interface DialogData {
 interface SettingsFormModel {
   libraryPath: string;
   target: TargetType;
+  unofficialDbPath: string;
 }
 
 const TARGET_OPTIONS: { label: string; value: TargetType }[] = [
@@ -28,6 +29,8 @@ const TARGET_OPTIONS: { label: string; value: TargetType }[] = [
   { label: 'V1 / RAW', value: 'RAW' },
   { label: 'V2 / FS', value: 'FS' },
 ];
+
+const DEFAULT_UNOFFICIAL_DB_PATH = '~/.studio/db/unofficial.json';
 
 function settingsToTarget(s: Settings): TargetType {
   if (s.targetDeviceType === 'RAW') return 'RAW';
@@ -39,6 +42,7 @@ function settingsToModel(s: Settings): SettingsFormModel {
   return {
     libraryPath: s.libraryPath ?? '',
     target: settingsToTarget(s),
+    unofficialDbPath: s.unofficialDbPath ?? '',
   };
 }
 
@@ -65,6 +69,7 @@ export class SettingsDialogComponent {
   private readonly syncService = inject(SyncService);
 
   protected readonly targetOptions = TARGET_OPTIONS;
+  protected readonly defaultUnofficialDbPath = DEFAULT_UNOFFICIAL_DB_PATH;
 
   protected readonly syncing = this.syncService.syncing;
 
@@ -72,9 +77,13 @@ export class SettingsDialogComponent {
   protected readonly form = form(this.model);
 
   private readonly originalLibraryPath = this.data.settings.libraryPath ?? '';
+  private readonly originalUnofficialDbPath = this.data.settings.unofficialDbPath ?? '';
 
   protected readonly libraryChanged = computed(
     () => this.model().libraryPath !== this.originalLibraryPath,
+  );
+  protected readonly unofficialDbChanged = computed(
+    () => this.model().unofficialDbPath !== this.originalUnofficialDbPath,
   );
 
   protected async browseLibraryPath(): Promise<void> {
@@ -88,6 +97,18 @@ export class SettingsDialogComponent {
     }
   }
 
+  protected async browseUnofficialDb(): Promise<void> {
+    const selected = await this.desktop.selectFile({
+      title: 'Select Studio unofficial DB file',
+      defaultPath: this.model().unofficialDbPath || undefined,
+      buttonLabel: 'Select file',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (selected) {
+      this.model.update((m) => ({ ...m, unofficialDbPath: selected }));
+    }
+  }
+
   protected async startSync(): Promise<void> {
     await this.syncService.startSync();
   }
@@ -96,6 +117,7 @@ export class SettingsDialogComponent {
     const m = this.model();
     const next: Settings = {
       libraryPath: m.libraryPath,
+      unofficialDbPath: m.unofficialDbPath.trim() || null,
       targetDeviceType: m.target === 'AUTO' ? null : m.target,
     };
     this.dialogRef.close(next);

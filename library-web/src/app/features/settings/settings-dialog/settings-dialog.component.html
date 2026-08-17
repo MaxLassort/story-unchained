@@ -32,7 +32,7 @@
     </div>
   </div>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Target device type</mat-label>
     <mat-select [formField]="form.target">
       @for (opt of targetOptions; track opt.value) {
@@ -41,6 +41,41 @@
     </mat-select>
     <mat-hint>Preferred format when no device is plugged</mat-hint>
   </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Studio unofficial DB path</mat-label>
+    <input
+      matInput
+      [formField]="form.unofficialDbPath"
+      [placeholder]="defaultUnofficialDbPath"
+      autocomplete="off"
+    />
+    <button
+      matSuffix
+      mat-icon-button
+      type="button"
+      matTooltip="Browse for file"
+      aria-label="Browse for Studio unofficial DB file"
+      (click)="browseUnofficialDb()"
+    >
+      <mat-icon>folder_open</mat-icon>
+    </button>
+    <mat-hint>
+      Leave empty to use the default: <code>{{ defaultUnofficialDbPath }}</code>
+    </mat-hint>
+  </mat-form-field>
+
+  <div class="settings-dialog__help">
+    <mat-icon>info_outline</mat-icon>
+    <div>
+      <strong>Where is the Studio database?</strong>
+      <p>
+        Studio stores its non-official packs database in <code>~/.studio/db/</code> (file
+        <code>unofficial.json</code>), created automatically on first launch. If you moved it,
+        enter the path to the <code>unofficial.json</code> file above.
+      </p>
+    </div>
+  </div>
 
   @if (libraryChanged()) {
     <div class="settings-dialog__warning">
@@ -56,15 +91,16 @@
       [disabled]="syncing()"
       (click)="startSync()"
     >
-      <span class="settings-dialog__sync">
-        @if (syncing()) {
-          <mat-spinner [diameter]="18" />
-        } @else {
-          <mat-icon>sync</mat-icon>
-        }
-        <span>Sync library</span>
-      </span>
+      @if (syncing()) {
+        <mat-spinner [diameter]="18" />
+      } @else {
+        <mat-icon>sync</mat-icon>
+      }
+      Sync library
     </button>
+    @if (unofficialDbChanged()) {
+      <span class="settings-dialog__actions-hint">Save to apply the new DB path</span>
+    }
   </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">

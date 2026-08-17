@@ -35,6 +35,7 @@ class SettingsRepositoryImpl(
 
             val defaultSettings = Settings(
                 libraryPath = defaultLibrary.absolutePath,
+                unofficialDbPath = null,
                 targetDeviceType = null
             )
             saveSettings(defaultSettings)

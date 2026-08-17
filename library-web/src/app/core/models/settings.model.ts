@@ -1,5 +1,6 @@
 export interface Settings {
   libraryPath: string;
+  unofficialDbPath: string | null;
   targetDeviceType: string | null;
 }
 

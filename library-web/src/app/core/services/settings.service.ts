@@ -12,7 +12,7 @@ export class SettingsService {
   private readonly baseUrl = `${environment.apiUrl}/settings`;
   private readonly silentContext = new HttpContext().set(SKIP_ERROR_SNACKBAR, true);
 
-  readonly settings = signal<Settings>({ libraryPath: '', targetDeviceType: null });
+  readonly settings = signal<Settings>({ libraryPath: '', unofficialDbPath: null, targetDeviceType: null });
 
   async load(): Promise<void> {
     try {

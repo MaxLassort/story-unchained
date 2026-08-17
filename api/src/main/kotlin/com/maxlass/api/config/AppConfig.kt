@@ -3,12 +3,14 @@ package com.maxlass.api.config
 import com.maxlass.studio.infrastructure.config.StudioProperties
 import com.maxlass.studio.infrastructure.metadata.MetadataStore
 import com.maxlass.studio.pack.adapter.ExtractThumbnailFromFsPackAdapter
+import com.maxlass.studio.pack.adapter.LoadUnofficialMetadataFromFileAdapter
 import com.maxlass.studio.pack.adapter.MetaDataReaderAdapter
 import com.maxlass.studio.pack.adapter.MetadataRefreshAdapter
 import com.maxlass.studio.pack.adapter.StudioCorePackFormatConverterAdapter
 import com.maxlass.studio.pack.adapter.UpdateZipMetadataAdapter
 import com.maxlass.studio.pack.cache.ThumbnailCache
 import com.maxlass.studio.pack.port.external.ExtractThumbnailFromFsPackPort
+import com.maxlass.studio.pack.port.external.LoadUnofficialMetadataFromFilePort
 import com.maxlass.studio.pack.port.external.MetaDataReaderPort
 import com.maxlass.studio.pack.port.external.MetadataRefreshPort
 import com.maxlass.studio.pack.port.external.PackFormatConverterPort
@@ -51,4 +53,7 @@ class AppConfig {
 
     @Bean
     fun updatePackFileMetadataPort(): UpdatePackFileMetadataPort = UpdateZipMetadataAdapter()
+
+    @Bean
+    fun loadUnofficialMetadataFromFilePort(): LoadUnofficialMetadataFromFilePort = LoadUnofficialMetadataFromFileAdapter()
 }

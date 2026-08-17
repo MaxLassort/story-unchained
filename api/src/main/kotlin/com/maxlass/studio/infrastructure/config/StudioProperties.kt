@@ -20,6 +20,10 @@ data class StudioProperties(
     val officialJsonPath: Path
         get() = metadataDbDir.resolve(officialJsonFileName)
 
+    /** Default path for Studio's unofficial.json when not set in settings (~/.studio/db/unofficial.json). */
+    val defaultUnofficialJsonPath: Path
+        get() = Path.of(System.getProperty("user.home"), ".studio", "db", "unofficial.json")
+
     /** User settings file. */
     val settingsFile: Path
         get() = storageDir.resolve(settingsFileName)
