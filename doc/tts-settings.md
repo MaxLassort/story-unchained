@@ -15,8 +15,10 @@ dans le fichier de settings de l'application. Sans clé configurée, un **fallba
 | Champ (`Settings`) | Type | Valeurs | Défaut |
 |---|---|---|---|
 | `ttsProvider` | `String?` | `"OPENAI"`, `"ELEVENLABS"`, ou `null` (= `"FREE"`) | `null` |
-| `ttsApiKey` | `String?` | clé API de l'utilisateur | `null` |
-| `ttsVoice` | `String?` | voix du provider (ex. `alloy` pour OpenAI) | `null` |
+| `ttsOpenAiApiKey` | `String?` | clé API OpenAI (BYOK) | `null` |
+| `ttsElevenLabsApiKey` | `String?` | clé API ElevenLabs (BYOK) | `null` |
+| `ttsVoice` | `String?` | voix du provider (ex. `alloy` pour OpenAI, voice id ElevenLabs) | `null` |
+| `ttsLang` | `String?` | langue ISO 639-1 (ex. `fr`), utilisée par le fallback gratuit | `null` (= `fr`) |
 
 > `null` et chaîne vide sont équivalents côté front : le provider par défaut est le **fallback
 > gratuit** (`FREE`), qui ne nécessite aucune clé.
@@ -33,8 +35,10 @@ répertoire `studio.storage-dir` de `StudioProperties` (défaut `~/.luniiUnchain
   "unofficialDbPath": null,
   "targetDeviceType": null,
   "ttsProvider": "OPENAI",
-  "ttsApiKey": "sk-...",
-  "ttsVoice": "alloy"
+  "ttsOpenAiApiKey": "sk-...",
+  "ttsElevenLabsApiKey": "sk_...",
+  "ttsVoice": "alloy",
+  "ttsLang": "fr"
 }
 ```
 
@@ -85,5 +89,6 @@ Le front mappe `ttsProvider = "FREE"` → `null` à l'enregistrement.
 
 ## 6. Consommateurs
 
-- Étape 2 (moteur TTS) : `TtsEngine` lira `settings.ttsProvider` / `ttsApiKey` / `ttsVoice` pour
+- Étape 2 (moteur TTS) : `TtsEngine` lira `settings.ttsProvider` / `ttsOpenAiApiKey` /
+  `ttsElevenLabsApiKey` / `ttsVoice` / `ttsLang` pour
   sélectionner l'adaptateur (OpenAI, ElevenLabs, fallback gratuit).

@@ -32,7 +32,8 @@ class SettingsRepositoryImplTest : StringSpec({
         settings.unofficialDbPath shouldBe null
         settings.targetDeviceType shouldBe null
         settings.ttsProvider shouldBe null
-        settings.ttsApiKey shouldBe null
+        settings.ttsOpenAiApiKey shouldBe null
+        settings.ttsElevenLabsApiKey shouldBe null
         settings.ttsVoice shouldBe null
         tempDir.resolve("settings.json").toFile().exists() shouldBe true
     }
@@ -46,14 +47,16 @@ class SettingsRepositoryImplTest : StringSpec({
                 unofficialDbPath = "~/.studio/db/unofficial.json",
                 targetDeviceType = "FS",
                 ttsProvider = "OPENAI",
-                ttsApiKey = "sk-test-123",
+                ttsOpenAiApiKey = "sk-test-123",
+                ttsElevenLabsApiKey = "el-key-456",
                 ttsVoice = "alloy",
             )
         )
 
         val reloaded = SettingsRepositoryImpl(StudioProperties(storageDir = tempDir)).getSettings()
         reloaded.ttsProvider shouldBe "OPENAI"
-        reloaded.ttsApiKey shouldBe "sk-test-123"
+        reloaded.ttsOpenAiApiKey shouldBe "sk-test-123"
+        reloaded.ttsElevenLabsApiKey shouldBe "el-key-456"
         reloaded.ttsVoice shouldBe "alloy"
     }
 
@@ -65,7 +68,7 @@ class SettingsRepositoryImplTest : StringSpec({
             {
               "libraryPath": "/packs",
               "ttsProvider": "ELEVENLABS",
-              "ttsApiKey": "el-key",
+              "ttsElevenLabsApiKey": "el-key",
               "futureField": "ignored"
             }
             """.trimIndent()
@@ -75,7 +78,7 @@ class SettingsRepositoryImplTest : StringSpec({
 
         settings.libraryPath shouldBe "/packs"
         settings.ttsProvider shouldBe "ELEVENLABS"
-        settings.ttsApiKey shouldBe "el-key"
+        settings.ttsElevenLabsApiKey shouldBe "el-key"
         settings.ttsVoice shouldBe null
     }
 })

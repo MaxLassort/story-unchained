@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { Settings } from '../models';
+import type { Settings, TtsVoicesResponse } from '../models';
 import { SKIP_ERROR_SNACKBAR } from './http-context';
 
 import { environment } from '../../../environments/environment';
@@ -10,6 +10,7 @@ import { environment } from '../../../environments/environment';
 export class SettingsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/settings`;
+  private readonly ttsBaseUrl = `${environment.apiUrl}/tts`;
   private readonly silentContext = new HttpContext().set(SKIP_ERROR_SNACKBAR, true);
 
   readonly settings = signal<Settings>({
@@ -17,8 +18,10 @@ export class SettingsService {
     unofficialDbPath: null,
     targetDeviceType: null,
     ttsProvider: null,
-    ttsApiKey: null,
+    ttsOpenAiApiKey: null,
+    ttsElevenLabsApiKey: null,
     ttsVoice: null,
+    ttsLang: null,
   });
 
   async load(): Promise<void> {
@@ -36,5 +39,15 @@ export class SettingsService {
     const s = await firstValueFrom(this.http.put<Settings>(this.baseUrl, settings));
     this.settings.set(s);
     return s;
+  }
+
+  /** Lists the voices available for a TTS provider (null/undefined → FREE). */
+  async getVoices(provider: string | null): Promise<TtsVoicesResponse> {
+    const params = provider ? `?provider=${encodeURIComponent(provider)}` : '';
+    return firstValueFrom(
+      this.http.get<TtsVoicesResponse>(`${this.ttsBaseUrl}/voices${params}`, {
+        context: this.silentContext,
+      }),
+    );
   }
 }

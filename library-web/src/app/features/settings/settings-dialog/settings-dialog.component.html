@@ -79,37 +79,70 @@
 
   <h3 class="settings-dialog__section-title">Text-to-speech</h3>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>TTS provider</mat-label>
-    <mat-select [formField]="form.ttsProvider">
-      @for (opt of ttsProviderOptions; track opt.value) {
-        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-      }
-    </mat-select>
-    <mat-hint>Provider used to generate story title audio. Free fallback requires no API key.</mat-hint>
-  </mat-form-field>
-
-  @if (model().ttsProvider !== 'FREE') {
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>API key</mat-label>
-      <input
-        matInput
-        [formField]="form.ttsApiKey"
-        placeholder="sk-…"
-        autocomplete="off"
-      />
-      <mat-hint>Your own key, stored locally in the settings file</mat-hint>
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>TTS provider</mat-label>
+      <mat-select [formField]="form.ttsProvider" (selectionChange)="refreshVoices()">
+        @for (opt of ttsProviderOptions; track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Provider used to generate story title audio. Free fallback requires no API key.</mat-hint>
     </mat-form-field>
 
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Voice</mat-label>
+      <mat-label>Language</mat-label>
+      <mat-select [formField]="form.ttsLang">
+        @for (opt of ttsLangOptions; track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Language of the generated audio (used by the free fallback)</mat-hint>
+    </mat-form-field>
+
+  @if (model().ttsProvider === 'OPENAI') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>OpenAI API key</mat-label>
       <input
         matInput
-        [formField]="form.ttsVoice"
-        placeholder="alloy"
+        [formField]="form.ttsOpenAiApiKey"
+        placeholder="sk-…"
         autocomplete="off"
+        (input)="refreshVoices()"
       />
-      <mat-hint>Optional, leave empty for the provider default</mat-hint>
+      <mat-hint>Your own OpenAI key, stored locally in the settings file</mat-hint>
+    </mat-form-field>
+  } @else if (model().ttsProvider === 'ELEVENLABS') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>ElevenLabs API key</mat-label>
+      <input
+        matInput
+        [formField]="form.ttsElevenLabsApiKey"
+        placeholder="sk_…"
+        autocomplete="off"
+        (input)="refreshVoices()"
+      />
+      <mat-hint>Your own ElevenLabs key, stored locally in the settings file</mat-hint>
+    </mat-form-field>
+  }
+
+    @if (model().ttsProvider !== 'FREE') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Voice</mat-label>
+      <mat-select [formField]="form.ttsVoice">
+        @for (voice of voices(); track voice.id) {
+          <mat-option [value]="voice.id">{{ voice.name }}</mat-option>
+        }
+      </mat-select>
+      @if (voicesLoading()) {
+        <mat-progress-spinner matSuffix [diameter]="18" />
+      }
+      @if (voicesError()) {
+        <mat-hint>{{ voicesError() }}</mat-hint>
+      } @else if (voicesFallback()) {
+        <mat-hint>Default voices (live list unavailable: your API key may lack the voices_read permission)</mat-hint>
+      } @else {
+        <mat-hint>Voice used for the generated audio</mat-hint>
+      }
     </mat-form-field>
   }
 
