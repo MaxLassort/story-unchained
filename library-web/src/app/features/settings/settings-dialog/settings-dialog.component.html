@@ -77,6 +77,42 @@
     </div>
   </div>
 
+  <h3 class="settings-dialog__section-title">Text-to-speech</h3>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>TTS provider</mat-label>
+    <mat-select [formField]="form.ttsProvider">
+      @for (opt of ttsProviderOptions; track opt.value) {
+        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+      }
+    </mat-select>
+    <mat-hint>Provider used to generate story title audio. Free fallback requires no API key.</mat-hint>
+  </mat-form-field>
+
+  @if (model().ttsProvider !== 'FREE') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>API key</mat-label>
+      <input
+        matInput
+        [formField]="form.ttsApiKey"
+        placeholder="sk-…"
+        autocomplete="off"
+      />
+      <mat-hint>Your own key, stored locally in the settings file</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Voice</mat-label>
+      <input
+        matInput
+        [formField]="form.ttsVoice"
+        placeholder="alloy"
+        autocomplete="off"
+      />
+      <mat-hint>Optional, leave empty for the provider default</mat-hint>
+    </mat-form-field>
+  }
+
   @if (libraryChanged()) {
     <div class="settings-dialog__warning">
       <mat-icon>warning</mat-icon>

@@ -10,5 +10,11 @@ data class Settings(
     /** Path to Studio Core unofficial.json (e.g. ~/.studio/db/unofficial.json). */
     val unofficialDbPath: String? = null,
     /** Preferred Lunii target type when no device is plugged ("RAW", "FS"), or null for auto mode. */
-    val targetDeviceType: String? = null
+    val targetDeviceType: String? = null,
+    /** Text-to-speech provider used for story creation ("OPENAI", "ELEVENLABS"), or null/blank for the free fallback ("FREE"). */
+    val ttsProvider: String? = null,
+    /** User API key for the TTS provider (BYOK). Stored in plain text in the local settings file. */
+    val ttsApiKey: String? = null,
+    /** Preferred TTS voice for the configured provider, or null for the provider default. */
+    val ttsVoice: String? = null
 )

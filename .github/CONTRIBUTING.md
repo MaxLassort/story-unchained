@@ -38,7 +38,7 @@ main
 - `feature/*` — nouvelle fonctionnalité
 - `fix/*` — correction de bug
 - `refactor/*` — refactorisation / nettoyage
-- `docs/*` — documentation
+- `../plans/*` — documentation
 
 ## 2. Développer
 

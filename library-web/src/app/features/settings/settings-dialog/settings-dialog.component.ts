@@ -14,6 +14,8 @@ import { SyncService } from '../../../core/services/sync.service';
 
 type TargetType = 'AUTO' | 'RAW' | 'FS';
 
+type TtsProvider = 'FREE' | 'OPENAI' | 'ELEVENLABS';
+
 interface DialogData {
   settings: Settings;
 }
@@ -22,12 +24,21 @@ interface SettingsFormModel {
   libraryPath: string;
   target: TargetType;
   unofficialDbPath: string;
+  ttsProvider: TtsProvider;
+  ttsApiKey: string;
+  ttsVoice: string;
 }
 
 const TARGET_OPTIONS: { label: string; value: TargetType }[] = [
   { label: 'Auto (detect when plugged)', value: 'AUTO' },
   { label: 'V1 / RAW', value: 'RAW' },
   { label: 'V2 / FS', value: 'FS' },
+];
+
+const TTS_PROVIDER_OPTIONS: { label: string; value: TtsProvider }[] = [
+  { label: 'Free (Google Translate)', value: 'FREE' },
+  { label: 'OpenAI', value: 'OPENAI' },
+  { label: 'ElevenLabs', value: 'ELEVENLABS' },
 ];
 
 const DEFAULT_UNOFFICIAL_DB_PATH = '~/.studio/db/unofficial.json';
@@ -38,11 +49,20 @@ function settingsToTarget(s: Settings): TargetType {
   return 'AUTO';
 }
 
+function settingsToTtsProvider(s: Settings): TtsProvider {
+  if (s.ttsProvider === 'OPENAI') return 'OPENAI';
+  if (s.ttsProvider === 'ELEVENLABS') return 'ELEVENLABS';
+  return 'FREE';
+}
+
 function settingsToModel(s: Settings): SettingsFormModel {
   return {
     libraryPath: s.libraryPath ?? '',
     target: settingsToTarget(s),
     unofficialDbPath: s.unofficialDbPath ?? '',
+    ttsProvider: settingsToTtsProvider(s),
+    ttsApiKey: s.ttsApiKey ?? '',
+    ttsVoice: s.ttsVoice ?? '',
   };
 }
 
@@ -69,6 +89,7 @@ export class SettingsDialogComponent {
   private readonly syncService = inject(SyncService);
 
   protected readonly targetOptions = TARGET_OPTIONS;
+  protected readonly ttsProviderOptions = TTS_PROVIDER_OPTIONS;
   protected readonly defaultUnofficialDbPath = DEFAULT_UNOFFICIAL_DB_PATH;
 
   protected readonly syncing = this.syncService.syncing;
@@ -119,6 +140,9 @@ export class SettingsDialogComponent {
       libraryPath: m.libraryPath,
       unofficialDbPath: m.unofficialDbPath.trim() || null,
       targetDeviceType: m.target === 'AUTO' ? null : m.target,
+      ttsProvider: m.ttsProvider === 'FREE' ? null : m.ttsProvider,
+      ttsApiKey: m.ttsApiKey.trim() || null,
+      ttsVoice: m.ttsVoice.trim() || null,
     };
     this.dialogRef.close(next);
   }

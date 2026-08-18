@@ -9,6 +9,12 @@
   padding-top: 0.5rem;
 }
 
+.settings-dialog__section-title {
+  margin: 1rem 0 0;
+  font-size: 0.95rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
 mat-form-field {
   width: 100%;
 }
