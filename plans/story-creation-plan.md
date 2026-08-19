@@ -82,31 +82,44 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - Contraintes du fallback gratuit (limite chars, segmentation, SLA non garanti)
 - API : endpoint `/tts/preview` (params, réponse, codes d'erreur)
 
-## Étape 3 — Draft store en mémoire Spring — *indépendante (TTS stubable)*
+## Étape 3 — Draft store en mémoire Spring — *indépendante (TTS stubable)* ✅
 
 **Objectif** : le brouillon vit en mémoire Spring ; **aucune écriture bibliothèque/BDD avant la finalisation**.
 
-**Code**
-- `pack/service/StoryDraftStore.kt` : `ConcurrentHashMap<String, StoryDraft>` + **TTL ~2h** (purge lazy/planifiée)
-- `StoryDraft` : `id`, `title`, `description`, `thumbnailPng?`, `coverImage?`, `chapters[]` (`id`, `name`, `audio?`, `image?`, `iconId?`, `titleAudioTts?`) — l'état structuré en mémoire
-- Binaires dans un **temp dir** `storageDir/drafts/{id}/` (évite de saturer la RAM) — alternative 100 % mémoire possible
-- API :
-  - `POST /stories/drafts` → `{draftId}`
+**Code** (implémenté — choix utilisateur : draft **unique**, **état en RAM + binaires en temp dir**)
+- `pack/service/StoryDraftStore.kt` : **un seul draft à la fois** (verrou + `@Volatile`) ; créer un
+  nouveau draft **remplace** l'existant ; **binaires sur disque** `storageDir/drafts/{id}/`
+  (une histoire peut faire 2-3 h d'audio ≈ 60-200 Mo → hors heap), **purge du dossier drafts/
+  au démarrage** + à chaque remplacement/suppression/finalisation ; pas de TTL, rien ne survit
+  au redémarrage
+- `StoryDraft` (`pack/domain/model/StoryDraft.kt`) : `id`, `title?`, `description?`,
+  `thumbnailPath?` (meta), `coverPath?` (squareOne), `chapters[]`
+  (`id`, `name`, `titleAudioPath?`, `titleText?` (TTS à la finalisation — mutuellement exclusif
+  avec l'audio), `narrationAudioPath?`, `imagePath?`, `iconId?`) — extension du fichier = type
+  (`audio/mpeg` → `.mp3`, `image/png` → `.png`…)
+- API (`pack/web/StoryDraftController.kt`) :
+  - `POST /stories/drafts` → 201 `{draftId}` (remplace l'existant)
   - `PATCH /stories/drafts/{id}` (titre, description) · `GET /stories/drafts/{id}` (état, sans bytes)
-  - `POST /stories/drafts/{id}/chapters` `{name}` → `{chapterId}`
-  - `PUT /stories/drafts/{id}/chapters/{chapterId}/audio` · `…/image` (multipart, PNG/JPEG/SVG) · `…/icon` `{iconId}` (icône Lucide)
-  - `DELETE /stories/drafts/{id}` · `…/chapters/{chapterId}`
-  - 404 inexistant · 410 expiré (TTL)
+  - `PUT /stories/drafts/{id}/thumbnail` (multipart PNG/JPEG) · `…/cover` (multipart PNG/JPEG)
+  - `POST /stories/drafts/{id}/chapters` `{name}` → 201 `{draftId, chapterId}`
+  - `PUT …/chapters/{chapterId}/audio` (multipart audio/*, titre) · `…/title-text` `{text}` (TTS) ·
+    `…/narration` (multipart audio/*, **audio du chapitre**) · `…/image` (multipart **PNG/JPEG** —
+    SVG d'abord converti via `/render`) · `…/icon` `{iconId}`
+  - `DELETE /stories/drafts/{id}` · `…/chapters/{chapterId}` → 204
+  - 404 inexistant · 400 payload invalide (pas de 410 : pas de TTL)
 
-**Tests**
-- Store : CRUD, TTL, purge
-- Controller : validations, multipart, 404/410
+**Tests** ✅
+- Store : remplacement à la création (dossier purgé), CRUD chapitres, exclusivité audio/texte,
+  binaires sur disque + extension typée, purge au démarrage, suppression des fichiers, 404
+- Controller : validations, multipart (audio/narration/thumbnail/cover/image), codes 201/204/400/404
 
-**📄 Documentation** — `doc/story-draft-api.md` :
-- Cycle de vie d'un draft (création → remplissage → finalisation → purge ; rien ne survit au redémarrage)
-- Modèle de données + emplacement des binaires (temp dir)
+**📄 Documentation** ✅ — `doc/story-draft-api.md` :
+- Cycle de vie d'un draft (création → remplissage → finalisation ; rien ne survit au redémarrage)
+- Modèle de données + emplacement des binaires (temp dir, purge au démarrage)
 - API complète : payloads, multipart, réponses, codes d'erreur
-- Justification : pourquoi on ne persiste pas avant finalisation + exemples curl
+- **Cas d'usage complet en curl** : titre (uuid auto) → thumbnail + cover → chapitre avec image,
+  titre audio (TTS ou upload) → narration → finalize
+- Justification : pourquoi on ne persiste pas avant finalisation
 
 ## Étape 4 — Génération d'images de chapitre (pur Kotlin) — *indépendante*
 

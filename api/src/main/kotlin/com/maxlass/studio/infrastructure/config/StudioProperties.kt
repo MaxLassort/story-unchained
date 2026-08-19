@@ -16,6 +16,10 @@ data class StudioProperties(
     val metadataDbDir: Path
         get() = storageDir.resolve("db")
 
+    /** Temporary draft binaries (audio, images), cleaned at startup and per-draft. */
+    val draftsDir: Path
+        get() = storageDir.resolve("drafts")
+
     /** Absolute path of the official.json file (Lunii metadata). */
     val officialJsonPath: Path
         get() = metadataDbDir.resolve(officialJsonFileName)
