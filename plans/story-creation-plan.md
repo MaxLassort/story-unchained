@@ -10,7 +10,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - l'utilisateur **tape le nom de chaque chapitre** → le back génère le **titre audio** de la node via **TTS** ;
 - l'utilisateur **fournit l'audio de chaque chapitre** (narration) et **une image par chapitre** (optionnelle) ;
 - l'utilisateur fournit le **thumbnail** du pack et la **page principale** (cover, 1re image visible sur la Lunii) ;
-- si **pas d'image** pour un chapitre → le back **génère une image** (numéro + nom du chapitre) en pur Kotlin ;
+- si **pas d'image** pour un chapitre → icône de la **bibliothèque Lucide** (SVG → PNG 320×240 blanc/noir) si choisie, sinon le back **génère une image** (chiffre du chapitre) en pur Kotlin ; upload SVG utilisateur accepté aussi ;
 - le draft est **gardé en mémoire Spring** tant qu'il n'est pas complet : **aucun pack à moitié fait** n'est écrit sur disque ni en BDD ;
 - à la finalisation uniquement : un `zip` **format STUdio** est écrit dans la bibliothèque puis indexé en BDD ;
 - la conversion vers RAW/FS se fait **ensuite** via le convertisseur existant (`POST /packs/{id}/convert`) ;
@@ -28,7 +28,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 | Persistance | Draft **en mémoire Spring** jusqu'à finalisation ; binaires en temp dir ; TTL ~2h |
 | Format de sortie | `zip` format STUdio (writer existant) ; conversion RAW/FS ensuite via l'existant |
 | Structure histoire | Linéaire : cover (`squareOne`) → ch1 → ch2 → … ; `controlSettings` par défaut |
-| Image chapitre manquante | Générée en pur Kotlin (`BufferedImage` + `Graphics2D`) : numéro + nom |
+| Image chapitre manquante | Icône Lucide (SVG → PNG 320×240 blanc/noir) si choisie, sinon chiffre du chapitre généré en pur Kotlin |
 
 ## Étape 1 — Settings TTS (clé API + provider) — *indépendante*
 
@@ -88,13 +88,13 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 
 **Code**
 - `pack/service/StoryDraftStore.kt` : `ConcurrentHashMap<String, StoryDraft>` + **TTL ~2h** (purge lazy/planifiée)
-- `StoryDraft` : `id`, `title`, `description`, `thumbnailPng?`, `coverImage?`, `chapters[]` (`id`, `name`, `audio?`, `image?`, `titleAudioTts?`) — l'état structuré en mémoire
+- `StoryDraft` : `id`, `title`, `description`, `thumbnailPng?`, `coverImage?`, `chapters[]` (`id`, `name`, `audio?`, `image?`, `iconId?`, `titleAudioTts?`) — l'état structuré en mémoire
 - Binaires dans un **temp dir** `storageDir/drafts/{id}/` (évite de saturer la RAM) — alternative 100 % mémoire possible
 - API :
   - `POST /stories/drafts` → `{draftId}`
   - `PATCH /stories/drafts/{id}` (titre, description) · `GET /stories/drafts/{id}` (état, sans bytes)
   - `POST /stories/drafts/{id}/chapters` `{name}` → `{chapterId}`
-  - `PUT /stories/drafts/{id}/chapters/{chapterId}/audio` · `…/image` (multipart)
+  - `PUT /stories/drafts/{id}/chapters/{chapterId}/audio` · `…/image` (multipart, PNG/JPEG/SVG) · `…/icon` `{iconId}` (icône Lucide)
   - `DELETE /stories/drafts/{id}` · `…/chapters/{chapterId}`
   - 404 inexistant · 410 expiré (TTL)
 
@@ -108,26 +108,47 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - API complète : payloads, multipart, réponses, codes d'erreur
 - Justification : pourquoi on ne persiste pas avant finalisation + exemples curl
 
-## Étape 4 — Génération d'image de chapitre (pur Kotlin) — *indépendante*
+## Étape 4 — Génération d'images de chapitre (pur Kotlin) — *indépendante*
 
-**Objectif** : générer l'image de fallback d'un chapitre (numéro + nom) sans dépendance.
+**Objectif** : produire l'image d'un nœud de chapitre en **PNG 320×240, blanc sur fond noir**
+(format Lunii), selon la hiérarchie : upload utilisateur → icône Lucide → chiffre généré.
 
 **Code**
-- `pack/format/utils/ChapterImageGenerator.kt` : `BufferedImage` + `Graphics2D` (Java 2D, zéro dépendance)
-  - fond paramétrable (couleurs), **numéro + nom du chapitre** centrés, typographie adaptative (truncation du nom)
-  - sortie **PNG** (`ImageIO.write`) ; dimensions par défaut 640×480 (ajustables)
-  - API : `generate(chapterNumber: Int, chapterName: String, width: Int, height: Int, colors…): ByteArray`
-- Endpoint préview : `GET /stories/images/preview?chapterNumber=1&name=…` → PNG
-- **Intégration différée** : utilisé à la finalisation (étape 5) quand `chapter.image` est absent
+- `pack/format/utils/ChapterImageGenerator.kt` : `generate(chapterNumber, width=320, height=240): ByteArray` —
+  chiffre blanc (#FFFFFF) centré sur fond noir (#000000), typographie adaptative, `ImageIO` PNG.
+- `pack/format/utils/SvgIconRenderer.kt` (zéro dépendance) : parse l'attribut `d` des paths SVG
+  (M/L/H/V/C/S/Q/T/A/Z) + formes de base (circle/ellipse/rect/line/polyline/polygon) → `Path2D` ;
+  `render(svg, width=320, height=240)` — scaling depuis le `viewBox`, ratio préservé, centrage,
+  **trait blanc sur fond noir** (`stroke-width` du SVG), ignore couleurs/fills/filtres/texte ;
+  SVG invalide → erreur propre.
+- **Bibliothèque Lucide : 4 icônes embarquées + fetch à la volée** : petit fallback offline
+  (licence ISC) dans `resources/icons/` (star/home/heart/moon), **+ tout icône Lucide fetchable
+  par son slug**
+  (`https://cdn.jsdelivr.net/npm/lucide-static/icons/{slug}.svg`, cache mémoire, catalogue
+  complet via l'API jsDelivr pour la recherche — `GET /stories/images/icons/search?q=…`).
+- **Endpoints** (`pack/web/ChapterImageController.kt` ou `StoryController` existant) :
+  - `GET /stories/images/icons` → `[{ id, name }]` (liste embarquée front)
+  - `GET /stories/images/icons/search?q=…` → `[{ id, name }]` (recherche dans tout le catalogue Lucide, ≥ 2 chars)
+  - `GET /stories/images/preview?iconId=…` ou `?chapterNumber=1` → PNG 320×240 (préview front ;
+    icône embarquée sinon **fetchée à la volée** depuis lucide-static et cachée en mémoire)
+  - `POST /stories/images/render` (multipart `.svg`) → PNG 320×240 (**conversion immédiate** : retour visuel direct au front, qui stocke le PNG converti dans le draft comme `chapter.image`)
+- **Hiérarchie à la finalisation (étape 5)** — liée au nœud (`StageNode.image`) :
+  1. `chapter.image` (PNG/JPEG uploadé, ou PNG issu de la conversion SVG) → tel quel
+  2. sinon `chapter.iconId` → rendu Lucide
+  3. sinon → `ChapterImageGenerator.generate(chapterNumber)` (chiffre)
+- **Conversion SVG immédiate** : l'upload SVG est converti dès l'envoi (`POST /stories/images/render` →
+  PNG 320×240), le front reçoit le PNG (retour visuel) et le draft ne stocke **que du PNG/JPEG**.
+  Le SVG brut ne transite jamais vers le draft.
 
 **Tests**
-- PNG valide + dimensions attendues (`ImageIO.read`)
-- Rendu non vide, truncation nom long, paramétrage couleurs
+- Générateur : PNG 320×240 lisible (`ImageIO.read`), pixels blancs sur noir, chiffre centré
+- SvgIconRenderer : paths simples et complexes, viewBox, scaling/centrage, fond noir, SVG invalide → 400
+- Controller : liste des icônes, préview, upload SVG → PNG, 404 icône inconnue
 
 **📄 Documentation** — `doc/chapter-image-generator.md` :
-- Spécification du rendu : dimensions, palette, typographie, nom long
-- API du générateur + endpoint préview
-- Contraintes : PNG, compatibilité future conversion FS (BMP 320×240 via l'existant)
+- Spécification du rendu : 320×240, blanc sur noir, chiffre, icônes
+- API du générateur + endpoints (liste, préview, upload)
+- Contraintes : PNG, conversion FS 4-bpp RLE 320×240 via l'existant
 
 ## Étape 5 — Finalisation : draft → zip STUdio + indexation — *dépend des étapes 3 & 4*
 
@@ -137,7 +158,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - `pack/service/CreateStoryUseCase.kt` — `finalize(draftId)` :
   1. **Validation** : titre, thumbnail, cover, chaque chapitre avec `name` + `audio` → sinon **409 « pack incomplet »** (rien n'est sauvegardé)
   2. Titre audio : `TTS(name)` si absent (`titleAudioTts`) → **concat TTS + narration fournie** (décodage PCM → concat → `anyToMp3`) ; cover audio = `TTS(titre)`
-  3. Image chapitre manquante → `ChapterImageGenerator` (étape 4)
+  3. Image chapitre : upload utilisateur (PNG/JPEG, ou PNG issu de la conversion SVG immédiate) → sinon icône Lucide (`iconId`, rendu via `SvgIconRenderer`) → sinon `ChapterImageGenerator` (chiffre, étape 4)
   4. Graphe **linéaire** : cover `squareOne` (type COVER, image=cover, audio=TTS(titre), `okTransition` → actionNode #1) → actionNode #n (1 option : chapitre n) → chapitre n (type STORY, image + audio concat, transition → #n+1) ; dernier chapitre sans transition ; `controlSettings` par défaut (`ok`, `home`, `pause`)
   5. `ArchiveStoryPackWriter.write(...)` (writer existant, inchangé) → zip temp
   6. `UpdatePackFileMetadataPort.updateArchiveMetadata(zipPath, thumbnailPngBytes)` → injecte `meta/thumbnail.png` (réutilise le flux d'update existant)
@@ -161,7 +182,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 
 **Code**
 - `library-web/src/app/features/story-creation/` :
-  - infos (titre, description) → upload **thumbnail** + **cover** → chapitres (nom + bouton ▶ **préview TTS** via `/tts/preview`, upload audio, image optionnelle) → ajout/suppression/réordonnancement
+  - infos (titre, description) → upload **thumbnail** + **cover** → chapitres (nom + bouton ▶ **préview TTS** via `/tts/preview`, upload audio, image optionnelle + **sélecteur d'icônes Lucide** avec préview si pas d'image) → ajout/suppression/réordonnancement
   - bouton « Créer le pack » → `finalize` → snackbar + navigation vers le pack (refresh liste existant)
 - `PacksService` : méthodes drafts (create/patch/upload/delete), `finalize`, `previewTts`, `previewImage`
 - Réutilise `MatFormField`/`MatButton`/signals de `pack-detail`

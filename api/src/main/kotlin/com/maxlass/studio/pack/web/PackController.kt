@@ -19,6 +19,13 @@ import com.maxlass.studio.pack.service.SyncPacksService
 import com.maxlass.studio.pack.service.UpdatePackMetadataUseCase
 import com.maxlass.studio.pack.util.findThumbnailEntry
 import com.maxlass.studio.settings.service.SettingsService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.ExampleObject
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,6 +52,8 @@ private const val MAX_PAGE_SIZE = 200
 
 @RestController
 @RequestMapping("/packs")
+@Tag(name = "Packs", description = "Bibliothèque de packs : liste, synchronisation, " +
+    "métadonnées, suppression, conversion de format et thumbnails.")
 class PackController(
     private val getAllPacks: GetAllPacksUseCase,
     private val getPacksPage: GetPacksPageUseCase,
@@ -59,13 +68,24 @@ class PackController(
 ) {
     private val conversionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    @Operation(
+        summary = "Lister les packs (paginé)",
+        description = "Retourne une page de packs avec filtres optionnels (texte, officiel, " +
+            "langue, présence en bibliothèque).",
+    )
     @GetMapping
     suspend fun listPacks(
+        @Parameter(description = "Index de page (0-based). Défaut : 0")
         @RequestParam(required = false) page: Int?,
+        @Parameter(description = "Taille de page (1-200). Défaut : 50")
         @RequestParam(required = false) size: Int?,
+        @Parameter(description = "Filtre texte sur le titre")
         @RequestParam(required = false) search: String?,
+        @Parameter(description = "Filtrer les packs officiels (true) ou non officiels (false)")
         @RequestParam(required = false) official: Boolean?,
+        @Parameter(description = "Filtrer par langue (ex. \"fr\", \"en\")")
         @RequestParam(required = false) locale: String?,
+        @Parameter(description = "Filtrer par présence dans la bibliothèque")
         @RequestParam(required = false) inLibrary: Boolean?,
     ): PagedPacksResponse {
         val safePage = page ?: DEFAULT_PAGE
@@ -79,9 +99,21 @@ class PackController(
         return getPacksPage.invoke(safePage, safeSize, filter)
     }
 
+    @Operation(
+        summary = "Tous les packs",
+        description = "Liste brute de tous les packs connus (officiels + bibliothèque + appareils), " +
+            "sans pagination ni filtre.",
+    )
     @GetMapping("/all")
     suspend fun listAllPacks() = getAllPacks.invoke()
 
+    @Operation(
+        summary = "Synchroniser la bibliothèque",
+        description = "Lance un scan du dossier bibliothèque configuré dans les settings " +
+            "(détection des packs déposés/supprimés). Retourne 202 + le job créé.",
+    )
+    @ApiResponse(responseCode = "202", description = "Job de synchronisation démarré")
+    @ApiResponse(responseCode = "500", description = "Échec du démarrage")
     @PostMapping("/sync")
     suspend fun startSync(): ResponseEntity<Any> {
         val path = settings.getLibraryPath()
@@ -93,6 +125,13 @@ class PackController(
             )
     }
 
+    @Operation(
+        summary = "État d'un job de synchronisation",
+        description = "Retourne l'avancement du scan (statut STARTED/RUNNING/DONE/FAILED, " +
+            "compteurs traités/synchronisés/échoués, horodatages). 404 si le job est inconnu.",
+    )
+    @ApiResponse(responseCode = "200", description = "État du job")
+    @ApiResponse(responseCode = "404", description = "Job inconnu")
     @GetMapping("/sync/{jobId}")
     suspend fun getSyncJobStatus(@PathVariable jobId: Long): ResponseEntity<Any> {
         return syncPacks.getJobStatus(jobId)
@@ -101,6 +140,12 @@ class PackController(
                 .body(ApiStatusResponse(ok = false, error = "Sync job not found"))
     }
 
+    @Operation(
+        summary = "Supprimer un pack",
+        description = "Supprime le pack (id = UUID) de la bibliothèque et de la base.",
+    )
+    @ApiResponse(responseCode = "200", description = "Pack supprimé")
+    @ApiResponse(responseCode = "404", description = "Pack inconnu")
     @DeleteMapping("/{id}")
     suspend fun deletePack(@PathVariable id: String): ResponseEntity<ApiStatusResponse> =
         deletePackFromLibrary.invoke(id)
@@ -116,6 +161,28 @@ class PackController(
                 }
             )
 
+    @Operation(
+        summary = "Modifier les métadonnées d'un pack",
+        description = "Met à jour les champs fournis (objet partiel). Champs disponibles : " +
+            "title, description, linkedOfficialPackId, locale, ageMin, ageMax, durationMs, storyCount.",
+    )
+    @ApiResponse(responseCode = "200", description = "Métadonnées mises à jour", content = [
+        Content(examples = [
+            ExampleObject(name = "Exemple", value = """
+                {
+                  "title": "Mon histoire",
+                  "description": "Une histoire créée avec StoryUnchained",
+                  "locale": "fr",
+                  "ageMin": 3,
+                  "ageMax": 6,
+                  "durationMs": 600000,
+                  "storyCount": 5
+                }
+            """)
+        ])
+    ])
+    @ApiResponse(responseCode = "400", description = "Requête invalide")
+    @ApiResponse(responseCode = "404", description = "Pack inconnu")
     @PatchMapping("/{id}/metadata")
     suspend fun updateMetadata(
         @PathVariable id: String,
@@ -138,6 +205,24 @@ class PackController(
         ResponseEntity.badRequest().body(ApiStatusResponse(ok = false, error = e.message ?: "Invalid request"))
     }
 
+    @Operation(
+        summary = "Convertir un pack (asynchrone)",
+        description = "Lance la conversion du pack vers un autre format. Retourne 202 immédiatement ; " +
+            "la progression et le résultat sont visibles dans le flux SSE /devices/events " +
+            "(champ \"conversion\"). Formats : ARCHIVE (zip STUdio), RAW (binaire), FS (système de fichiers).",
+    )
+    @ApiResponse(responseCode = "202", description = "Conversion démarrée", content = [
+        Content(examples = [
+            ExampleObject(name = "Exemple", value = """
+                {
+                  "ok": true,
+                  "packId": "<uuid>",
+                  "sourceFormat": "ARCHIVE",
+                  "targetFormat": "FS"
+                }
+            """)
+        ])
+    ])
     @PostMapping("/{id}/convert")
     suspend fun convertPack(
         @PathVariable id: String,
@@ -157,6 +242,14 @@ class PackController(
         )
     }
 
+    @Operation(
+        summary = "Thumbnail d'un pack",
+        description = "Retourne l'image PNG du pack. Résolution : cache mémoire → redirection " +
+            "vers l'URL officielle (302) si officiel → meta/thumbnail.png du zip → extraction du pack FS.",
+    )
+    @ApiResponse(responseCode = "200", description = "Image PNG", content = [Content(mediaType = "image/png")])
+    @ApiResponse(responseCode = "302", description = "Redirection vers l'URL officielle")
+    @ApiResponse(responseCode = "404", description = "Pack inconnu ou thumbnail introuvable")
     @GetMapping(value = ["/{id}/thumbnail"], produces = [MediaType.IMAGE_PNG_VALUE, "image/*"])
     suspend fun getThumbnail(@PathVariable id: String): ResponseEntity<Any> {
         thumbnailCache.get(id)?.let {
@@ -193,6 +286,13 @@ class PackController(
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 
+    @Operation(
+        summary = "Uploader un thumbnail",
+        description = "Enregistre le thumbnail d'un pack. Le corps doit être les **bytes bruts de " +
+            "l'image** (pas de multipart, pas de JSON) avec Content-Type: image/png (ou image/*). " +
+            "L'image est cachée et écrite dans le zip du pack.",
+    )
+    @ApiResponse(responseCode = "200", description = "Thumbnail enregistré")
     @PatchMapping("/{id}/thumbnail")
     suspend fun uploadThumbnail(@PathVariable id: String, @RequestBody bytes: ByteArray): ResponseEntity<Any> {
         thumbnailCache.put(id, bytes)

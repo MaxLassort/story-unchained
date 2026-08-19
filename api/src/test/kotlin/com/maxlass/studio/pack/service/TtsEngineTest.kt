@@ -1,6 +1,6 @@
 package com.maxlass.studio.pack.service
 
-import com.maxlass.studio.pack.adapter.GoogleTranslateTtsAdapter
+
 import com.maxlass.studio.pack.format.utils.AudioConversion
 import com.maxlass.studio.pack.port.external.KeyedTtsAdapterFactory
 import com.maxlass.studio.pack.port.external.TextToSpeechPort
@@ -60,7 +60,7 @@ class TtsEngineTest : StringSpec({
         coEvery { settingsService.getSettings() } returns settings()
         coEvery { freeAdapter.synthesize("texte", null, any()) } returns byteArrayOf(1, 2, 3)
 
-        val result = runBlocking { engine().synthesize("texte") }
+        val result = engine().synthesize("texte")
 
         result.toList() shouldBe listOf(1, 2, 3)
         coVerify(exactly = 1) { freeAdapter.synthesize("texte", null, any()) }
@@ -72,7 +72,7 @@ class TtsEngineTest : StringSpec({
         coEvery { settingsService.getSettings() } returns settings(provider = "OPENAI")
         coEvery { freeAdapter.synthesize("texte", null, any()) } returns byteArrayOf(1, 2, 3)
 
-        val result = runBlocking { engine().synthesize("texte") }
+        val result = engine().synthesize("texte")
 
         result.toList() shouldBe listOf(1, 2, 3)
         coVerify(exactly = 0) { openAiFactory.create(any(), any()) }

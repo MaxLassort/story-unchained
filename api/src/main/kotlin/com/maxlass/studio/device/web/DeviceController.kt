@@ -13,6 +13,11 @@ import com.maxlass.studio.device.service.CopyPackFromDeviceToLibraryUseCase
 import com.maxlass.studio.device.service.CopyPackToDeviceUseCase
 import com.maxlass.studio.device.service.DeletePackFromDeviceUseCase
 import com.maxlass.studio.device.service.GetDeviceInfosUseCase
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,6 +40,8 @@ private val json = Json { encodeDefaults = true }
 
 @RestController
 @RequestMapping("/devices")
+@Tag(name = "Appareil (Lunii)", description = "Détection et manipulation de la Lunii connectée : " +
+    "infos, packs sur l'appareil, copies bibliothèque ↔ appareil, événements temps réel (SSE).")
 class DeviceController(
     private val getDeviceInfos: GetDeviceInfosUseCase,
     private val copyToDevice: CopyPackToDeviceUseCase,
@@ -44,16 +51,36 @@ class DeviceController(
 ) {
     private val sseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    @Operation(
+        summary = "Infos de l'appareil connecté",
+        description = "État de la Lunii : plugged, uuid, serial, firmware, driver, storage " +
+            "(taille/libre/occupé en octets).",
+    )
+    @ApiResponse(responseCode = "200", description = "Infos de l'appareil")
     @GetMapping
     suspend fun getDeviceInfos(): DeviceInfos =
         getDeviceInfos.invoke()
 
+    @Operation(
+        summary = "Historique des appareils vus",
+        description = "Liste des appareils connus : uuid, dernière date de vue, nombre de packs, " +
+            "liste des packs (avec métadonnées quand disponibles).",
+    )
+    @ApiResponse(responseCode = "200", description = "Snapshots des appareils")
     @GetMapping("/snapshots")
     suspend fun getDeviceSnapshots(): List<DeviceSnapshot> =
         driverDeviceConnector.getDeviceSnapshots()
 
+    @Operation(
+        summary = "Packs présents sur l'appareil",
+        description = "Sans paramètre : packs de l'appareil connecté (409 si aucun appareil). " +
+            "Avec deviceUuid : packs de l'appareil correspondant, sans exiger la connexion.",
+    )
+    @ApiResponse(responseCode = "200", description = "Packs de l'appareil")
+    @ApiResponse(responseCode = "409", description = "Aucun appareil branché (DEVICE_NOT_PLUGGED)")
     @GetMapping("/packs")
     suspend fun getDevicePacks(
+        @Parameter(description = "UUID d'un appareil connu (optionnel)")
         @RequestParam(required = false) deviceUuid: String?,
     ): ResponseEntity<*> {
         if (deviceUuid != null) {
@@ -67,18 +94,50 @@ class DeviceController(
         return ResponseEntity.ok(driverDeviceConnector.getDevicePacks())
     }
 
+    @Operation(
+        summary = "Copier un pack vers la Lunii",
+        description = "Convertit si nécessaire (format compatible appareil) puis copie le pack " +
+            "vers l'appareil connecté. Erreurs : FORMAT_INCOMPATIBLE (400), " +
+            "PACK_ALREADY_ON_DEVICE (400), PACK_NOT_FOUND (404), DEVICE_NOT_PLUGGED (409).",
+    )
+    @ApiResponse(responseCode = "200", description = "Pack copié", content = [
+        Content(examples = [
+            io.swagger.v3.oas.annotations.media.ExampleObject(name = "Corps", value = """{"packId": "<uuid>"}""")
+        ])
+    ])
     @PostMapping("/packs")
     suspend fun copyPackToDevice(@RequestBody body: CopyPackRequest): ResponseEntity<CopyPackResponse> =
         handleCopyPackToDevice(body)
 
+    @Operation(
+        summary = "Supprimer un pack de la Lunii",
+        description = "Supprime le pack de l'appareil connecté. Erreurs : " +
+            "PACK_NOT_FOUND_ON_DEVICE (404), DEVICE_NOT_PLUGGED (409), " +
+            "NOT_SUPPORTED (501, suppression non supportée par l'appareil).",
+    )
+    @ApiResponse(responseCode = "200", description = "Pack supprimé")
     @DeleteMapping("/packs/{packId}")
     suspend fun deletePackFromDevice(@PathVariable packId: String): ResponseEntity<CopyPackResponse> =
         handleDeletePackFromDevice(packId)
 
+    @Operation(
+        summary = "Copier un pack de la Lunii vers la bibliothèque",
+        description = "Importe le pack de l'appareil dans le dossier bibliothèque puis " +
+            "resynchronise. Erreurs : PACK_NOT_FOUND_ON_DEVICE (404), " +
+            "DEVICE_NOT_PLUGGED (409).",
+    )
+    @ApiResponse(responseCode = "200", description = "Pack importé dans la bibliothèque")
     @PostMapping("/packs/{packId}/copy-to-library")
     suspend fun copyPackToLibrary(@PathVariable packId: String): ResponseEntity<CopyPackResponse> =
         handleCopyPackToLibrary(packId)
 
+    @Operation(
+        summary = "Événements appareil en temps réel (SSE)",
+        description = "Flux Server-Sent Events : un événement est envoyé à la connexion puis à " +
+            "chaque changement (branchement/débranchement, packs modifiés, conversion terminée). " +
+            "Événement : {device, packs, conversion}.",
+    )
+    @ApiResponse(responseCode = "200", description = "Flux SSE (text/event-stream)")
     @GetMapping(value = ["/events"], produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
     fun deviceEvents(): SseEmitter {
         val emitter = SseEmitter(0L) // no timeout, server-driven
