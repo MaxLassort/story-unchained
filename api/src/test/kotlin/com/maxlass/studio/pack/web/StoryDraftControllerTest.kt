@@ -139,6 +139,28 @@ class StoryDraftControllerTest : StringSpec({
         summary.coverBytes shouldBe 2
     }
 
+    "pack title audio and TTS text are stored and mutually exclusive" {
+        val draftId = controller.createDraft().body!!.draftId
+
+        controller.setTitleAudio(draftId, MockMultipartFile("file", "titre.mp3", "audio/mpeg", byteArrayOf(1, 2, 3)))
+        var summary = controller.getDraft(draftId)
+        summary.hasTitleAudio shouldBe true
+        summary.titleAudioBytes shouldBe 3
+        summary.titleText shouldBe null
+
+        controller.setTitleText(draftId, SetTitleTextRequest("Ma petite histoire"))
+        summary = controller.getDraft(draftId)
+        summary.titleText shouldBe "Ma petite histoire"
+        summary.hasTitleAudio shouldBe false
+    }
+
+    "pack title audio rejects non-audio files" {
+        val draftId = controller.createDraft().body!!.draftId
+        val file = MockMultipartFile("file", "img.png", "image/png", byteArrayOf(1))
+        val e = shouldThrow<ResponseStatusException> { controller.setTitleAudio(draftId, file) }
+        e.statusCode.value() shouldBe 400
+    }
+
     "thumbnail upload rejects non-PNG/JPEG files" {
         val draftId = controller.createDraft().body!!.draftId
         val file = MockMultipartFile("file", "doc.pdf", "application/pdf", byteArrayOf(1))

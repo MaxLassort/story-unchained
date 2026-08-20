@@ -137,6 +137,48 @@ class StoryDraftController(
     }
 
     @Operation(
+        summary = "Uploader l'audio du pack (titre)",
+        description = "Upload multipart (`file`, audio/*) = audio joué sur le cover du pack " +
+            "(titre de l'histoire). Remplace tout texte TTS de titre précédemment saisi.",
+    )
+    @ApiResponse(responseCode = "200", description = "Audio enregistré (état du draft)")
+    @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
+    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
+    @PutMapping("/{id}/title-audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun setTitleAudio(
+        @PathVariable id: String,
+        @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
+        @RequestPart("file") file: MultipartFile,
+    ): StoryDraftSummary {
+        if (file.isEmpty || !(file.contentType?.lowercase()?.startsWith("audio/") == true)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Audio file required (audio/*)")
+        }
+        return store.setTitleAudio(id, file.bytes, file.contentType!!)?.let(::toSummary)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+    }
+
+    @Operation(
+        summary = "Saisir le texte du titre du pack (TTS)",
+        description = "Texte du titre de l'histoire à la place d'un fichier audio : la synthèse " +
+            "TTS est faite à la finalisation et jouée sur le cover. Remplace tout audio " +
+            "uploadé précédemment.",
+    )
+    @ApiResponse(responseCode = "200", description = "Texte enregistré (état du draft)")
+    @ApiResponse(responseCode = "400", description = "Texte vide")
+    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
+    @PutMapping("/{id}/title-text")
+    fun setTitleText(
+        @PathVariable id: String,
+        @RequestBody body: SetTitleTextRequest,
+    ): StoryDraftSummary {
+        if (body.text.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Title text must not be blank")
+        }
+        return store.setTitleText(id, body.text.trim())?.let(::toSummary)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+    }
+
+    @Operation(
         summary = "Supprimer le brouillon",
         description = "Vide le brouillon en mémoire (équivalent à quitter l'appli).",
     )
@@ -314,6 +356,9 @@ class StoryDraftController(
         thumbnailBytes = draft.thumbnailPath?.toFile()?.length()?.toInt() ?: 0,
         hasCover = draft.coverPath != null,
         coverBytes = draft.coverPath?.toFile()?.length()?.toInt() ?: 0,
+        hasTitleAudio = draft.titleAudioPath != null,
+        titleAudioBytes = draft.titleAudioPath?.toFile()?.length()?.toInt() ?: 0,
+        titleText = draft.titleText,
         chapters = draft.chapters.map { chapter ->
             StoryChapterDraftSummary(
                 id = chapter.id,

@@ -1,0 +1,100 @@
+.title-audio {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.title-audio__mode {
+  align-self: flex-start;
+
+  mat-icon {
+    margin-right: 0.25rem;
+  }
+}
+
+.title-audio__text {
+  width: 100%;
+}
+
+.title-audio__upload {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title-audio__file-input {
+  display: none;
+}
+
+.title-audio__file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.5rem;
+}
+
+.title-audio__file-name {
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-audio__record {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.title-audio__device {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.title-audio__record-live {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title-audio__record-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background-color: var(--mat-sys-error);
+  animation: title-audio-pulse 1s ease-in-out infinite;
+}
+
+.title-audio__record-timer {
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+}
+
+.title-audio__record-error {
+  margin: 0;
+  color: var(--mat-sys-error);
+}
+
+.title-audio__record-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+@keyframes title-audio-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.title-audio__preview {
+  width: 100%;
+  max-width: 28rem;
+}

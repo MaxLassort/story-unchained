@@ -1,0 +1,37 @@
+<div class="story-details">
+  <div class="story-details__header">
+    <h2 class="story-details__title">Story Details</h2>
+    <p class="story-details__subtitle">Provide the foundational metadata for your new story pack.</p>
+  </div>
+
+  <div class="story-details__fields">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Title *</mat-label>
+      <input
+        matInput
+        [formField]="detailsForm.title"
+        placeholder="Enter a captivating title..."
+        autocomplete="off"
+      />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Description</mat-label>
+      <textarea
+        matInput
+        [formField]="detailsForm.description"
+        placeholder="What is this story about? (Optional)"
+        rows="4"
+      ></textarea>
+    </mat-form-field>
+
+    <div class="story-details__title-audio">
+      <span class="story-details__label">Pack title audio</span>
+      <span class="story-details__hint">
+        Audio played on the story cover. Upload a file, or enter the text to be read aloud by
+        the TTS engine at finalization.
+      </span>
+      <app-title-audio-input [formField]="detailsForm.titleAudio" />
+    </div>
+  </div>
+</div>

@@ -52,7 +52,7 @@ export class PackCardComponent {
         this.snackbar.error(conv.message ?? 'Conversion failed');
         this.converting.set(false);
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   protected readonly formats = computed(() =>

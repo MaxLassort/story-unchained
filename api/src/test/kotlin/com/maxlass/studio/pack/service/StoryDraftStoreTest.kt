@@ -72,7 +72,7 @@ class StoryDraftStoreTest : StringSpec({
         stored.narrationAudioPath!!.toFile().exists() shouldBe false
     }
 
-    "setTitleAudio and setTitleText are mutually exclusive" {
+    "chapter title audio and text are mutually exclusive" {
         val store = newStore()
         val draft = store.create()
         val chapter = store.addChapter(draft.id, "Chap")!!
@@ -86,6 +86,23 @@ class StoryDraftStoreTest : StringSpec({
         store.setTitleText(draft.id, chapter.id, "Titre TTS")
         current = store.get(draft.id)!!.chapters.single()
         current.titleText shouldBe "Titre TTS"
+        current.titleAudioPath.shouldBeNull()
+        oldFile.toFile().exists() shouldBe false
+    }
+
+    "setTitleAudio and setTitleText are mutually exclusive" {
+        val store = newStore()
+        val draft = store.create()
+
+        store.setTitleAudio(draft.id, byteArrayOf(1, 2, 3), "audio/mpeg")
+        var current = store.get(draft.id)!!
+        current.titleAudioPath shouldNotBe null
+        current.titleText.shouldBeNull()
+        val oldFile = current.titleAudioPath!!
+
+        store.setTitleText(draft.id, "Mon histoire")
+        current = store.get(draft.id)!!
+        current.titleText shouldBe "Mon histoire"
         current.titleAudioPath.shouldBeNull()
         oldFile.toFile().exists() shouldBe false
     }

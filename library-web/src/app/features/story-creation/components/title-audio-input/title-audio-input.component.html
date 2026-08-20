@@ -1,0 +1,143 @@
+<div class="title-audio">
+  <mat-button-toggle-group
+    class="title-audio__mode"
+    [value]="mode()"
+    (valueChange)="onModeChange($event)"
+    hideSingleSelectionIndicator
+  >
+    <mat-button-toggle value="text" matTooltip="Provide the title text, read aloud by the TTS engine at finalization">
+      <mat-icon aria-hidden="true">text_fields</mat-icon>
+      Text (TTS)
+    </mat-button-toggle>
+    <mat-button-toggle value="audio" matTooltip="Upload an audio file for the title">
+      <mat-icon aria-hidden="true">upload_file</mat-icon>
+      Upload audio
+    </mat-button-toggle>
+    <mat-button-toggle value="record" matTooltip="Record your own voice with the microphone">
+      <mat-icon aria-hidden="true">mic</mat-icon>
+      Record
+    </mat-button-toggle>
+  </mat-button-toggle-group>
+
+  @if (mode() === 'text') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__text">
+      <mat-label>{{ label() }} — text</mat-label>
+      <input
+        matInput
+        [value]="text()"
+        (input)="onTextChange($any($event.target).value)"
+        placeholder="e.g. The little dragon"
+        autocomplete="off"
+      />
+      <button
+        matSuffix
+        mat-icon-button
+        type="button"
+        matTooltip="Preview with TTS"
+        aria-label="Preview with TTS"
+        [disabled]="!text().trim() || previewing()"
+        (click)="previewTts()"
+      >
+        @if (previewing()) {
+          <mat-spinner [diameter]="18" />
+        } @else {
+          <mat-icon>play_circle</mat-icon>
+        }
+      </button>
+    </mat-form-field>
+  } @else if (mode() === 'record') {
+    <div class="title-audio__record">
+      @if (devices().length > 1) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__device">
+          <mat-label>Microphone</mat-label>
+          <mat-select
+            [value]="selectedDeviceId() ?? ''"
+            (selectionChange)="onDeviceChange($event.value)"
+          >
+            <mat-option [value]="">System default</mat-option>
+            @for (device of devices(); track device.deviceId) {
+              <mat-option [value]="device.deviceId">{{ device.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+      @if (!recording()) {
+        <button mat-flat-button type="button" color="primary" (click)="startRecording()">
+          <mat-icon aria-hidden="true">mic</mat-icon>
+          Start recording
+        </button>
+      } @else {
+        <div class="title-audio__record-live">
+          <span class="title-audio__record-dot" aria-hidden="true"></span>
+          <span class="title-audio__record-timer">{{ recordingTimeLabel() }}</span>
+          <button mat-flat-button type="button" color="warn" (click)="stopRecording()">
+            <mat-icon aria-hidden="true">stop</mat-icon>
+            Stop
+          </button>
+        </div>
+      }
+      @if (recordError()) {
+        <p class="title-audio__record-error">{{ recordError() }}</p>
+      } @else if (trackMuted()) {
+        <p class="title-audio__record-error">
+          The selected microphone is muted or not delivering audio. Check the system input
+          settings.
+        </p>
+      } @else {
+        <p class="title-audio__record-hint">
+          A recording replaces the current audio. The browser asks for microphone access on
+          first use.
+        </p>
+      }
+      @if (audioFile()) {
+        <div class="title-audio__file">
+          <mat-icon aria-hidden="true">audiotrack</mat-icon>
+          <span class="title-audio__file-name">{{ audioFile()!.name }}</span>
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Remove file"
+            aria-label="Remove audio file"
+            (click)="clearFile()"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="title-audio__upload">
+      <input
+        #fileInput
+        class="title-audio__file-input"
+        type="file"
+        accept="audio/*"
+        (change)="onFileSelected($any($event.target).files?.[0] ?? null)"
+      />
+      @if (!audioFile()) {
+        <button mat-stroked-button type="button" (click)="fileInput.click()">
+          <mat-icon aria-hidden="true">attach_file</mat-icon>
+          Choose audio file
+        </button>
+      } @else {
+        <div class="title-audio__file">
+          <mat-icon aria-hidden="true">audiotrack</mat-icon>
+          <span class="title-audio__file-name">{{ audioFile()!.name }}</span>
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Remove file"
+            aria-label="Remove audio file"
+            (click)="clearFile()"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (hasAudio() && audioUrl()) {
+    <audio class="title-audio__preview" [src]="audioUrl()!" controls preload="metadata"></audio>
+  }
+</div>

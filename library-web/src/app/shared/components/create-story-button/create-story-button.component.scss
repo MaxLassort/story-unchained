@@ -2,7 +2,7 @@
   display: inline-flex;
 }
 
-.import-button {
+.create-story-button {
   --mdc-filled-button-container-color: var(--mat-sys-primary);
   --mdc-filled-button-label-text-color: var(--mat-sys-on-primary);
 
@@ -14,7 +14,7 @@
   white-space: nowrap;
 }
 
-.import-button mat-icon {
+.create-story-button mat-icon {
   width: 1rem;
   height: 1rem;
   margin-right: 0.2rem;
@@ -22,7 +22,7 @@
 }
 
 @media (max-width: 700px) {
-  .import-button {
+  .create-story-button {
     padding: 0 0.55rem;
   }
 }

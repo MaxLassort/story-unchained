@@ -92,6 +92,26 @@ class StoryDraftStore(
             }
         }
 
+    /** Uploaded pack title audio (cover audio). Replaces any TTS text for the pack title. */
+    fun setTitleAudio(id: String, bytes: ByteArray, contentType: String): StoryDraft? =
+        synchronized(lock) {
+            mutateDraft(id) {
+                it.copy(
+                    titleAudioPath = writeDraftBinary(id, "title-audio", bytes, contentType),
+                    titleText = null,
+                )
+            }
+        }
+
+    /** Pack title TTS text (cover audio at finalization). Replaces any uploaded audio. */
+    fun setTitleText(id: String, text: String): StoryDraft? =
+        synchronized(lock) {
+            mutateDraft(id) { draft ->
+                draft.titleAudioPath?.toFile()?.delete()
+                draft.copy(titleText = text, titleAudioPath = null)
+            }
+        }
+
     /** Uploaded title audio replaces any TTS text for the chapter title. */
     fun setTitleAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraft? =
         synchronized(lock) {

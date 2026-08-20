@@ -12,8 +12,10 @@ import java.nio.file.Path
  *
  * @property thumbnailPath Image for `meta/thumbnail.png` (library display).
  * @property coverPath Square-one cover image ("thumbnail Lunii").
- * @property titleText Text entered by the user instead of an audio title → the TTS
- * engine synthesizes the audio at finalization when [StoryChapterDraft.titleAudioPath] is absent.
+ * @property titleAudioPath Uploaded pack title audio (played on the cover). Mutually
+ * exclusive with [titleText].
+ * @property titleText Text entered instead of pack title audio → TTS at finalization
+ * (cover audio = TTS of the title when absent). Mutually exclusive with [titleAudioPath].
  */
 data class StoryDraft(
     val id: String,
@@ -21,6 +23,8 @@ data class StoryDraft(
     val description: String? = null,
     val thumbnailPath: Path? = null,
     val coverPath: Path? = null,
+    val titleAudioPath: Path? = null,
+    val titleText: String? = null,
     val chapters: List<StoryChapterDraft> = emptyList(),
     val createdAtEpochMs: Long,
 )

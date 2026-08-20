@@ -8,11 +8,11 @@ import { PacksService } from '../../../core/services/packs.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { SnackbarService } from '../../../core/services/snackbar.service';
 import { SettingsDialogComponent } from '../../../features/settings/settings-dialog/settings-dialog.component';
-import { ImportPackButtonComponent } from '../import-pack-button/import-pack-button.component';
+import { CreateStoryButtonComponent } from '../create-story-button/create-story-button.component';
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, RouterLinkActive, MatButtonModule, MatIconModule, MatTooltipModule, ImportPackButtonComponent],
+  imports: [RouterLink, RouterLinkActive, MatButtonModule, MatIconModule, MatTooltipModule, CreateStoryButtonComponent],
   templateUrl: './app-header.component.html',
   styleUrl: './app-header.component.scss',
 })

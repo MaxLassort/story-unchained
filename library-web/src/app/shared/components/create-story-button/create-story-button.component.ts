@@ -4,9 +4,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
 @Component({
-  selector: 'app-import-pack-button',
+  selector: 'app-create-story-button',
   imports: [MatButtonModule, MatIconModule, RouterLink],
-  templateUrl: './import-pack-button.component.html',
-  styleUrl: './import-pack-button.component.scss',
+  templateUrl: './create-story-button.component.html',
+  styleUrl: './create-story-button.component.scss',
 })
-export class ImportPackButtonComponent {}
+export class CreateStoryButtonComponent {}

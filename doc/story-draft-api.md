@@ -40,6 +40,8 @@ DELETE /stories/drafts/{id}                     → 204
 
 PUT    /stories/drafts/{id}/thumbnail           (multipart PNG/JPEG → meta/thumbnail.png)
 PUT    /stories/drafts/{id}/cover               (multipart PNG/JPEG → thumbnail Lunii, squareOne)
+PUT    /stories/drafts/{id}/title-audio         (multipart audio/* → audio du pack, joué sur le cover)
+PUT    /stories/drafts/{id}/title-text          {text} (TTS du titre du pack, à la finalisation)
 
 POST   /stories/drafts/{id}/chapters            → {name} → 201 {draftId, chapterId}
 DELETE /stories/drafts/{id}/chapters/{chapterId}
@@ -67,6 +69,8 @@ PUT    /stories/drafts/{id}/chapters/{cid}/icon         {iconId}
 | `DELETE /stories/drafts/{id}` | — | 204 | 404 |
 | `PUT /stories/drafts/{id}/thumbnail` | multipart `file` (PNG/JPEG) | `StoryDraftSummary` | 400, 404 |
 | `PUT /stories/drafts/{id}/cover` | multipart `file` (PNG/JPEG) | `StoryDraftSummary` | 400, 404 |
+| `PUT /stories/drafts/{id}/title-audio` | multipart `file` (audio/*) | `StoryDraftSummary` | 400, 404 |
+| `PUT /stories/drafts/{id}/title-text` | `{text}` | `StoryDraftSummary` | 400, 404 |
 | `POST /stories/drafts/{id}/chapters` | `{name}` | 201 `{draftId, chapterId}` | 400, 404 |
 | `DELETE /stories/drafts/{id}/chapters/{chapterId}` | — | 204 | 404 |
 | `PUT …/chapters/{cid}/audio` | multipart `file` (audio/*) | `StoryDraftSummary` | 400, 404 |
@@ -76,8 +80,13 @@ PUT    /stories/drafts/{id}/chapters/{cid}/icon         {iconId}
 | `PUT …/chapters/{cid}/icon` | `{iconId}` | `StoryDraftSummary` | 400, 404 |
 
 `StoryDraftSummary` : `{id, title?, description?, hasThumbnail, thumbnailBytes, hasCover,
-coverBytes, chapters[]}` où chaque chapitre est `{id, name, hasTitleAudio, titleAudioBytes,
-titleText?, hasNarrationAudio, narrationAudioBytes, hasImage, imageBytes, iconId?}`.
+coverBytes, hasTitleAudio, titleAudioBytes, titleText?, chapters[]}` où chaque chapitre est
+`{id, name, hasTitleAudio, titleAudioBytes, titleText?, hasNarrationAudio,
+narrationAudioBytes, hasImage, imageBytes, iconId?}`.
+
+L'**audio du pack** (`title-audio`/`title-text`, mutuellement exclusifs) est l'audio joué sur
+le cover (squareOne) : à la finalisation, si un `titleText` est saisi, l'audio du cover est
+synthétisé par TTS depuis le titre ; sinon c'est l'audio uploadé qui est utilisé.
 
 ## Emplacement des binaires
 
@@ -85,6 +94,7 @@ titleText?, hasNarrationAudio, narrationAudioBytes, hasImage, imageBytes, iconId
 {storageDir}/drafts/{draftId}/
   thumbnail.png|jpg          → meta/thumbnail.png
   cover.png|jpg              → image du squareOne (cover Lunii)
+  title-audio.mp3|wav|ogg…   → audio du pack (joué sur le cover)
   chapters/{chapterId}/
     title-audio.mp3|wav|ogg… → audio du titre
     narration.mp3|wav|ogg…   → narration du chapitre
@@ -118,6 +128,13 @@ curl -s -X PUT http://localhost:8080/stories/drafts/$ID/thumbnail \
   -F "file=@thumb.png;type=image/png"
 curl -s -X PUT http://localhost:8080/stories/drafts/$ID/cover \
   -F "file=@cover.png;type=image/png"
+
+# 3b. Audio du pack (joué sur le cover) — upload OU texte TTS
+curl -s -X PUT http://localhost:8080/stories/drafts/$ID/title-audio \
+  -F "file=@titre_pack.mp3;type=audio/mpeg"
+#   — ou —
+curl -s -X PUT http://localhost:8080/stories/drafts/$ID/title-text \
+  -H 'Content-Type: application/json' -d '{"text":"Ma petite histoire"}'
 
 # 4. Chapitre
 curl -s -X POST http://localhost:8080/stories/drafts/$ID/chapters \

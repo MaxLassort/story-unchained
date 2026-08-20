@@ -12,6 +12,9 @@ data class StoryDraftSummary(
     val thumbnailBytes: Int = 0,
     val hasCover: Boolean = false,
     val coverBytes: Int = 0,
+    val hasTitleAudio: Boolean = false,
+    val titleAudioBytes: Int = 0,
+    val titleText: String? = null,
     val chapters: List<StoryChapterDraftSummary> = emptyList(),
 )
 
