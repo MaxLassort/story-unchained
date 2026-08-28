@@ -1,7 +1,7 @@
 package com.maxlass.studio.pack.service
 
 import com.maxlass.studio.infrastructure.config.StudioProperties
-import com.maxlass.studio.pack.domain.model.StoryChapterDraft
+import com.maxlass.studio.pack.domain.model.StoryChapterDraftState
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -54,6 +54,16 @@ class StoryDraftStoreTest : StringSpec({
         updated.description shouldBe "Une belle histoire"
     }
 
+    "the state is persisted on disk as draft.json" {
+        val store = newStore()
+        val draft = store.create()
+        store.updateMetadata(draft.id, "Mon histoire", "Une belle histoire")
+
+        val file = store.draftDir(draft.id).resolve("draft.json")
+        file.toFile().exists() shouldBe true
+        Files.readString(file).contains("Mon histoire") shouldBe true
+    }
+
     "addChapter appends a chapter and removeChapter removes it with its files" {
         val store = newStore()
         val draft = store.create()
@@ -64,12 +74,13 @@ class StoryDraftStoreTest : StringSpec({
         val draft2 = store.get(draft.id)!!
         draft2.chapters.map { it.name } shouldBe listOf("Chapitre 1")
         val stored = draft2.chapters.single()
-        stored.narrationAudioPath shouldNotBe null
-        stored.narrationAudioPath!!.toFile().exists() shouldBe true
+        stored.narrationAudioFile shouldNotBe null
+        val narration = store.draftDir(draft.id).resolve(stored.narrationAudioFile!!)
+        narration.toFile().exists() shouldBe true
 
         val draft3 = store.removeChapter(draft.id, chapter.id)!!
-        draft3.chapters shouldBe emptyList<StoryChapterDraft>()
-        stored.narrationAudioPath!!.toFile().exists() shouldBe false
+        draft3.chapters shouldBe emptyList<StoryChapterDraftState>()
+        narration.toFile().exists() shouldBe false
     }
 
     "chapter title audio and text are mutually exclusive" {
@@ -79,14 +90,14 @@ class StoryDraftStoreTest : StringSpec({
 
         store.setTitleAudio(draft.id, chapter.id, byteArrayOf(1, 2, 3), "audio/mpeg")
         var current = store.get(draft.id)!!.chapters.single()
-        current.titleAudioPath shouldNotBe null
+        current.titleAudioFile shouldNotBe null
         current.titleText.shouldBeNull()
-        val oldFile = current.titleAudioPath!!
+        val oldFile = store.draftDir(draft.id).resolve(current.titleAudioFile!!)
 
         store.setTitleText(draft.id, chapter.id, "Titre TTS")
         current = store.get(draft.id)!!.chapters.single()
         current.titleText shouldBe "Titre TTS"
-        current.titleAudioPath.shouldBeNull()
+        current.titleAudioFile.shouldBeNull()
         oldFile.toFile().exists() shouldBe false
     }
 
@@ -96,14 +107,14 @@ class StoryDraftStoreTest : StringSpec({
 
         store.setTitleAudio(draft.id, byteArrayOf(1, 2, 3), "audio/mpeg")
         var current = store.get(draft.id)!!
-        current.titleAudioPath shouldNotBe null
+        current.titleAudioFile shouldNotBe null
         current.titleText.shouldBeNull()
-        val oldFile = current.titleAudioPath!!
+        val oldFile = store.draftDir(draft.id).resolve(current.titleAudioFile!!)
 
         store.setTitleText(draft.id, "Mon histoire")
         current = store.get(draft.id)!!
         current.titleText shouldBe "Mon histoire"
-        current.titleAudioPath.shouldBeNull()
+        current.titleAudioFile.shouldBeNull()
         oldFile.toFile().exists() shouldBe false
     }
 
@@ -118,15 +129,15 @@ class StoryDraftStoreTest : StringSpec({
         store.setNarrationAudio(draft.id, chapter.id, byteArrayOf(4, 5, 6, 7), "audio/mpeg")
 
         val current = store.get(draft.id)!!
-        current.thumbnailPath!!.fileName.toString() shouldBe "thumbnail.png"
-        current.coverPath!!.fileName.toString() shouldBe "cover.jpg"
-        current.chapters.single().imagePath!!.fileName.toString() shouldBe "image.png"
-        current.chapters.single().narrationAudioPath!!.fileName.toString() shouldBe "narration.mp3"
+        current.thumbnailFile shouldBe "thumbnail.png"
+        current.coverFile shouldBe "cover.jpg"
+        current.chapters.single().imageFile shouldBe "chapters/${chapter.id}/image.png"
+        current.chapters.single().narrationAudioFile shouldBe "chapters/${chapter.id}/narration.mp3"
 
-        current.thumbnailPath!!.toFile().readBytes() shouldBe byteArrayOf(1)
-        current.coverPath!!.toFile().readBytes() shouldBe byteArrayOf(2)
-        current.chapters.single().imagePath!!.toFile().readBytes() shouldBe byteArrayOf(3)
-        current.chapters.single().narrationAudioPath!!.toFile().readBytes() shouldBe byteArrayOf(4, 5, 6, 7)
+        store.draftDir(draft.id).resolve(current.thumbnailFile!!).toFile().readBytes() shouldBe byteArrayOf(1)
+        store.draftDir(draft.id).resolve(current.coverFile!!).toFile().readBytes() shouldBe byteArrayOf(2)
+        store.draftDir(draft.id).resolve(current.chapters.single().imageFile!!).toFile().readBytes() shouldBe byteArrayOf(3)
+        store.draftDir(draft.id).resolve(current.chapters.single().narrationAudioFile!!).toFile().readBytes() shouldBe byteArrayOf(4, 5, 6, 7)
     }
 
     "setChapterIcon stores the icon slug" {
@@ -143,10 +154,10 @@ class StoryDraftStoreTest : StringSpec({
         val first = store.create()
         store.setThumbnail(first.id, byteArrayOf(9), "image/png")
 
-        val dir = store.get(first.id)!!.thumbnailPath!!.parent
+        val dir = store.draftDir(first.id)
         store.create()
 
-        dir!!.toFile().exists() shouldBe false
+        dir.toFile().exists() shouldBe false
     }
 
     "operations on an unknown draft or chapter return null" {
@@ -164,11 +175,11 @@ class StoryDraftStoreTest : StringSpec({
         val store = newStore()
         val draft = store.create()
         store.setThumbnail(draft.id, byteArrayOf(1), "image/png")
-        val dir = store.get(draft.id)!!.thumbnailPath!!.parent
+        val dir = store.draftDir(draft.id)
 
         store.clear("nope") shouldBe false
         store.get(draft.id).shouldNotBeNull()
-        dir!!.toFile().exists() shouldBe true
+        dir.toFile().exists() shouldBe true
 
         store.clear(draft.id) shouldBe true
         store.get(draft.id).shouldBeNull()

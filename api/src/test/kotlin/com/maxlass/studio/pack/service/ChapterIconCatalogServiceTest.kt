@@ -51,6 +51,12 @@ class ChapterIconCatalogServiceTest : StringSpec({
             exchange.responseBody.write(body.toByteArray())
             exchange.close()
         }
+        server.createContext("/resolved") { exchange ->
+            val body = """{"type":"npm","name":"lucide-static","version":"1.0.0"}"""
+            exchange.sendResponseHeaders(200, body.length.toLong())
+            exchange.responseBody.write(body.toByteArray())
+            exchange.close()
+        }
         server.start()
         return server to "http://127.0.0.1:${server.address.port}"
     }
@@ -60,7 +66,8 @@ class ChapterIconCatalogServiceTest : StringSpec({
         try {
             val catalog = ChapterIconCatalogService()
             catalog.iconBaseUrl = baseUrl
-            catalog.catalogUrl = "$baseUrl/catalog"
+            catalog.catalogResolveUrl = "$baseUrl/resolved"
+            catalog.catalogUrlTemplate = "$baseUrl/catalog"
 
             val svg = runBlocking { catalog.loadIcon("moon-star") }
             svg shouldNotBe null
@@ -78,7 +85,8 @@ class ChapterIconCatalogServiceTest : StringSpec({
         try {
             val catalog = ChapterIconCatalogService()
             catalog.iconBaseUrl = baseUrl
-            catalog.catalogUrl = "$baseUrl/catalog"
+            catalog.catalogResolveUrl = "$baseUrl/resolved"
+            catalog.catalogUrlTemplate = "$baseUrl/catalog"
 
             runBlocking { catalog.loadIcon("unknown") } shouldBe null
         } finally {
@@ -91,7 +99,8 @@ class ChapterIconCatalogServiceTest : StringSpec({
         try {
             val catalog = ChapterIconCatalogService()
             catalog.iconBaseUrl = baseUrl
-            catalog.catalogUrl = "$baseUrl/catalog"
+            catalog.catalogResolveUrl = "$baseUrl/resolved"
+            catalog.catalogUrlTemplate = "$baseUrl/catalog"
 
             runBlocking { catalog.loadIcon("bad") } shouldBe null
         } finally {
@@ -104,7 +113,8 @@ class ChapterIconCatalogServiceTest : StringSpec({
         try {
             val catalog = ChapterIconCatalogService()
             catalog.iconBaseUrl = baseUrl
-            catalog.catalogUrl = "$baseUrl/catalog"
+            catalog.catalogResolveUrl = "$baseUrl/resolved"
+            catalog.catalogUrlTemplate = "$baseUrl/catalog"
 
             // bundled icons match first, then remote catalog entries
             val results = runBlocking { catalog.searchIcons("moon") }
@@ -117,7 +127,7 @@ class ChapterIconCatalogServiceTest : StringSpec({
     "bundled icons are listed and loadable without the network" {
         val catalog = ChapterIconCatalogService()
         catalog.iconBaseUrl = "http://127.0.0.1:1" // unreachable
-        catalog.catalogUrl = "http://127.0.0.1:1"
+        catalog.catalogResolveUrl = "http://127.0.0.1:1"
 
         val icons = catalog.listIcons()
         icons.size shouldBe 4

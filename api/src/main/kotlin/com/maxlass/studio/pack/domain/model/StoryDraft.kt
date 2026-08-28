@@ -1,62 +1,50 @@
 package com.maxlass.studio.pack.domain.model
 
-import java.nio.file.Path
+import kotlinx.serialization.Serializable
 
 /**
- * In-memory story draft (single active draft, one story at a time).
+ * Persisted state of the single active story draft, saved as `draft.json` inside its temp
+ * dir (`storageDir/drafts/{id}/`). Nothing is kept in memory: every mutation reads and
+ * rewrites the JSON, and every binary payload (audio, images) is a plain file on disk.
  *
- * The structured state lives in memory; the **binary payloads** (audio, images) live in a
- * temp dir (`storageDir/drafts/{id}/`) so a 2-3 h story never saturates the JVM heap.
- * The whole draft directory is removed at startup (crash leftovers), when a new story
- * replaces the current draft, and at finalization. Nothing is persisted in the library/DB.
+ * File references are **relative paths** resolved against the draft dir, e.g.
+ * `thumbnail.png`, `cover.jpg`, `chapters/{chapterId}/narration.mp3`. The whole drafts
+ * directory is cleaned at startup (crash leftovers), when a new story replaces the current
+ * draft, and at finalization. Nothing is persisted in the library/DB.
  *
- * @property thumbnailPath Image for `meta/thumbnail.png` (library display).
- * @property coverPath Square-one cover image ("thumbnail Lunii").
- * @property titleAudioPath Uploaded pack title audio (played on the cover). Mutually
+ * @property thumbnailFile Image for `meta/thumbnail.png` (library display).
+ * @property coverFile Square-one cover image ("thumbnail Lunii").
+ * @property titleAudioFile Uploaded pack title audio (played on the cover). Mutually
  * exclusive with [titleText].
  * @property titleText Text entered instead of pack title audio → TTS at finalization
- * (cover audio = TTS of the title when absent). Mutually exclusive with [titleAudioPath].
+ * (cover audio = TTS of the title when absent). Mutually exclusive with [titleAudioFile].
  */
-data class StoryDraft(
+@Serializable
+data class StoryDraftState(
     val id: String,
     val title: String? = null,
     val description: String? = null,
-    val thumbnailPath: Path? = null,
-    val coverPath: Path? = null,
-    val titleAudioPath: Path? = null,
+    val thumbnailFile: String? = null,
+    val coverFile: String? = null,
+    val titleAudioFile: String? = null,
     val titleText: String? = null,
-    val chapters: List<StoryChapterDraft> = emptyList(),
+    val chapters: List<StoryChapterDraftState> = emptyList(),
     val createdAtEpochMs: Long,
 )
 
-/** One chapter of the draft. Binary payloads are stored on disk, referenced by path. */
-data class StoryChapterDraft(
+/** One chapter of the draft. Binary payloads are plain files on disk, referenced relatively. */
+@Serializable
+data class StoryChapterDraftState(
     val id: String,
     val name: String,
     /** Uploaded title audio file (MP3/WAV/OGG…). Mutually exclusive with [titleText]. */
-    val titleAudioPath: Path? = null,
-    /** Text entered instead of title audio → TTS at finalization. Mutually exclusive with [titleAudioPath]. */
+    val titleAudioFile: String? = null,
+    /** Text entered instead of title audio → TTS at finalization. Mutually exclusive with [titleAudioFile]. */
     val titleText: String? = null,
     /** Uploaded chapter narration audio (the story itself, up to hours long). */
-    val narrationAudioPath: Path? = null,
+    val narrationAudioFile: String? = null,
     /** Uploaded chapter image (PNG/JPEG, converted from SVG before upload when needed). */
-    val imagePath: Path? = null,
-    /** Lucide icon slug rendered as the chapter image (fallback when [imagePath] is null). */
+    val imageFile: String? = null,
+    /** Lucide icon slug rendered as the chapter image (fallback when [imageFile] is null). */
     val iconId: String? = null,
-) {
-    override fun equals(other: Any?): Boolean = other is StoryChapterDraft &&
-        other.id == id && other.name == name && other.titleText == titleText &&
-        other.titleAudioPath == titleAudioPath && other.narrationAudioPath == narrationAudioPath &&
-        other.imagePath == imagePath && other.iconId == iconId
-
-    override fun hashCode(): Int {
-        var result = id.hashCode()
-        result = 31 * result + name.hashCode()
-        result = 31 * result + (titleAudioPath?.hashCode() ?: 0)
-        result = 31 * result + (titleText?.hashCode() ?: 0)
-        result = 31 * result + (narrationAudioPath?.hashCode() ?: 0)
-        result = 31 * result + (imagePath?.hashCode() ?: 0)
-        result = 31 * result + (iconId?.hashCode() ?: 0)
-        return result
-    }
-}
+)

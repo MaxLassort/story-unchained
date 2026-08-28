@@ -81,3 +81,56 @@ export interface SyncJobStatusResponse {
   batchSize: number;
   parallelism: number;
 }
+
+export interface DraftCreatedResponse {
+  draftId: string;
+}
+
+export interface StoryChapterDraftSummary {
+  id: string;
+  name: string;
+  hasTitleAudio: boolean;
+  titleAudioBytes: number;
+  titleText: string | null;
+  hasNarrationAudio: boolean;
+  narrationAudioBytes: number;
+  hasImage: boolean;
+  imageBytes: number;
+  iconId: string | null;
+}
+
+export interface StoryDraftSummary {
+  id: string;
+  title: string | null;
+  description: string | null;
+  hasThumbnail: boolean;
+  thumbnailBytes: number;
+  hasCover: boolean;
+  coverBytes: number;
+  hasTitleAudio: boolean;
+  titleAudioBytes: number;
+  titleText: string | null;
+  chapters: StoryChapterDraftSummary[];
+}
+
+export interface UpdateDraftRequest {
+  title?: string;
+  description?: string;
+}
+
+export interface ChapterIconDto {
+  id: string;
+  name: string;
+}
+
+export interface ChapterIconsResponse {
+  icons: ChapterIconDto[];
+}
+
+export type NodeImageMode = 'icon' | 'image';
+
+export interface NodeImageSelection {
+  mode: NodeImageMode;
+  iconId: string | null;
+  file: File | null;
+}

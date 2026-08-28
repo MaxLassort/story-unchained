@@ -1,0 +1,139 @@
+<div class="node-image">
+  <div class="node-image__header">
+    <mat-button-toggle-group
+      class="node-image__mode"
+      [value]="mode()"
+      (valueChange)="onModeChange($event)"
+      hideSingleSelectionIndicator
+    >
+      <mat-button-toggle value="icon" matTooltip="Pick an icon from the Lucide library">
+        <mat-icon aria-hidden="true">apps</mat-icon>
+        Select Icon
+      </mat-button-toggle>
+      <mat-button-toggle value="image" matTooltip="Upload a custom image (PNG/JPEG)">
+        <mat-icon aria-hidden="true">upload_file</mat-icon>
+        Upload Image
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+
+    @if (mode() === 'icon') {
+      <button
+        mat-icon-button
+        type="button"
+        class="node-image__info"
+        aria-label="About the icon library"
+        [matTooltip]="iconLibraryTooltip"
+      >
+        <mat-icon>info</mat-icon>
+      </button>
+    } @else {
+      <button
+        mat-icon-button
+        type="button"
+        class="node-image__info"
+        aria-label="Image specifications"
+        [matTooltip]="imageSpecTooltip()"
+      >
+        <mat-icon>info</mat-icon>
+      </button>
+    }
+  </div>
+
+  @if (mode() === 'icon') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="node-image__search">
+      <mat-label>Search icons</mat-label>
+      <input
+        matInput
+        [value]="searchQuery()"
+        (input)="onSearchChange($any($event.target).value)"
+        placeholder="Type at least 2 characters to search the full Lucide catalog"
+        autocomplete="off"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <div class="node-image__grid-scroll">
+      @if (iconsLoading()) {
+        <div class="node-image__grid-loading">
+          <mat-spinner diameter="24" />
+        </div>
+      } @else if (icons().length === 0) {
+        <span class="node-image__hint">No icons found.</span>
+      } @else {
+        <div class="node-image__grid">
+          @for (icon of icons(); track icon.id) {
+            <button
+              type="button"
+              class="node-image__tile"
+              [class.node-image__tile--selected]="iconId() === icon.id"
+              [attr.aria-label]="icon.name"
+              [attr.aria-pressed]="iconId() === icon.id"
+              [matTooltip]="icon.name"
+              (click)="selectIcon(icon.id)"
+            >
+              <img [src]="iconPreviewSrc(icon.id)" alt="" class="node-image__tile-img" loading="lazy" />
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    @if (iconId(); as id) {
+      <div class="node-image__preview">
+        <img [src]="iconPreviewSrc(id)" alt="" class="node-image__preview-img" />
+        <span class="node-image__preview-label">{{ selectedIconName() }}</span>
+      </div>
+    }
+  } @else {
+    <div
+      class="node-image__zone"
+      tabindex="0"
+      role="button"
+      aria-label="Select image"
+      [class.node-image__zone--dragging]="dragging()"
+      (click)="fileInput.click()"
+      (keydown.enter)="fileInput.click()"
+      (keydown.space)="$event.preventDefault(); fileInput.click()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      @if (previewUrl(); as url) {
+        <img [src]="url" alt="" class="node-image__zone-preview" />
+        <span class="node-image__zone-replace">Click or drop to replace</span>
+        <button
+          mat-icon-button
+          type="button"
+          class="node-image__zone-remove"
+          aria-label="Remove image"
+          (click)="clearFile(); $event.stopPropagation()"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      } @else {
+        <mat-icon class="node-image__zone-icon">upload_file</mat-icon>
+        <span class="node-image__zone-title">Drag and drop image here or click to browse</span>
+        <span class="node-image__zone-hint">
+          PNG/JPEG — {{ expectedWidth() }}×{{ expectedHeight() }} px required
+        </span>
+      }
+      <input
+        #fileInput
+        class="node-image__file-input"
+        type="file"
+        accept="image/png,image/jpeg"
+        (change)="onFileSelected(fileInput.files?.[0] ?? null); fileInput.value = ''"
+      />
+    </div>
+
+    @if (validating()) {
+      <span class="node-image__hint">Validating dimensions…</span>
+    }
+    @if (typeError(); as error) {
+      <span class="node-image__error">{{ error }}</span>
+    }
+    @if (dimensionError(); as error) {
+      <span class="node-image__error">{{ error }}</span>
+    }
+  }
+</div>

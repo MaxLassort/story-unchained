@@ -36,6 +36,25 @@
   padding-top: 0.5rem;
 }
 
+.story-details__thumbnail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.story-details__cover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.story-details__error {
+  color: var(--mat-sys-error);
+  font-size: 0.85rem;
+}
+
 .story-details__label {
   font-weight: 600;
 }

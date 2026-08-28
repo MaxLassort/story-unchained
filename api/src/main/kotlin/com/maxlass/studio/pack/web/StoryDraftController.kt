@@ -8,7 +8,7 @@ import com.maxlass.studio.pack.domain.dto.SetTitleTextRequest
 import com.maxlass.studio.pack.domain.dto.StoryChapterDraftSummary
 import com.maxlass.studio.pack.domain.dto.StoryDraftSummary
 import com.maxlass.studio.pack.domain.dto.UpdateDraftRequest
-import com.maxlass.studio.pack.domain.model.StoryDraft
+import com.maxlass.studio.pack.domain.model.StoryDraftState
 import com.maxlass.studio.pack.service.StoryDraftStore
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -34,17 +35,18 @@ import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 
 /**
- * In-memory story draft: single draft at a time, everything in memory until finalization
- * (zip creation). Binary payloads (chapter audio, chapter image) are uploaded with
- * multipart; a chapter title can alternatively be provided as text, synthesized by the
- * TTS engine at finalization.
+ * Story draft API: single draft at a time, persisted entirely on disk in the temp folder
+ * (`storageDir/drafts/{id}/draft.json` + binary files) until finalization (zip creation).
+ * Binary payloads (chapter audio, chapter image) are uploaded with multipart; a chapter
+ * title can alternatively be provided as text, synthesized by the TTS engine at finalization.
  */
 @RestController
 @RequestMapping("/stories/drafts")
-@Tag(name = "Stories - Draft", description = "Brouillon d'histoire en mémoire (une seule à la " +
-    "fois) : création → remplissage (chapitres, audio ou texte TTS, image) → finalisation en zip. " +
-    "Rien n'est persisté : le draft disparaît à la fermeture de l'appli et est remplacé à la " +
-    "création d'une nouvelle histoire.")
+@Tag(name = "Stories - Draft", description = "Brouillon d'histoire sur disque dans le dossier " +
+    "temp (une seule à la fois) : création → remplissage (chapitres, audio ou texte TTS, " +
+    "image) → finalisation en zip. Rien n'est gardé en mémoire ni persisté : le draft " +
+    "disparaît à la fermeture de l'appli et est remplacé à la création d'une nouvelle " +
+    "histoire.")
 class StoryDraftController(
     private val store: StoryDraftStore,
 ) {
@@ -87,7 +89,7 @@ class StoryDraftController(
     @PatchMapping("/{id}")
     fun updateDraft(
         @PathVariable id: String,
-        @RequestBody body: UpdateDraftRequest,
+        @Valid @RequestBody body: UpdateDraftRequest,
     ): StoryDraftSummary =
         store.updateMetadata(id, body.title, body.description)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
@@ -106,11 +108,8 @@ class StoryDraftController(
         @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        val type = file.contentType?.lowercase()
-        if (file.isEmpty || !(type == "image/png" || type == "image/jpeg" || type == "image/jpg")) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "PNG or JPEG image required")
-        }
-        return store.setThumbnail(id, file.bytes, type!!)?.let(::toSummary)
+        val type = imageTypeOf(file)
+        return store.setThumbnail(id, file.bytes, type)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
     }
 
@@ -128,11 +127,8 @@ class StoryDraftController(
         @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        val type = file.contentType?.lowercase()
-        if (file.isEmpty || !(type == "image/png" || type == "image/jpeg" || type == "image/jpg")) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "PNG or JPEG image required")
-        }
-        return store.setCover(id, file.bytes, type!!)?.let(::toSummary)
+        val type = imageTypeOf(file)
+        return store.setCover(id, file.bytes, type)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
     }
 
@@ -150,10 +146,8 @@ class StoryDraftController(
         @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        if (file.isEmpty || !(file.contentType?.lowercase()?.startsWith("audio/") == true)) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Audio file required (audio/*)")
-        }
-        return store.setTitleAudio(id, file.bytes, file.contentType!!)?.let(::toSummary)
+        val type = audioTypeOf(file)
+        return store.setTitleAudio(id, file.bytes, type)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
     }
 
@@ -169,18 +163,15 @@ class StoryDraftController(
     @PutMapping("/{id}/title-text")
     fun setTitleText(
         @PathVariable id: String,
-        @RequestBody body: SetTitleTextRequest,
-    ): StoryDraftSummary {
-        if (body.text.isBlank()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Title text must not be blank")
-        }
-        return store.setTitleText(id, body.text.trim())?.let(::toSummary)
+        @Valid @RequestBody body: SetTitleTextRequest,
+    ): StoryDraftSummary =
+        store.setTitleText(id, body.text.trim())?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-    }
 
     @Operation(
         summary = "Supprimer le brouillon",
-        description = "Vide le brouillon en mémoire (équivalent à quitter l'appli).",
+        description = "Supprime le brouillon (fichiers du dossier temp, équivalent à quitter " +
+            "l'appli).",
     )
     @ApiResponse(responseCode = "204", description = "Brouillon supprimé")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
@@ -208,11 +199,8 @@ class StoryDraftController(
     @PostMapping("/{id}/chapters")
     fun addChapter(
         @PathVariable id: String,
-        @RequestBody body: CreateChapterRequest,
+        @Valid @RequestBody body: CreateChapterRequest,
     ): ResponseEntity<ChapterCreatedResponse> {
-        if (body.name.isBlank()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Chapter name must not be blank")
-        }
         val chapter = store.addChapter(id, body.name.trim())
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -250,10 +238,8 @@ class StoryDraftController(
         @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        if (file.isEmpty || !(file.contentType?.lowercase()?.startsWith("audio/") == true)) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Audio file required (audio/*)")
-        }
-        return store.setTitleAudio(id, chapterId, file.bytes, file.contentType!!)?.let(::toSummary)
+        val type = audioTypeOf(file)
+        return store.setTitleAudio(id, chapterId, file.bytes, type)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
     }
 
@@ -273,10 +259,8 @@ class StoryDraftController(
         @Parameter(description = "Fichier audio de narration (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        if (file.isEmpty || !(file.contentType?.lowercase()?.startsWith("audio/") == true)) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Audio file required (audio/*)")
-        }
-        return store.setNarrationAudio(id, chapterId, file.bytes, file.contentType!!)?.let(::toSummary)
+        val type = audioTypeOf(file)
+        return store.setNarrationAudio(id, chapterId, file.bytes, type)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
     }
 
@@ -293,14 +277,10 @@ class StoryDraftController(
     fun setChapterTitleText(
         @PathVariable id: String,
         @PathVariable chapterId: String,
-        @RequestBody body: SetTitleTextRequest,
-    ): StoryDraftSummary {
-        if (body.text.isBlank()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Title text must not be blank")
-        }
-        return store.setTitleText(id, chapterId, body.text.trim())?.let(::toSummary)
+        @Valid @RequestBody body: SetTitleTextRequest,
+    ): StoryDraftSummary =
+        store.setTitleText(id, chapterId, body.text.trim())?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
-    }
 
     @Operation(
         summary = "Uploader l'image du chapitre",
@@ -318,11 +298,8 @@ class StoryDraftController(
         @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        val type = file.contentType?.lowercase()
-        if (file.isEmpty || !(type == "image/png" || type == "image/jpeg" || type == "image/jpg")) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "PNG or JPEG image required")
-        }
-        return store.setChapterImage(id, chapterId, file.bytes, type!!)?.let(::toSummary)
+        val type = imageTypeOf(file)
+        return store.setChapterImage(id, chapterId, file.bytes, type)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
     }
 
@@ -339,39 +316,58 @@ class StoryDraftController(
     fun setChapterIcon(
         @PathVariable id: String,
         @PathVariable chapterId: String,
-        @RequestBody body: SetChapterIconRequest,
-    ): StoryDraftSummary {
-        if (body.iconId.isBlank()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Icon id must not be blank")
-        }
-        return store.setChapterIcon(id, chapterId, body.iconId.trim())?.let(::toSummary)
+        @Valid @RequestBody body: SetChapterIconRequest,
+    ): StoryDraftSummary =
+        store.setChapterIcon(id, chapterId, body.iconId.trim())?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
+
+    /** Validates a PNG/JPEG multipart payload and returns its normalized content type. */
+    private fun imageTypeOf(file: MultipartFile): String {
+        val type = file.contentType?.lowercase()
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "PNG or JPEG image required")
+        if (file.isEmpty || type !in setOf("image/png", "image/jpeg", "image/jpg")) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "PNG or JPEG image required")
+        }
+        return type
     }
 
-    private fun toSummary(draft: StoryDraft): StoryDraftSummary = StoryDraftSummary(
+    /** Validates an audio multipart payload and returns its normalized content type. */
+    private fun audioTypeOf(file: MultipartFile): String {
+        val type = file.contentType?.lowercase()
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Audio file required (audio/*)")
+        if (file.isEmpty || !type.startsWith("audio/")) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Audio file required (audio/*)")
+        }
+        return type
+    }
+
+    private fun toSummary(draft: StoryDraftState): StoryDraftSummary = StoryDraftSummary(
         id = draft.id,
         title = draft.title,
         description = draft.description,
-        hasThumbnail = draft.thumbnailPath != null,
-        thumbnailBytes = draft.thumbnailPath?.toFile()?.length()?.toInt() ?: 0,
-        hasCover = draft.coverPath != null,
-        coverBytes = draft.coverPath?.toFile()?.length()?.toInt() ?: 0,
-        hasTitleAudio = draft.titleAudioPath != null,
-        titleAudioBytes = draft.titleAudioPath?.toFile()?.length()?.toInt() ?: 0,
+        hasThumbnail = draft.thumbnailFile != null,
+        thumbnailBytes = sizeOf(draft.id, draft.thumbnailFile),
+        hasCover = draft.coverFile != null,
+        coverBytes = sizeOf(draft.id, draft.coverFile),
+        hasTitleAudio = draft.titleAudioFile != null,
+        titleAudioBytes = sizeOf(draft.id, draft.titleAudioFile),
         titleText = draft.titleText,
         chapters = draft.chapters.map { chapter ->
             StoryChapterDraftSummary(
                 id = chapter.id,
                 name = chapter.name,
-                hasTitleAudio = chapter.titleAudioPath != null,
-                titleAudioBytes = chapter.titleAudioPath?.toFile()?.length()?.toInt() ?: 0,
+                hasTitleAudio = chapter.titleAudioFile != null,
+                titleAudioBytes = sizeOf(draft.id, chapter.titleAudioFile),
                 titleText = chapter.titleText,
-                hasNarrationAudio = chapter.narrationAudioPath != null,
-                narrationAudioBytes = chapter.narrationAudioPath?.toFile()?.length()?.toInt() ?: 0,
-                hasImage = chapter.imagePath != null,
-                imageBytes = chapter.imagePath?.toFile()?.length()?.toInt() ?: 0,
+                hasNarrationAudio = chapter.narrationAudioFile != null,
+                narrationAudioBytes = sizeOf(draft.id, chapter.narrationAudioFile),
+                hasImage = chapter.imageFile != null,
+                imageBytes = sizeOf(draft.id, chapter.imageFile),
                 iconId = chapter.iconId,
             )
         },
     )
+
+    private fun sizeOf(draftId: String, relativeFile: String?): Long =
+        relativeFile?.let { store.draftDir(draftId).resolve(it).toFile().length() } ?: 0
 }

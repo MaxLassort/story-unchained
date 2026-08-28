@@ -33,5 +33,34 @@
       </span>
       <app-title-audio-input [formField]="detailsForm.titleAudio" />
     </div>
+
+    <div class="story-details__thumbnail">
+      <span class="story-details__label">Pack thumbnail *</span>
+      <span class="story-details__hint">
+        Shown in the Lunii launcher. Uploaded to the draft immediately.
+      </span>
+      <app-image-drop-input [formField]="detailsForm.thumbnail" />
+      @if (thumbnailUploading()) {
+        <span class="story-details__hint">Uploading…</span>
+      }
+      @if (thumbnailError(); as error) {
+        <span class="story-details__error">{{ error }}</span>
+      }
+    </div>
+
+    <div class="story-details__cover">
+      <span class="story-details__label">Cover image *</span>
+      <span class="story-details__hint">
+        First image visible on the Lunii when the story starts. Pick an icon from the library
+        or upload a 320×240 image.
+      </span>
+      <app-node-image-input [formField]="detailsForm.cover" />
+      @if (coverUploading()) {
+        <span class="story-details__hint">Uploading…</span>
+      }
+      @if (coverError(); as error) {
+        <span class="story-details__error">{{ error }}</span>
+      }
+    </div>
   </div>
 </div>

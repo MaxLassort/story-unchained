@@ -1,5 +1,6 @@
 package com.maxlass.studio.pack.domain.dto
 
+import jakarta.validation.constraints.NotBlank
 import kotlinx.serialization.Serializable
 
 /** State of the draft, without the binary payloads (only their sizes). */
@@ -9,11 +10,11 @@ data class StoryDraftSummary(
     val title: String? = null,
     val description: String? = null,
     val hasThumbnail: Boolean = false,
-    val thumbnailBytes: Int = 0,
+    val thumbnailBytes: Long = 0,
     val hasCover: Boolean = false,
-    val coverBytes: Int = 0,
+    val coverBytes: Long = 0,
     val hasTitleAudio: Boolean = false,
-    val titleAudioBytes: Int = 0,
+    val titleAudioBytes: Long = 0,
     val titleText: String? = null,
     val chapters: List<StoryChapterDraftSummary> = emptyList(),
 )
@@ -24,12 +25,12 @@ data class StoryChapterDraftSummary(
     val id: String,
     val name: String,
     val hasTitleAudio: Boolean = false,
-    val titleAudioBytes: Int = 0,
+    val titleAudioBytes: Long = 0,
     val titleText: String? = null,
     val hasNarrationAudio: Boolean = false,
-    val narrationAudioBytes: Int = 0,
+    val narrationAudioBytes: Long = 0,
     val hasImage: Boolean = false,
-    val imageBytes: Int = 0,
+    val imageBytes: Long = 0,
     val iconId: String? = null,
 )
 
@@ -46,10 +47,19 @@ data class UpdateDraftRequest(
 )
 
 @Serializable
-data class CreateChapterRequest(val name: String)
+data class CreateChapterRequest(
+    @field:NotBlank(message = "Chapter name must not be blank")
+    val name: String,
+)
 
 @Serializable
-data class SetTitleTextRequest(val text: String)
+data class SetTitleTextRequest(
+    @field:NotBlank(message = "Title text must not be blank")
+    val text: String,
+)
 
 @Serializable
-data class SetChapterIconRequest(val iconId: String)
+data class SetChapterIconRequest(
+    @field:NotBlank(message = "Icon id must not be blank")
+    val iconId: String,
+)

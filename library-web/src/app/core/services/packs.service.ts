@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient, httpResource } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { Pack, PagedPacksResponse, SyncJobStartResponse, SyncJobStatusResponse, UpdatePackMetadataRequest, PackConversionRequest, PackConversionResponse } from '../models';
+import type { Pack, PagedPacksResponse, SyncJobStartResponse, SyncJobStatusResponse, UpdatePackMetadataRequest, PackConversionRequest, PackConversionResponse, DraftCreatedResponse, StoryDraftSummary, UpdateDraftRequest } from '../models';
 import { ApiStatusResponse } from '../models';
 
 import { environment } from '../../../environments/environment';
@@ -10,6 +10,10 @@ import { environment } from '../../../environments/environment';
 export class PacksService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/packs`;
+  private readonly draftsUrl = `${environment.apiUrl}/stories/drafts`;
+
+  readonly draftId = signal<string | null>(null);
+  private draftPromise: Promise<string> | null = null;
 
   readonly page = signal(0);
   readonly pageSize = signal(24);
@@ -67,6 +71,80 @@ export class PacksService {
   async uploadThumbnail(id: string, image: Blob): Promise<void> {
     await firstValueFrom(this.http.patch(`${this.baseUrl}/${id}/thumbnail`, image));
     this.refresh();
+  }
+
+  async ensureDraft(): Promise<string> {
+    const existing = this.draftId();
+    if (existing) return existing;
+    if (this.draftPromise) return this.draftPromise;
+    this.draftPromise = firstValueFrom(this.http.post<DraftCreatedResponse>(this.draftsUrl, {}))
+      .then((res) => {
+        this.draftId.set(res.draftId);
+        return res.draftId;
+      })
+      .finally(() => {
+        this.draftPromise = null;
+      });
+    return this.draftPromise;
+  }
+
+  async getDraft(id: string): Promise<StoryDraftSummary> {
+    return firstValueFrom(this.http.get<StoryDraftSummary>(`${this.draftsUrl}/${id}`));
+  }
+
+  async updateDraftMetadata(id: string, request: UpdateDraftRequest): Promise<StoryDraftSummary> {
+    return firstValueFrom(this.http.patch<StoryDraftSummary>(`${this.draftsUrl}/${id}`, request));
+  }
+
+  async uploadDraftThumbnail(id: string, file: File): Promise<StoryDraftSummary> {
+    const form = new FormData();
+    form.append('file', file);
+    return firstValueFrom(this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/thumbnail`, form));
+  }
+
+  async uploadDraftCover(id: string, file: File): Promise<StoryDraftSummary> {
+    const form = new FormData();
+    form.append('file', file);
+    return firstValueFrom(this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/cover`, form));
+  }
+
+  async uploadDraftChapterImage(id: string, chapterId: string, file: File): Promise<StoryDraftSummary> {
+    const form = new FormData();
+    form.append('file', file);
+    return firstValueFrom(
+      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/chapters/${chapterId}/image`, form),
+    );
+  }
+
+  async setDraftChapterIcon(id: string, chapterId: string, iconId: string): Promise<StoryDraftSummary> {
+    return firstValueFrom(
+      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/chapters/${chapterId}/icon`, { iconId }),
+    );
+  }
+
+  iconPreviewUrl(iconId: string): string {
+    return `${environment.apiUrl}/stories/images/preview?iconId=${encodeURIComponent(iconId)}`;
+  }
+
+  chapterNumberPreviewUrl(chapterNumber: number): string {
+    return `${environment.apiUrl}/stories/images/preview?chapterNumber=${chapterNumber}`;
+  }
+
+  async fetchIconPng(iconId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${environment.apiUrl}/stories/images/preview`, {
+        params: { iconId },
+        responseType: 'blob',
+      }),
+    );
+  }
+
+  async renderSvg(svg: File): Promise<Blob> {
+    const form = new FormData();
+    form.append('file', svg);
+    return firstValueFrom(
+      this.http.post(`${environment.apiUrl}/stories/images/render`, form, { responseType: 'blob' }),
+    );
   }
 
   refresh(): void {

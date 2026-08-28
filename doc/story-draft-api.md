@@ -1,20 +1,21 @@
-# Brouillon d'histoire (draft en mémoire + temp dir)
+# Brouillon d'histoire (sur disque, dossier temp)
 
 ## Pourquoi
 
 Créer une histoire demande plusieurs étapes (titre, thumbnails, chapitres, audios, images).
 Plutôt que d'écrire quoi que ce soit en base ou dans la bibliothèque avant d'avoir un zip
-valide, le brouillon vit **en mémoire Spring** : rien n'est persisté avant la finalisation
+valide, le brouillon vit **dans le dossier temp** : rien n'est persisté avant la finalisation
 (étape 5).
 
 ## Choix
 
 - **Un seul brouillon à la fois** : créer une nouvelle histoire **remplace** le brouillon
   courant (pas de multi-drafts, plus simple pour le front et le back).
-- **État structuré en RAM, binaires sur disque** : l'état (titre, description, chapitres,
-  chemins) vit en mémoire ; les **binaires** (audio, images) vivent dans un temp dir
-  `storageDir/drafts/{id}/`. Une histoire peut durer **2-3 h d'audio** (~60-200 Mo en MP3,
-  plus en WAV) : les garder en heap saturerait la JVM et serait perdu en cas de crash.
+- **Tout sur disque, rien en mémoire** : l'état structuré est sérialisé dans
+  `drafts/{id}/draft.json` et les **binaires** (audio, images) sont des fichiers dans le
+  même dossier temp `storageDir/drafts/{id}/`. Chaque mutation relit le JSON, l'applique et
+  le réécrit. Une histoire peut durer **2-3 h d'audio** (~60-200 Mo en MP3, plus en WAV) :
+  rien ne doit vivre en heap JVM.
 - **Nettoyage systématique** : le dossier `drafts/` est **purge au démarrage** (résidus de
   crash) ; le dossier d'un draft est supprimé à son remplacement, à sa suppression
   (`DELETE`) et à sa finalisation. Le draft ne survit jamais à la fermeture de l'appli.
@@ -23,7 +24,7 @@ valide, le brouillon vit **en mémoire Spring** : rien n'est persisté avant la 
   settings) **à la finalisation** — les deux sont mutuellement exclusifs (saisir l'un
   efface l'autre).
 - **Audio du chapitre (narration)** : le contenu du chapitre lui-même (potentiellement des
-  heures au total) est uploadé via `…/narration` et stocké sur disque, jamais en RAM.
+  heures au total) est uploadé via `…/narration` et stocké sur disque.
 - **Image du chapitre** : PNG/JPEG uploadé (un SVG doit être converti avant via
   `POST /stories/images/render`), avec l'icône Lucide (`iconId`) comme fallback ; à la
   finalisation, hiérarchie : image uploadée → icône → chiffre généré (étape 4).

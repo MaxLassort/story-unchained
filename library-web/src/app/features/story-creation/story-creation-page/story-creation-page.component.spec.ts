@@ -35,7 +35,13 @@ describe('StoryCreationPageComponent', () => {
     );
     expect(nextButton?.disabled).toBe(true);
 
-    page.detailsStep()?.model.set({ title: 'Mon histoire', description: '', titleAudio: null });
+    page.detailsStep()?.model.set({
+      title: 'Mon histoire',
+      description: '',
+      titleAudio: null,
+      thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
+      cover: { mode: 'icon', iconId: 'star', file: null },
+    });
     fixture.detectChanges();
 
     expect(nextButton?.disabled).toBe(false);

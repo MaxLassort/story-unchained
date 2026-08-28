@@ -1,172 +1,202 @@
 package com.maxlass.studio.pack.service
 
 import com.maxlass.studio.infrastructure.config.StudioProperties
-import com.maxlass.studio.pack.domain.model.StoryChapterDraft
-import com.maxlass.studio.pack.domain.model.StoryDraft
+import com.maxlass.studio.pack.domain.model.StoryChapterDraftState
+import com.maxlass.studio.pack.domain.model.StoryDraftState
 import jakarta.annotation.PostConstruct
+import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
 
 /**
- * Single in-memory story draft store (one story at a time).
+ * Single story draft store backed entirely by the temp folder (one story at a time).
  *
- * The structured state lives in memory; binary payloads (audio, images) live on disk under
- * `storageDir/drafts/{draftId}/` so a multi-hour story never saturates the JVM heap.
- * The whole drafts directory is **cleaned at every startup** (crash leftovers), and the
- * draft directory is removed when the draft is replaced or cleared. Nothing is persisted
- * in the library/DB: the draft is lost when the app quits, exactly as intended.
+ * Nothing is kept in memory: the structured state lives in `drafts/{id}/draft.json` and
+ * every binary payload (audio, images) is a plain file under `drafts/{id}/`. Every
+ * mutation reads the JSON, applies the change and rewrites it, so a multi-hour story never
+ * saturates the JVM heap and survives nothing but the current run — the whole drafts
+ * directory is **cleaned at every startup** (crash leftovers), and the draft directory is
+ * removed when the draft is replaced or cleared.
  */
 @Service
 class StoryDraftStore(
     private val studioProperties: StudioProperties,
 ) {
 
-    @Volatile
-    private var current: StoryDraft? = null
+    companion object {
+        private val logger = LoggerFactory.getLogger(StoryDraftStore::class.java)
+    }
 
     private val lock = Any()
 
-    /** Removes all leftover draft binaries from previous runs. */
+    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+
+    /** Removes all leftover draft files from previous runs. */
     @PostConstruct
     fun cleanAtStartup() {
+        logger.info("Cleaning story draft temp dir {}", studioProperties.draftsDir)
         studioProperties.draftsDir.toFile().deleteRecursively()
     }
 
     /** Replaces any existing draft (its temp dir is removed) with a new empty one. */
-    fun create(): StoryDraft = synchronized(lock) {
-        current?.let { deleteDraftFiles(it.id) }
-        StoryDraft(
+    fun create(): StoryDraftState = synchronized(lock) {
+        studioProperties.draftsDir.toFile().deleteRecursively()
+        val draft = StoryDraftState(
             id = UUID.randomUUID().toString(),
             createdAtEpochMs = System.currentTimeMillis(),
-        ).also { current = it }
+        )
+        logger.info("Creating story draft {} (replacing any previous one)", draft.id)
+        writeState(draft)
+        draft
     }
 
     /** The draft with the given id, or null (unknown or already replaced/cleared). */
-    fun get(id: String): StoryDraft? = current?.takeIf { it.id == id }
+    fun get(id: String): StoryDraftState? = synchronized(lock) {
+        readState(id)
+    }
 
     /** Removes the current draft and its temp dir. */
     fun clear(id: String): Boolean = synchronized(lock) {
-        if (current?.id == id) {
-            deleteDraftFiles(id)
-            current = null
-            true
-        } else {
+        if (readState(id) == null) {
             false
+        } else {
+            draftDir(id).toFile().deleteRecursively()
+            true
         }
     }
 
-    fun updateMetadata(id: String, title: String?, description: String?): StoryDraft? =
+    fun updateMetadata(id: String, title: String?, description: String?): StoryDraftState? =
         synchronized(lock) {
             mutateDraft(id) { it.copy(title = title, description = description) }
         }
 
-    fun addChapter(id: String, name: String): StoryChapterDraft? = synchronized(lock) {
-        val draft = current?.takeIf { it.id == id } ?: return@synchronized null
-        val chapter = StoryChapterDraft(id = UUID.randomUUID().toString(), name = name)
-        current = draft.copy(chapters = draft.chapters + chapter)
+    fun addChapter(id: String, name: String): StoryChapterDraftState? = synchronized(lock) {
+        val draft = readState(id) ?: return@synchronized null
+        val chapter = StoryChapterDraftState(id = UUID.randomUUID().toString(), name = name)
+        writeState(draft.copy(chapters = draft.chapters + chapter))
         chapter
     }
 
-    fun removeChapter(id: String, chapterId: String): StoryDraft? = synchronized(lock) {
-        val draft = current?.takeIf { it.id == id } ?: return@synchronized null
-        draft.chapters.find { it.id == chapterId }?.let { deleteChapterFiles(id, chapterId) }
-        current = draft.copy(chapters = draft.chapters.filterNot { it.id == chapterId })
-        current
+    fun removeChapter(id: String, chapterId: String): StoryDraftState? = synchronized(lock) {
+        val draft = readState(id) ?: return@synchronized null
+        if (draft.chapters.none { it.id == chapterId }) return@synchronized null
+        draftDir(id).resolve("chapters").resolve(chapterId).toFile().deleteRecursively()
+        val updated = draft.copy(chapters = draft.chapters.filterNot { it.id == chapterId })
+        writeState(updated)
+        updated
     }
 
     /** Uploaded thumbnail for `meta/thumbnail.png` (PNG/JPEG). */
-    fun setThumbnail(id: String, bytes: ByteArray, contentType: String): StoryDraft? =
+    fun setThumbnail(id: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {
             mutateDraft(id) {
-                it.copy(thumbnailPath = writeDraftBinary(id, "thumbnail", bytes, contentType))
+                it.copy(thumbnailFile = writeDraftBinary(id, "thumbnail", bytes, contentType))
             }
         }
 
     /** Uploaded square-one cover image, "thumbnail Lunii" (PNG/JPEG). */
-    fun setCover(id: String, bytes: ByteArray, contentType: String): StoryDraft? =
+    fun setCover(id: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {
             mutateDraft(id) {
-                it.copy(coverPath = writeDraftBinary(id, "cover", bytes, contentType))
+                it.copy(coverFile = writeDraftBinary(id, "cover", bytes, contentType))
             }
         }
 
     /** Uploaded pack title audio (cover audio). Replaces any TTS text for the pack title. */
-    fun setTitleAudio(id: String, bytes: ByteArray, contentType: String): StoryDraft? =
+    fun setTitleAudio(id: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {
             mutateDraft(id) {
                 it.copy(
-                    titleAudioPath = writeDraftBinary(id, "title-audio", bytes, contentType),
+                    titleAudioFile = writeDraftBinary(id, "title-audio", bytes, contentType),
                     titleText = null,
                 )
             }
         }
 
     /** Pack title TTS text (cover audio at finalization). Replaces any uploaded audio. */
-    fun setTitleText(id: String, text: String): StoryDraft? =
+    fun setTitleText(id: String, text: String): StoryDraftState? =
         synchronized(lock) {
             mutateDraft(id) { draft ->
-                draft.titleAudioPath?.toFile()?.delete()
-                draft.copy(titleText = text, titleAudioPath = null)
+                deleteBinary(id, draft.titleAudioFile)
+                draft.copy(titleText = text, titleAudioFile = null)
             }
         }
 
     /** Uploaded title audio replaces any TTS text for the chapter title. */
-    fun setTitleAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraft? =
+    fun setTitleAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {
             mutateChapter(id, chapterId) { chapter ->
                 chapter.copy(
-                    titleAudioPath = writeChapterBinary(id, chapterId, "title-audio", bytes, contentType),
+                    titleAudioFile = writeChapterBinary(id, chapterId, "title-audio", bytes, contentType),
                     titleText = null,
                 )
             }
         }
 
     /** TTS text replaces any uploaded title audio for the chapter (old file removed). */
-    fun setTitleText(id: String, chapterId: String, text: String): StoryDraft? =
+    fun setTitleText(id: String, chapterId: String, text: String): StoryDraftState? =
         synchronized(lock) {
             mutateChapter(id, chapterId) { chapter ->
-                chapter.titleAudioPath?.toFile()?.delete()
-                chapter.copy(titleText = text, titleAudioPath = null)
+                deleteBinary(id, chapter.titleAudioFile)
+                chapter.copy(titleText = text, titleAudioFile = null)
             }
         }
 
     /** Uploaded chapter narration audio (the story itself, up to hours long). */
-    fun setNarrationAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraft? =
+    fun setNarrationAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {
             mutateChapter(id, chapterId) { chapter ->
                 chapter.copy(
-                    narrationAudioPath = writeChapterBinary(id, chapterId, "narration", bytes, contentType),
+                    narrationAudioFile = writeChapterBinary(id, chapterId, "narration", bytes, contentType),
                 )
             }
         }
 
     /** Uploaded chapter image (PNG/JPEG); keeps the icon fallback. */
-    fun setChapterImage(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraft? =
+    fun setChapterImage(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {
             mutateChapter(id, chapterId) { chapter ->
                 chapter.copy(
-                    imagePath = writeChapterBinary(id, chapterId, "image", bytes, contentType),
+                    imageFile = writeChapterBinary(id, chapterId, "image", bytes, contentType),
                 )
             }
         }
 
     /** Lucide icon slug as chapter image fallback (when no uploaded image). */
-    fun setChapterIcon(id: String, chapterId: String, iconId: String): StoryDraft? =
+    fun setChapterIcon(id: String, chapterId: String, iconId: String): StoryDraftState? =
         synchronized(lock) {
             mutateChapter(id, chapterId) { it.copy(iconId = iconId) }
         }
 
-    private fun draftDir(id: String): Path = studioProperties.draftsDir.resolve(id)
+    /** Root folder of the draft (state JSON + binaries). */
+    fun draftDir(id: String): Path = studioProperties.draftsDir.resolve(id)
 
-    private fun chapterDir(id: String, chapterId: String): Path =
-        draftDir(id).resolve("chapters").resolve(chapterId)
+    private fun draftFile(id: String): Path = draftDir(id).resolve("draft.json")
 
-    private fun writeDraftBinary(id: String, name: String, bytes: ByteArray, contentType: String): Path {
-        val dir = draftDir(id)
-        Files.createDirectories(dir)
-        return Files.write(dir.resolve("$name.${extensionOf(contentType)}"), bytes)
+    private fun writeState(draft: StoryDraftState) {
+        Files.createDirectories(draftDir(draft.id))
+        Files.writeString(draftFile(draft.id), json.encodeToString(StoryDraftState.serializer(), draft))
+    }
+
+    private fun readState(id: String): StoryDraftState? {
+        val file = draftFile(id)
+        if (!Files.exists(file)) return null
+        return try {
+            json.decodeFromString(StoryDraftState.serializer(), Files.readString(file))
+        } catch (e: Exception) {
+            logger.warn("Ignoring corrupted draft state {}: {}", file, e.message)
+            null
+        }
+    }
+
+    private fun writeDraftBinary(id: String, name: String, bytes: ByteArray, contentType: String): String {
+        val fileName = "$name.${extensionOf(contentType)}"
+        Files.createDirectories(draftDir(id))
+        Files.write(draftDir(id).resolve(fileName), bytes)
+        return fileName
     }
 
     private fun writeChapterBinary(
@@ -175,10 +205,11 @@ class StoryDraftStore(
         name: String,
         bytes: ByteArray,
         contentType: String,
-    ): Path {
-        val dir = chapterDir(id, chapterId)
-        Files.createDirectories(dir)
-        return Files.write(dir.resolve("$name.${extensionOf(contentType)}"), bytes)
+    ): String {
+        val relative = "chapters/$chapterId/$name.${extensionOf(contentType)}"
+        Files.createDirectories(draftDir(id).resolve("chapters").resolve(chapterId))
+        Files.write(draftDir(id).resolve(relative), bytes)
+        return relative
     }
 
     /** Keeps the file type discoverable at finalization (PNG vs JPEG, MP3 vs WAV…). */
@@ -192,32 +223,28 @@ class StoryDraftStore(
         else -> "bin"
     }
 
-    private fun deleteChapterFiles(id: String, chapterId: String) {
-        chapterDir(id, chapterId).toFile().deleteRecursively()
+    private fun deleteBinary(id: String, relativeFile: String?) {
+        relativeFile?.let { Files.deleteIfExists(draftDir(id).resolve(it)) }
     }
 
-    private fun deleteDraftFiles(id: String) {
-        draftDir(id).toFile().deleteRecursively()
-    }
-
-    private inline fun mutateDraft(id: String, transform: (StoryDraft) -> StoryDraft): StoryDraft? {
-        val draft = current?.takeIf { it.id == id } ?: return null
+    private fun mutateDraft(id: String, transform: (StoryDraftState) -> StoryDraftState): StoryDraftState? {
+        val draft = readState(id) ?: return null
         val updated = transform(draft)
-        current = updated
+        writeState(updated)
         return updated
     }
 
-    private inline fun mutateChapter(
+    private fun mutateChapter(
         id: String,
         chapterId: String,
-        transform: (StoryChapterDraft) -> StoryChapterDraft,
-    ): StoryDraft? {
-        val draft = current?.takeIf { it.id == id } ?: return null
+        transform: (StoryChapterDraftState) -> StoryChapterDraftState,
+    ): StoryDraftState? {
+        val draft = readState(id) ?: return null
         val chapter = draft.chapters.find { it.id == chapterId } ?: return null
         val updated = draft.copy(
             chapters = draft.chapters.map { if (it.id == chapterId) transform(chapter) else it },
         )
-        current = updated
+        writeState(updated)
         return updated
     }
 }

@@ -33,7 +33,8 @@ class ChapterIconCatalogService {
         private val logger = LoggerFactory.getLogger(ChapterIconCatalogService::class.java)
         private const val ICONS_LOCATION = "classpath*:icons/*.svg"
         private const val DEFAULT_ICON_BASE_URL = "https://cdn.jsdelivr.net/npm/lucide-static@latest"
-        private const val DEFAULT_CATALOG_URL = "https://data.jsdelivr.com/v1/packages/npm/lucide-static@latest"
+        private const val DEFAULT_CATALOG_RESOLVE_URL = "https://data.jsdelivr.com/v1/packages/npm/lucide-static/resolved"
+        private const val DEFAULT_CATALOG_URL_TEMPLATE = "https://data.jsdelivr.com/v1/packages/npm/lucide-static@%s"
         private const val CATALOG_TTL_MS = 24L * 60 * 60 * 1000
         private const val MAX_REMOTE_CACHE = 500
 
@@ -53,8 +54,11 @@ class ChapterIconCatalogService {
     /** Base URL of the lucide-static CDN (overridable for tests). */
     var iconBaseUrl: String = DEFAULT_ICON_BASE_URL
 
-    /** URL of the jsDelivr catalog API (overridable for tests). */
-    var catalogUrl: String = DEFAULT_CATALOG_URL
+    /** URL of the jsDelivr catalog resolve API (overridable for tests). */
+    var catalogResolveUrl: String = DEFAULT_CATALOG_RESOLVE_URL
+
+    /** URL template of the jsDelivr catalog API, `%s` = resolved version (overridable for tests). */
+    var catalogUrlTemplate: String = DEFAULT_CATALOG_URL_TEMPLATE
 
     private val bundledIcons: Map<String, ChapterIcon> = loadBundledIcons()
     private val remoteCache = ConcurrentHashMap<String, String>()
@@ -105,8 +109,10 @@ class ChapterIconCatalogService {
         val cached = remoteCatalog
         if (cached != null && System.currentTimeMillis() - cached.second < CATALOG_TTL_MS) return cached.first
         val slugs = try {
+            val version = resolveLatestVersion()
+            val catalogUrl = catalogUrlTemplate.format(version)
             val request = HttpRequest.newBuilder()
-                .uri(URI.create("$catalogUrl"))
+                .uri(URI.create(catalogUrl))
                 .timeout(Duration.ofSeconds(15))
                 .GET()
                 .build()
@@ -119,6 +125,20 @@ class ChapterIconCatalogService {
         val result = slugs ?: KNOWN_SLUGS.toList()
         remoteCatalog = result to System.currentTimeMillis()
         return result
+    }
+
+    /** Resolves the latest published version of lucide-static from jsDelivr. */
+    private fun resolveLatestVersion(): String {
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create(catalogResolveUrl))
+            .timeout(Duration.ofSeconds(15))
+            .GET()
+            .build()
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() != 200) throw IllegalStateException("Resolve API returned ${response.statusCode()}")
+        val root = Json.parseToJsonElement(response.body()).jsonObject
+        return root["version"]?.jsonPrimitive?.content
+            ?: throw IllegalStateException("Missing 'version' in resolve response")
     }
 
     /** Extracts icon slugs from the jsDelivr catalog JSON (`files[].files[].name`). */

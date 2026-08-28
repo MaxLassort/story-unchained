@@ -10,6 +10,8 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import jakarta.validation.Validation
+import jakarta.validation.Validator
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.MockMultipartFile
 import org.springframework.web.server.ResponseStatusException
@@ -25,6 +27,7 @@ class StoryDraftControllerTest : StringSpec({
 
     val store = StoryDraftStore(StudioProperties(storageDir = root))
     val controller = StoryDraftController(store)
+    val validator: Validator = Validation.buildDefaultValidatorFactory().validator
 
     "createDraft returns a new draft id" {
         val response = controller.createDraft()
@@ -48,11 +51,8 @@ class StoryDraftControllerTest : StringSpec({
     }
 
     "addChapter requires a non-blank name" {
-        val draftId = controller.createDraft().body!!.draftId
-        val e = shouldThrow<ResponseStatusException> {
-            controller.addChapter(draftId, CreateChapterRequest("  "))
-        }
-        e.statusCode.value() shouldBe 400
+        val violations = validator.validate(CreateChapterRequest("  "))
+        violations.size shouldBe 1
     }
 
     "chapter audio upload is stored and reported without bytes" {
@@ -85,12 +85,8 @@ class StoryDraftControllerTest : StringSpec({
     }
 
     "title text rejects blank text" {
-        val draftId = controller.createDraft().body!!.draftId
-        val chapterId = controller.addChapter(draftId, CreateChapterRequest("Chap")).body!!.chapterId
-        val e = shouldThrow<ResponseStatusException> {
-            controller.setChapterTitleText(draftId, chapterId, SetTitleTextRequest(" "))
-        }
-        e.statusCode.value() shouldBe 400
+        val violations = validator.validate(SetTitleTextRequest(" "))
+        violations.size shouldBe 1
     }
 
     "image upload is stored and icon fallback kept" {

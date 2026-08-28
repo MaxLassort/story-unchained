@@ -1,7 +1,7 @@
-# Plan — Création d'histoires depuis le front (draft en mémoire + TTS BYOK)
+# Plan — Création d'histoires depuis le front (draft sur disque + TTS BYOK)
 
 > Statut : plan validé par l'utilisateur (questions répondues), à implémenter en 6 étapes indépendantes.
-> Remplace l'ancien plan (single-shot `POST /stories`) : la création passe désormais par un **draft en mémoire Spring** finalisé en un seul `zip` STUdio.
+> Remplace l'ancien plan (single-shot `POST /stories`) : la création passe désormais par un **draft dans le dossier temp** finalisé en un seul `zip` STUdio.
 
 ## Objectif
 
@@ -11,7 +11,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - l'utilisateur **fournit l'audio de chaque chapitre** (narration) et **une image par chapitre** (optionnelle) ;
 - l'utilisateur fournit le **thumbnail** du pack et la **page principale** (cover, 1re image visible sur la Lunii) ;
 - si **pas d'image** pour un chapitre → icône de la **bibliothèque Lucide** (SVG → PNG 320×240 blanc/noir) si choisie, sinon le back **génère une image** (chiffre du chapitre) en pur Kotlin ; upload SVG utilisateur accepté aussi ;
-- le draft est **gardé en mémoire Spring** tant qu'il n'est pas complet : **aucun pack à moitié fait** n'est écrit sur disque ni en BDD ;
+- le draft est **gardé dans le dossier temp** tant qu'il n'est pas complet : **aucun pack à moitié fait** n'est écrit sur disque ni en BDD ;
 - à la finalisation uniquement : un `zip` **format STUdio** est écrit dans la bibliothèque puis indexé en BDD ;
 - la conversion vers RAW/FS se fait **ensuite** via le convertisseur existant (`POST /packs/{id}/convert`) ;
 - **TTS** : Spring AI (OpenAI + ElevenLabs) en **BYOK** (clé API utilisateur), **fallback gratuit** Google Translate TTS ;
@@ -25,7 +25,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 | Clé API | Stockée dans `settings.json` (champ dédié), app locale, en clair |
 | Fallback gratuit | **Google Translate TTS** (`translate.google.com/translate_tts`) |
 | Préview TTS | **Oui**, à la demande dans le formulaire de création |
-| Persistance | Draft **en mémoire Spring** jusqu'à finalisation ; binaires en temp dir ; TTL ~2h |
+| Persistance | Draft **entièrement sur disque** (`drafts/{id}/draft.json` + binaires) jusqu'à finalisation ; rien en mémoire ; TTL ~2h |
 | Format de sortie | `zip` format STUdio (writer existant) ; conversion RAW/FS ensuite via l'existant |
 | Structure histoire | Linéaire : cover (`squareOne`) → ch1 → ch2 → … ; `controlSettings` par défaut |
 | Image chapitre manquante | Icône Lucide (SVG → PNG 320×240 blanc/noir) si choisie, sinon chiffre du chapitre généré en pur Kotlin |
@@ -82,20 +82,22 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - Contraintes du fallback gratuit (limite chars, segmentation, SLA non garanti)
 - API : endpoint `/tts/preview` (params, réponse, codes d'erreur)
 
-## Étape 3 — Draft store en mémoire Spring — *indépendante (TTS stubable)* ✅
+## Étape 3 — Draft store sur disque (dossier temp) — *indépendante (TTS stubable)* ✅
 
-**Objectif** : le brouillon vit en mémoire Spring ; **aucune écriture bibliothèque/BDD avant la finalisation**.
+**Objectif** : le brouillon vit entièrement dans le dossier temp ; **aucune écriture bibliothèque/BDD avant la finalisation**, **rien en mémoire**.
 
-**Code** (implémenté — choix utilisateur : draft **unique**, **état en RAM + binaires en temp dir**)
-- `pack/service/StoryDraftStore.kt` : **un seul draft à la fois** (verrou + `@Volatile`) ; créer un
-  nouveau draft **remplace** l'existant ; **binaires sur disque** `storageDir/drafts/{id}/`
+**Code** (implémenté — choix utilisateur : draft **unique**, **tout sur disque**)
+- `pack/service/StoryDraftStore.kt` : **un seul draft à la fois** ; créer un
+  nouveau draft **remplace** l'existant ; état sérialisé dans `drafts/{id}/draft.json`
+  (relecture/réécriture à chaque mutation) + **binaires sur disque** `storageDir/drafts/{id}/`
   (une histoire peut faire 2-3 h d'audio ≈ 60-200 Mo → hors heap), **purge du dossier drafts/
   au démarrage** + à chaque remplacement/suppression/finalisation ; pas de TTL, rien ne survit
   au redémarrage
-- `StoryDraft` (`pack/domain/model/StoryDraft.kt`) : `id`, `title?`, `description?`,
-  `thumbnailPath?` (meta), `coverPath?` (squareOne), `chapters[]`
-  (`id`, `name`, `titleAudioPath?`, `titleText?` (TTS à la finalisation — mutuellement exclusif
-  avec l'audio), `narrationAudioPath?`, `imagePath?`, `iconId?`) — extension du fichier = type
+- `StoryDraftState` (`pack/domain/model/StoryDraft.kt`) : `id`, `title?`, `description?`,
+  `thumbnailFile?` (meta), `coverFile?` (squareOne), `chapters[]`
+  (`id`, `name`, `titleAudioFile?`, `titleText?` (TTS à la finalisation — mutuellement exclusif
+  avec l'audio), `narrationAudioFile?`, `imageFile?`, `iconId?`) — chemins **relatifs** au
+  dossier du draft (`thumbnail.png`, `chapters/{cid}/narration.mp3`), extension = type
   (`audio/mpeg` → `.mp3`, `image/png` → `.png`…)
 - API (`pack/web/StoryDraftController.kt`) :
   - `POST /stories/drafts` → 201 `{draftId}` (remplace l'existant)
