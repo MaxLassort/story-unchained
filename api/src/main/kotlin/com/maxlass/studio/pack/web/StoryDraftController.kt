@@ -9,6 +9,8 @@ import com.maxlass.studio.pack.domain.dto.StoryChapterDraftSummary
 import com.maxlass.studio.pack.domain.dto.StoryDraftSummary
 import com.maxlass.studio.pack.domain.dto.UpdateDraftRequest
 import com.maxlass.studio.pack.domain.model.StoryDraftState
+import com.maxlass.studio.pack.service.CreateStoryUseCase
+import com.maxlass.studio.pack.service.DraftIncompleteException
 import com.maxlass.studio.pack.service.StoryDraftStore
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -49,6 +51,7 @@ import org.springframework.web.server.ResponseStatusException
     "histoire.")
 class StoryDraftController(
     private val store: StoryDraftStore,
+    private val createStory: CreateStoryUseCase,
 ) {
 
     @Operation(
@@ -66,6 +69,140 @@ class StoryDraftController(
         val draft = store.create()
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(DraftCreatedResponse(draftId = draft.id))
+    }
+
+    @Operation(
+        summary = "Brouillon actuel",
+        description = "Retourne l'état du brouillon actuellement sur disque (s'il existe), " +
+            "sans les bytes. 404 si aucun brouillon n'existe.",
+    )
+    @ApiResponse(responseCode = "200", description = "État du brouillon actuel")
+    @ApiResponse(responseCode = "404", description = "Aucun brouillon sur disque")
+    @GetMapping("/current")
+    fun getCurrentDraft(): ResponseEntity<StoryDraftSummary> {
+        val draft = store.findCurrent()
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(toSummary(draft))
+    }
+
+    @Operation(
+        summary = "Finaliser le brouillon",
+        description = "Transforme le brouillon complet en zip STUdio écrit dans la bibliothèque " +
+            "puis indexé en BDD. Retourne le `packId`. 409 si le draft est incomplet (rien n'est " +
+            "sauvegardé), 404 si le draft est inconnu. Le draft est purgé en cas de succès.",
+    )
+    @ApiResponse(responseCode = "200", description = "Pack créé", content = [
+        Content(examples = [
+            ExampleObject(name = "Réponse", value = """{"packId": "<uuid>"}""")
+        ])
+    ])
+    @ApiResponse(responseCode = "409", description = "Draft incomplet")
+    @ApiResponse(responseCode = "404", description = "Draft inconnu")
+    @PostMapping("/{id}/finalize")
+    suspend fun finalizeDraft(@PathVariable id: String): ResponseEntity<Any> {
+        return try {
+            val packId = createStory.finalize(id)
+            ResponseEntity.ok(mapOf("packId" to packId))
+        } catch (e: DraftIncompleteException) {
+            ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(mapOf("ok" to false, "error" to (e.message ?: "Draft incomplete")))
+        } catch (e: NoSuchElementException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("ok" to false, "error" to (e.message ?: "Draft not found")))
+        }
+    }
+
+    @Operation(
+        summary = "Télécharger la thumbnail",
+        description = "Retourne les bytes bruts de la thumbnail stockée dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Image binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon ou thumbnail inexistante")
+    @GetMapping("/{id}/thumbnail/file")
+    fun downloadThumbnail(@PathVariable id: String): ResponseEntity<ByteArray> {
+        val draft = store.get(id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+        val rel = draft.thumbnailFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No thumbnail in draft")
+        return serveBinary(id, rel)
+    }
+
+    @Operation(
+        summary = "Télécharger la cover",
+        description = "Retourne les bytes bruts de la cover (squareOne) stockée dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Image binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon ou cover inexistante")
+    @GetMapping("/{id}/cover/file")
+    fun downloadCover(@PathVariable id: String): ResponseEntity<ByteArray> {
+        val draft = store.get(id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+        val rel = draft.coverFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No cover in draft")
+        return serveBinary(id, rel)
+    }
+
+    @Operation(
+        summary = "Télécharger l'audio du titre du pack",
+        description = "Retourne les bytes bruts de l'audio du titre stocké dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Audio binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon ou audio de titre inexistant")
+    @GetMapping("/{id}/title-audio/file")
+    fun downloadTitleAudio(@PathVariable id: String): ResponseEntity<ByteArray> {
+        val draft = store.get(id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+        val rel = draft.titleAudioFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No title audio in draft")
+        return serveBinary(id, rel)
+    }
+
+    @Operation(
+        summary = "Télécharger l'audio du titre d'un chapitre",
+        description = "Retourne les bytes bruts de l'audio du titre du chapitre stocké dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Audio binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon, chapitre ou audio inexistant")
+    @GetMapping("/{id}/chapters/{chapterId}/title-audio/file")
+    fun downloadChapterTitleAudio(
+        @PathVariable id: String,
+        @PathVariable chapterId: String,
+    ): ResponseEntity<ByteArray> {
+        val rel = chapterOf(id, chapterId).titleAudioFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No chapter title audio in draft")
+        return serveBinary(id, rel)
+    }
+
+    @Operation(
+        summary = "Télécharger l'audio de narration d'un chapitre",
+        description = "Retourne les bytes bruts de la narration du chapitre stockée dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Audio binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon, chapitre ou narration inexistante")
+    @GetMapping("/{id}/chapters/{chapterId}/narration/file")
+    fun downloadChapterNarration(
+        @PathVariable id: String,
+        @PathVariable chapterId: String,
+    ): ResponseEntity<ByteArray> {
+        val rel = chapterOf(id, chapterId).narrationAudioFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No narration audio in draft")
+        return serveBinary(id, rel)
+    }
+
+    @Operation(
+        summary = "Télécharger l'image d'un chapitre",
+        description = "Retourne les bytes bruts de l'image du chapitre stockée dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Image binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon, chapitre ou image inexistante")
+    @GetMapping("/{id}/chapters/{chapterId}/image/file")
+    fun downloadChapterImage(
+        @PathVariable id: String,
+        @PathVariable chapterId: String,
+    ): ResponseEntity<ByteArray> {
+        val rel = chapterOf(id, chapterId).imageFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No chapter image in draft")
+        return serveBinary(id, rel)
     }
 
     @Operation(
@@ -370,4 +507,25 @@ class StoryDraftController(
 
     private fun sizeOf(draftId: String, relativeFile: String?): Long =
         relativeFile?.let { store.draftDir(draftId).resolve(it).toFile().length() } ?: 0
+
+    /** Serves a binary file from the draft dir, inferring Content-Type from the extension. */
+    private fun serveBinary(draftId: String, relativePath: String): ResponseEntity<ByteArray> {
+        val bytes = store.readBinary(draftId, relativePath)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: $relativePath")
+        val mediaType = when {
+            relativePath.endsWith(".png") -> MediaType.IMAGE_PNG
+            relativePath.endsWith(".jpg") || relativePath.endsWith(".jpeg") -> MediaType.IMAGE_JPEG
+            relativePath.endsWith(".mp3") -> MediaType.parseMediaType("audio/mpeg")
+            relativePath.endsWith(".wav") -> MediaType.parseMediaType("audio/wav")
+            relativePath.endsWith(".ogg") -> MediaType.parseMediaType("audio/ogg")
+            relativePath.endsWith(".m4a") -> MediaType.parseMediaType("audio/mp4")
+            else -> MediaType.APPLICATION_OCTET_STREAM
+        }
+        return ResponseEntity.ok().contentType(mediaType).body(bytes)
+    }
+
+    /** Looks up a chapter in the draft, or throws 404. */
+    private fun chapterOf(id: String, chapterId: String) =
+        store.get(id)?.chapters?.find { it.id == chapterId }
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found: $chapterId")
 }

@@ -104,7 +104,9 @@ object AudioConversion {
             false,
         )
         val pcm44100 = AudioSystem.getAudioInputStream(pcm44100Format, pcmOverSampled)
-        val encoder = LameEncoder(pcm44100.format, -1, MPEGMode.MONO.ordinal, 4, true)
+        // CBR 128 kbps mono: the Lunii decoder requires a minimum bitrate (it errors on the
+        // low 32 kbps frames produced by jump3r's default VBR quality).
+        val encoder = LameEncoder(pcm44100.format, 128, MPEGMode.MONO.ordinal, 4, false)
         val mp3 = ByteArrayOutputStream()
         val inputBuffer = ByteArray(encoder.pcmBufferSize)
         val outputBuffer = ByteArray(encoder.pcmBufferSize)

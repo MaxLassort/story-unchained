@@ -5,11 +5,16 @@ import com.maxlass.studio.pack.domain.dto.CreateChapterRequest
 import com.maxlass.studio.pack.domain.dto.SetChapterIconRequest
 import com.maxlass.studio.pack.domain.dto.SetTitleTextRequest
 import com.maxlass.studio.pack.domain.dto.UpdateDraftRequest
+import com.maxlass.studio.pack.service.CreateStoryUseCase
+import com.maxlass.studio.pack.service.DraftIncompleteException
 import com.maxlass.studio.pack.service.StoryDraftStore
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import jakarta.validation.Validation
 import jakarta.validation.Validator
 import org.springframework.http.HttpStatus
@@ -26,7 +31,8 @@ class StoryDraftControllerTest : StringSpec({
     }
 
     val store = StoryDraftStore(StudioProperties(storageDir = root))
-    val controller = StoryDraftController(store)
+    val createStory = mockk<CreateStoryUseCase>(relaxed = true)
+    val controller = StoryDraftController(store, createStory)
     val validator: Validator = Validation.buildDefaultValidatorFactory().validator
 
     "createDraft returns a new draft id" {
@@ -194,5 +200,29 @@ class StoryDraftControllerTest : StringSpec({
         val draftId = controller.createDraft().body!!.draftId
         controller.deleteDraft(draftId)
         shouldThrow<ResponseStatusException> { controller.getDraft(draftId) }
+    }
+
+    "finalizeDraft returns the pack id from the use case" {
+        val draftId = controller.createDraft().body!!.draftId
+        coEvery { createStory.finalize(draftId) } returns "pack-123"
+
+        val response = kotlinx.coroutines.runBlocking { controller.finalizeDraft(draftId) }
+        response.statusCode shouldBe HttpStatus.OK
+        (response.body as Map<*, *>)["packId"] shouldBe "pack-123"
+    }
+
+    "finalizeDraft returns 409 when the draft is incomplete" {
+        val draftId = controller.createDraft().body!!.draftId
+        coEvery { createStory.finalize(draftId) } throws DraftIncompleteException("Draft is incomplete")
+
+        val response = kotlinx.coroutines.runBlocking { controller.finalizeDraft(draftId) }
+        response.statusCode shouldBe HttpStatus.CONFLICT
+    }
+
+    "finalizeDraft returns 404 for an unknown draft" {
+        coEvery { createStory.finalize("nope") } throws NoSuchElementException("Draft not found: nope")
+
+        val response = kotlinx.coroutines.runBlocking { controller.finalizeDraft("nope") }
+        response.statusCode shouldBe HttpStatus.NOT_FOUND
     }
 })

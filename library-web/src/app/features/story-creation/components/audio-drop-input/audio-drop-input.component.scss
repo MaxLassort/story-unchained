@@ -1,0 +1,86 @@
+.audio-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.audio-drop__zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 2rem 1rem;
+  border: 2px dashed var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+  background: var(--mat-sys-surface-container);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--mat-sys-primary);
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
+.audio-drop__zone--dragging {
+  border-color: var(--mat-sys-primary);
+  background: var(--mat-sys-primary-container);
+}
+
+.audio-drop__icon {
+  width: 2rem;
+  height: 2rem;
+  font-size: 2rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.audio-drop__title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.audio-drop__hint {
+  font-size: 0.8125rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.audio-drop__input {
+  display: none;
+}
+
+.audio-drop__file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.audio-drop__file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.audio-drop__remove {
+  flex-shrink: 0;
+}
+
+.audio-drop__preview {
+  width: 100%;
+  max-height: 3rem;
+}
+
+.audio-drop__error {
+  color: var(--mat-sys-error);
+  font-size: 0.85rem;
+}

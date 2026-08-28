@@ -58,6 +58,32 @@ class StoryDraftStore(
         readState(id)
     }
 
+    /** Finds the current draft on disk (first draft.json found), or null if none. */
+    fun findCurrent(): StoryDraftState? = synchronized(lock) {
+        val dir = studioProperties.draftsDir
+        if (!Files.exists(dir)) return@synchronized null
+        try {
+            Files.list(dir).use { stream ->
+                stream
+                    .filter { Files.isDirectory(it) }
+                    .map { path -> readState(path.fileName.toString()) }
+                    .filter { it != null }
+                    .findFirst()
+                    .orElse(null)
+            }
+        } catch (e: Exception) {
+            logger.warn("Could not scan drafts dir: {}", e.message)
+            null
+        }
+    }
+
+    /** Reads and returns the raw bytes of a binary file stored in the draft dir. */
+    fun readBinary(id: String, relativePath: String): ByteArray? = synchronized(lock) {
+        val file = draftDir(id).resolve(relativePath)
+        if (!Files.exists(file)) return@synchronized null
+        Files.readAllBytes(file)
+    }
+
     /** Removes the current draft and its temp dir. */
     fun clear(id: String): Boolean = synchronized(lock) {
         if (readState(id) == null) {

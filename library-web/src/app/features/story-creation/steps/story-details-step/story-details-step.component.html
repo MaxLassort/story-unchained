@@ -1,3 +1,9 @@
+@if (loading()) {
+  <div class="story-details__loading">
+    <mat-progress-spinner diameter="32" mode="indeterminate" />
+    <span>Loading existing draft…</span>
+  </div>
+} @else {
 <div class="story-details">
   <div class="story-details__header">
     <h2 class="story-details__title">Story Details</h2>
@@ -37,15 +43,9 @@
     <div class="story-details__thumbnail">
       <span class="story-details__label">Pack thumbnail *</span>
       <span class="story-details__hint">
-        Shown in the Lunii launcher. Uploaded to the draft immediately.
+        Shown in the Lunii launcher.
       </span>
       <app-image-drop-input [formField]="detailsForm.thumbnail" />
-      @if (thumbnailUploading()) {
-        <span class="story-details__hint">Uploading…</span>
-      }
-      @if (thumbnailError(); as error) {
-        <span class="story-details__error">{{ error }}</span>
-      }
     </div>
 
     <div class="story-details__cover">
@@ -55,12 +55,7 @@
         or upload a 320×240 image.
       </span>
       <app-node-image-input [formField]="detailsForm.cover" />
-      @if (coverUploading()) {
-        <span class="story-details__hint">Uploading…</span>
-      }
-      @if (coverError(); as error) {
-        <span class="story-details__error">{{ error }}</span>
-      }
     </div>
   </div>
 </div>
+}

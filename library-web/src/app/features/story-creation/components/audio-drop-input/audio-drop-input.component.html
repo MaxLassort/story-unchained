@@ -1,0 +1,41 @@
+<div class="audio-drop">
+  <div
+    class="audio-drop__zone"
+    [class.audio-drop__zone--dragging]="dragging()"
+    (click)="fileInput.click()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    @if (previewUrl(); as url) {
+      <span class="audio-drop__file-info">
+        <mat-icon aria-hidden="true">audiotrack</mat-icon>
+        <span class="audio-drop__file-name">{{ fileName() }}</span>
+        <button
+          mat-icon-button
+          type="button"
+          class="audio-drop__remove"
+          aria-label="Remove audio"
+          (click)="clearFile(); $event.stopPropagation()"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </span>
+      <audio class="audio-drop__preview" [src]="url" controls preload="metadata"></audio>
+    } @else {
+      <mat-icon class="audio-drop__icon">upload_file</mat-icon>
+      <span class="audio-drop__title">{{ title() }}</span>
+      <span class="audio-drop__hint">{{ hint() }}</span>
+    }
+    <input
+      #fileInput
+      class="audio-drop__input"
+      type="file"
+      accept="audio/*"
+      (change)="onFileSelected(fileInput.files?.[0] ?? null); fileInput.value = ''"
+    />
+  </div>
+  @if (typeError(); as error) {
+    <span class="audio-drop__error">{{ error }}</span>
+  }
+</div>

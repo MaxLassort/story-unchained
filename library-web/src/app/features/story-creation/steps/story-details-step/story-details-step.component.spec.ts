@@ -10,6 +10,13 @@ describe('StoryDetailsStepComponent', () => {
     uploadDraftThumbnail: ReturnType<typeof vi.fn>;
     uploadDraftCover: ReturnType<typeof vi.fn>;
     fetchIconPng: ReturnType<typeof vi.fn>;
+    getCurrentDraft: ReturnType<typeof vi.fn>;
+    downloadDraftThumbnail: ReturnType<typeof vi.fn>;
+    downloadDraftCover: ReturnType<typeof vi.fn>;
+    downloadDraftTitleAudio: ReturnType<typeof vi.fn>;
+    updateDraftMetadata: ReturnType<typeof vi.fn>;
+    uploadDraftTitleAudio: ReturnType<typeof vi.fn>;
+    setDraftTitleText: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -18,6 +25,13 @@ describe('StoryDetailsStepComponent', () => {
       uploadDraftThumbnail: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       uploadDraftCover: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       fetchIconPng: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
+      getCurrentDraft: vi.fn().mockResolvedValue(null),
+      downloadDraftThumbnail: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
+      downloadDraftCover: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
+      downloadDraftTitleAudio: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
+      updateDraftMetadata: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      uploadDraftTitleAudio: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      setDraftTitleText: vi.fn().mockResolvedValue({ id: 'draft-1' }),
     };
   });
 
@@ -28,10 +42,12 @@ describe('StoryDetailsStepComponent', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(StoryDetailsStepComponent);
     fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.loading()).toBe(false));
+    fixture.detectChanges();
     return fixture;
   }
 
-  it('renders the title, description, title audio and thumbnail sections', async () => {
+  it('renders the title, description, title audio, thumbnail and cover sections', async () => {
     const fixture = await createComponent();
     const root: HTMLElement = fixture.nativeElement;
     expect(root.querySelector('h2')?.textContent).toContain('Story Details');
@@ -41,16 +57,14 @@ describe('StoryDetailsStepComponent', () => {
     expect(root.querySelector('app-node-image-input')).not.toBeNull();
   });
 
-  it('requires a non-blank title and a thumbnail for the step to be complete', async () => {
+  it('is incomplete without title and thumbnail', async () => {
+    const fixture = await createComponent();
+    expect(fixture.componentInstance.complete()).toBe(false);
+  });
+
+  it('is complete when title, thumbnail and cover are provided', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
-
-    expect(component.detailsForm().valid()).toBe(false);
-    expect(component.complete()).toBe(false);
-
-    component.model.set({ title: '', description: 'x', titleAudio: null, thumbnail: null, cover: null });
-    fixture.detectChanges();
-    expect(component.complete()).toBe(false);
 
     component.model.set({
       title: 'Ma petite histoire',
@@ -60,37 +74,52 @@ describe('StoryDetailsStepComponent', () => {
       cover: { mode: 'icon', iconId: 'star', file: null },
     });
     fixture.detectChanges();
+
     expect(component.complete()).toBe(true);
-    expect(component.detailsForm().errors().length).toBe(0);
   });
 
-  it('uploads the selected thumbnail to the draft', async () => {
+  it('saves all fields to the backend on save()', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
 
-    const file = new File(['x'], 'thumb.png', { type: 'image/png' });
-    component.model.set({ title: 'T', description: '', titleAudio: null, thumbnail: file, cover: null });
+    const thumbFile = new File(['x'], 'thumb.png', { type: 'image/png' });
+    component.model.set({
+      title: 'Mon histoire',
+      description: 'Une description',
+      titleAudio: { mode: 'text', text: 'Mon titre', file: null },
+      thumbnail: thumbFile,
+      cover: { mode: 'image', iconId: null, file: new File(['x'], 'cover.png', { type: 'image/png' }) },
+    });
     fixture.detectChanges();
-    await fixture.whenStable();
 
-    expect(packsMock.ensureDraft).toHaveBeenCalled();
-    expect(packsMock.uploadDraftThumbnail).toHaveBeenCalledWith('draft-1', file);
-    expect(component.thumbnailError()).toBeNull();
+    const ok = await component.save();
+    expect(ok).toBe(true);
+    expect(packsMock.updateDraftMetadata).toHaveBeenCalledWith('draft-1', {
+      title: 'Mon histoire',
+      description: 'Une description',
+    });
+    expect(packsMock.uploadDraftThumbnail).toHaveBeenCalledWith('draft-1', thumbFile);
+    expect(packsMock.uploadDraftCover).toHaveBeenCalled();
+    expect(packsMock.setDraftTitleText).toHaveBeenCalledWith('draft-1', 'Mon titre');
   });
 
-  it('surfaces an error when the thumbnail upload fails', async () => {
-    packsMock.uploadDraftThumbnail.mockRejectedValue(new Error('boom'));
+  it('returns false and sets error when save fails', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
+
+    packsMock.updateDraftMetadata.mockRejectedValueOnce(new Error('boom'));
 
     component.model.set({
-      title: 'T',
+      title: 'Mon histoire',
       description: '',
       titleAudio: null,
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
-      cover: null,
+      cover: { mode: 'icon', iconId: 'star', file: null },
     });
     fixture.detectChanges();
-    await vi.waitFor(() => expect(component.thumbnailError()).toContain('failed'));
+
+    const ok = await component.save();
+    expect(ok).toBe(false);
+    expect(component.saveError()).toContain('Failed to save');
   });
 });

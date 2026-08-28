@@ -24,62 +24,75 @@
           mat-flat-button
           type="button"
           color="primary"
-          matStepperNext
-          [disabled]="!detailsStep()?.complete()"
+          [disabled]="!detailsStep()?.complete() || detailsStep()?.saving()"
+          (click)="saveDetailsAndNext()"
         >
-          Next: Visuals
-          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          @if (detailsStep()?.saving()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            Next: Chapters
+            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          }
         </button>
       </div>
     </mat-step>
 
-    <mat-step label="Visuals">
+    <mat-step label="Chapters" [completed]="chaptersStep()?.complete() ?? false">
       <mat-card class="step-card">
-        <mat-card-content class="step-card__placeholder">
-          <mat-icon aria-hidden="true">image</mat-icon>
-          <p>Visuals step coming soon.</p>
+        <mat-card-content>
+          <app-chapters-step />
         </mat-card-content>
       </mat-card>
 
       <div class="step-actions">
         <button mat-button type="button" matStepperPrevious>Back</button>
-        <button mat-flat-button type="button" color="primary" matStepperNext>
-          Next: Chapters
-          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-        </button>
-      </div>
-    </mat-step>
-
-    <mat-step label="Chapters">
-      <mat-card class="step-card">
-        <mat-card-content class="step-card__placeholder">
-          <mat-icon aria-hidden="true">library_books</mat-icon>
-          <p>Chapters step coming soon.</p>
-        </mat-card-content>
-      </mat-card>
-
-      <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>Back</button>
-        <button mat-flat-button type="button" color="primary" matStepperNext>
-          Next: Finalize
-          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+        <button
+          mat-flat-button
+          type="button"
+          color="primary"
+          [disabled]="!chaptersStep()?.complete() || chaptersStep()?.saving()"
+          (click)="saveChaptersAndNext()"
+        >
+          @if (chaptersStep()?.saving()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            Next: Finalize
+            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          }
         </button>
       </div>
     </mat-step>
 
     <mat-step label="Finalize">
       <mat-card class="step-card">
-        <mat-card-content class="step-card__placeholder">
-          <mat-icon aria-hidden="true">check_circle</mat-icon>
-          <p>Finalize step coming soon.</p>
+        <mat-card-content class="finalize-content">
+          <mat-icon class="finalize-content__icon" aria-hidden="true">auto_stories</mat-icon>
+          <h3 class="finalize-content__title">Ready to create your story pack</h3>
+          <p class="finalize-content__text">
+            The app will assemble your story into a playable Lunii STUdio archive and add it to
+            your library. This can take a moment for long stories.
+          </p>
+          @if (finalizeError(); as error) {
+            <div class="finalize-content__error">{{ error }}</div>
+          }
         </mat-card-content>
       </mat-card>
 
       <div class="step-actions">
         <button mat-button type="button" matStepperPrevious>Back</button>
-        <button mat-flat-button type="button" color="primary" matStepperNext>
-          Create the pack
-          <mat-icon aria-hidden="true">auto_stories</mat-icon>
+        <button
+          mat-flat-button
+          type="button"
+          color="primary"
+          [disabled]="!canFinalize()"
+          (click)="createPack()"
+        >
+          @if (finalizing()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            Create the pack
+            <mat-icon aria-hidden="true">auto_stories</mat-icon>
+          }
         </button>
       </div>
     </mat-step>

@@ -1,0 +1,123 @@
+.chapters-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chapters-step__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.chapters-step__error {
+  color: var(--mat-sys-error);
+  font-size: 0.9rem;
+}
+
+.chapters-step__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chapters-step__title {
+  margin: 0;
+}
+
+.chapters-step__subtitle {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.chapters-step__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chapters-step__add {
+  width: 100%;
+  padding: 1rem;
+  border-style: dashed;
+}
+
+.chapter-card {
+  position: relative;
+  overflow: visible;
+}
+
+.chapter-card__accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 0.5rem 0 0 0.5rem;
+  background: var(--mat-sys-primary);
+}
+
+.chapter-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+.chapter-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.chapter-card__name-field {
+  flex: 1;
+}
+
+.chapter-card__input {
+  width: 100%;
+}
+
+.chapter-card__delete {
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chapter-card__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+
+  @media (min-width: 64rem) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.chapter-card__column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 400px;
+}
+
+.chapter-card__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chapter-card__label {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.chapter-card__hint {
+  font-size: 0.8125rem;
+  color: var(--mat-sys-on-surface-variant);
+}

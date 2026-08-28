@@ -1,7 +1,8 @@
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { form, FormField, required } from '@angular/forms/signals';
+import { Component, computed, inject, signal } from '@angular/core';
+import { form, FormField, required, submit } from '@angular/forms/signals';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { PacksService } from '../../../../core/services/packs.service';
 import type { NodeImageSelection } from '../../../../core/models';
 import { ImageDropInputComponent } from '../../components/image-drop-input/image-drop-input.component';
@@ -18,7 +19,7 @@ export interface StoryDetailsModel {
 
 @Component({
   selector: 'app-story-details-step',
-  imports: [FormField, ImageDropInputComponent, NodeImageInputComponent, MatFormFieldModule, MatInputModule, TitleAudioInputComponent],
+  imports: [FormField, ImageDropInputComponent, NodeImageInputComponent, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, TitleAudioInputComponent],
   templateUrl: './story-details-step.component.html',
   styleUrl: './story-details-step.component.scss',
 })
@@ -39,7 +40,6 @@ export class StoryDetailsStepComponent {
     required(schemaPath.cover, { message: 'Cover image is required' });
   });
 
-  /** Whether the step is complete (drives the linear stepper). */
   readonly complete = computed(() => {
     if (!this.detailsForm().valid()) return false;
     const cover = this.detailsForm().value().cover;
@@ -47,81 +47,108 @@ export class StoryDetailsStepComponent {
     return cover.mode === 'icon' ? cover.iconId !== null : cover.file !== null;
   });
 
-  readonly thumbnailUploading = signal(false);
-  readonly thumbnailError = signal<string | null>(null);
-  readonly coverUploading = signal(false);
-  readonly coverError = signal<string | null>(null);
-
-  private lastUploadedThumbnail: File | null = null;
-  private lastUploadedCoverKey: string | File | null = null;
+  readonly loading = signal(true);
+  readonly saving = signal(false);
+  readonly saveError = signal<string | null>(null);
 
   constructor() {
-    effect(() => {
-      const file = this.detailsForm().value().thumbnail;
-      untracked(() => {
-        if (file === this.lastUploadedThumbnail) return;
-        this.lastUploadedThumbnail = file;
-        void this.uploadThumbnail(file);
-      });
-    });
-
-    effect(() => {
-      const cover = this.detailsForm().value().cover;
-      untracked(() => {
-        const key = this.coverKey(cover);
-        if (key === this.lastUploadedCoverKey) return;
-        this.lastUploadedCoverKey = key;
-        void this.uploadCover(cover);
-      });
-    });
+    void this.loadExistingDraft();
   }
 
-  private async uploadThumbnail(file: File | null): Promise<void> {
-    this.thumbnailUploading.set(true);
-    this.thumbnailError.set(null);
-    if (!file) {
-      this.thumbnailUploading.set(false);
-      return;
-    }
-    try {
-      const draftId = await this.packs.ensureDraft();
-      await this.packs.uploadDraftThumbnail(draftId, file);
-    } catch {
-      this.thumbnailError.set('Thumbnail upload failed. Please try again.');
-    } finally {
-      this.thumbnailUploading.set(false);
-    }
-  }
+  async save(): Promise<boolean> {
+    this.saveError.set(null);
+    let result = false;
+    await submit(this.detailsForm, async () => {
+      this.saving.set(true);
+      try {
+        const { title, description, titleAudio, thumbnail, cover } = this.model();
+        const draftId = await this.packs.ensureDraft();
 
-  private async uploadCover(cover: NodeImageSelection | null): Promise<void> {
-    this.coverUploading.set(true);
-    this.coverError.set(null);
-    if (!cover) {
-      this.coverUploading.set(false);
-      return;
-    }
-    try {
-      const draftId = await this.packs.ensureDraft();
-      let file: File;
-      if (cover.mode === 'icon' && cover.iconId) {
-        const blob = await this.packs.fetchIconPng(cover.iconId);
-        file = new File([blob], `${cover.iconId}.png`, { type: 'image/png' });
-      } else if (cover.mode === 'image' && cover.file) {
-        file = cover.file;
-      } else {
-        this.coverUploading.set(false);
-        return;
+        await this.packs.updateDraftMetadata(draftId, { title, description });
+
+        if (thumbnail) {
+          await this.packs.uploadDraftThumbnail(draftId, thumbnail);
+        }
+
+        if (cover) {
+          const coverFile = await this.coverToFile(cover);
+          if (coverFile) await this.packs.uploadDraftCover(draftId, coverFile);
+        }
+
+        if (titleAudio) {
+          if (titleAudio.mode === 'text' && titleAudio.text.trim()) {
+            await this.packs.setDraftTitleText(draftId, titleAudio.text.trim());
+          } else if (titleAudio.mode === 'audio' && titleAudio.file) {
+            await this.packs.uploadDraftTitleAudio(draftId, titleAudio.file);
+          }
+        }
+
+        result = true;
+      } catch {
+        this.saveError.set('Failed to save story details. Please try again.');
+      } finally {
+        this.saving.set(false);
       }
-      await this.packs.uploadDraftCover(draftId, file);
-    } catch {
-      this.coverError.set('Cover upload failed. Please try again.');
-    } finally {
-      this.coverUploading.set(false);
-    }
+    });
+    return result;
   }
 
-  private coverKey(sel: NodeImageSelection | null): string | File | null {
-    if (!sel) return null;
-    return sel.mode === 'icon' ? sel.iconId : sel.file;
+  private async coverToFile(cover: NodeImageSelection): Promise<File | null> {
+    if (cover.mode === 'image' && cover.file) return cover.file;
+    if (cover.mode === 'icon' && cover.iconId) {
+      const blob = await this.packs.fetchIconPng(cover.iconId);
+      return new File([blob], `${cover.iconId}.png`, { type: 'image/png' });
+    }
+    return null;
+  }
+
+  private async loadExistingDraft(): Promise<void> {
+    try {
+      const draft = await this.packs.getCurrentDraft();
+      if (!draft) return;
+
+      let thumbnail: File | null = null;
+      if (draft.hasThumbnail) {
+        try {
+          const blob = await this.packs.downloadDraftThumbnail(draft.id);
+          thumbnail = new File([blob], 'thumbnail.png', { type: blob.type || 'image/png' });
+        } catch {
+          /* binary missing — user can re-upload */
+        }
+      }
+
+      let cover: NodeImageSelection | null = null;
+      if (draft.hasCover) {
+        try {
+          const blob = await this.packs.downloadDraftCover(draft.id);
+          cover = { mode: 'image', iconId: null, file: new File([blob], 'cover.png', { type: blob.type || 'image/png' }) };
+        } catch {
+          /* binary missing — user can re-upload */
+        }
+      }
+
+      let titleAudio: TitleAudioSelection | null = null;
+      if (draft.titleText) {
+        titleAudio = { mode: 'text', text: draft.titleText, file: null };
+      } else if (draft.hasTitleAudio) {
+        try {
+          const blob = await this.packs.downloadDraftTitleAudio(draft.id);
+          const file = new File([blob], 'title-audio.mp3', { type: blob.type || 'audio/mpeg' });
+          titleAudio = { mode: 'audio', text: '', file };
+        } catch {
+          /* binary missing */
+        }
+      }
+
+      this.model.set({
+        title: draft.title ?? '',
+        description: draft.description ?? '',
+        titleAudio,
+        thumbnail,
+        cover,
+      });
+    } finally {
+      this.loading.set(false);
+    }
   }
 }

@@ -72,7 +72,9 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     }
     return { url: `${this.imagesUrl}/icons` };
   });
-  readonly icons = computed(() => this.iconsResource.value()?.icons ?? []);
+  readonly icons = computed(() =>
+    this.iconsResource.hasValue() ? (this.iconsResource.value()?.icons ?? []) : [],
+  );
   readonly iconsLoading = this.iconsResource.isLoading;
 
   protected readonly selectedIconName = computed(() => {

@@ -1,0 +1,90 @@
+@if (loading()) {
+  <div class="chapters-step__loading">
+    <mat-progress-spinner diameter="32" mode="indeterminate" />
+    <span>Loading existing chapters…</span>
+  </div>
+} @else {
+<div class="chapters-step">
+  <div class="chapters-step__header">
+    <h2 class="chapters-step__title">Chapter Configuration</h2>
+    <p class="chapters-step__subtitle">
+      Add chapters to your story. Each chapter has a title, a title audio (TTS or upload), a narration
+      audio, and an image (icon or custom upload).
+    </p>
+  </div>
+
+  @if (saveError(); as error) {
+    <div class="chapters-step__error">{{ error }}</div>
+  }
+
+  <div class="chapters-step__list">
+    @for (chapter of chapters(); track $index) {
+      <mat-card class="chapter-card" appearance="outlined">
+        <span class="chapter-card__accent"></span>
+        <mat-card-content class="chapter-card__content">
+          <div class="chapter-card__header">
+            <div class="chapter-card__name-field">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="chapter-card__input">
+                <mat-label>Chapter {{ $index + 1 }} — Name</mat-label>
+                <input
+                  matInput
+                  [formField]="chaptersForm.chapters[$index].name"
+                  placeholder="e.g. The Awakening"
+                  autocomplete="off"
+                />
+              </mat-form-field>
+            </div>
+            <button
+              mat-icon-button
+              type="button"
+              class="chapter-card__delete"
+              aria-label="Delete chapter"
+              (click)="removeChapter($index)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+
+          <div class="chapter-card__grid">
+            <div class="chapter-card__column">
+              <div class="chapter-card__section">
+                <span class="chapter-card__label">Title audio</span>
+                <span class="chapter-card__hint">
+                  Audio played for the chapter title. Upload a file, record, or enter text for TTS.
+                </span>
+                <app-title-audio-input [formField]="chaptersForm.chapters[$index].titleAudio" />
+              </div>
+
+              <div class="chapter-card__section">
+                <span class="chapter-card__label">Narration audio</span>
+                <span class="chapter-card__hint">The chapter narration itself (can be hours long).</span>
+                <app-audio-drop-input [formField]="chaptersForm.chapters[$index].narrationFile" />
+              </div>
+            </div>
+
+            <div class="chapter-card__column">
+              <div class="chapter-card__section">
+                <span class="chapter-card__label">Chapter image</span>
+                <span class="chapter-card__hint">
+                  Icon from the Lucide library or custom upload (320×240 px).
+                </span>
+                <app-node-image-input [formField]="chaptersForm.chapters[$index].image" />
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+
+  <button
+    mat-stroked-button
+    type="button"
+    class="chapters-step__add"
+    (click)="addChapter()"
+  >
+    <mat-icon aria-hidden="true">add_circle</mat-icon>
+    Add New Chapter
+  </button>
+</div>
+}
