@@ -67,7 +67,9 @@ export class ChaptersStepComponent {
       if (!hasTitle) return false;
       if (!ch.narrationFile) return false;
       if (!ch.image) return false;
-      return ch.image.mode === 'icon' ? ch.image.iconId !== null : ch.image.file !== null;
+      if (ch.image.mode === 'icon') return ch.image.iconId !== null;
+      if (ch.image.mode === 'number') return ch.image.chapterNumber != null;
+      return ch.image.file !== null;
     });
   });
 
@@ -131,6 +133,15 @@ export class ChaptersStepComponent {
               await this.packs.setDraftChapterIcon(draftId, chapterId, ch.image.iconId);
             } else if (ch.image.mode === 'image' && ch.image.file) {
               await this.packs.uploadDraftChapterImage(draftId, chapterId, ch.image.file);
+            } else if (ch.image.mode === 'number' && ch.image.chapterNumber != null) {
+              const blob = await this.packs.fetchChapterNumberPng(ch.image.chapterNumber);
+              await this.packs.uploadDraftChapterImage(
+                draftId,
+                chapterId,
+                new File([blob], `chapter-${ch.image.chapterNumber}.png`, {
+                  type: blob.type || 'image/png',
+                }),
+              );
             }
           }
         }

@@ -252,6 +252,15 @@ export class PacksService {
     );
   }
 
+  async fetchChapterNumberPng(chapterNumber: number): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${environment.apiUrl}/stories/images/preview`, {
+        params: { chapterNumber },
+        responseType: 'blob',
+      }),
+    );
+  }
+
   async renderSvg(svg: File): Promise<Blob> {
     const form = new FormData();
     form.append('file', svg);

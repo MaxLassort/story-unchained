@@ -46,7 +46,9 @@ export class StoryDetailsStepComponent {
     if (!this.detailsForm().valid()) return false;
     const cover = this.detailsForm().value().cover;
     if (!cover) return false;
-    return cover.mode === 'icon' ? cover.iconId !== null : cover.file !== null;
+    if (cover.mode === 'icon') return cover.iconId !== null;
+    if (cover.mode === 'number') return cover.chapterNumber != null;
+    return cover.file !== null;
   });
 
   readonly loading = signal(true);
@@ -108,6 +110,10 @@ export class StoryDetailsStepComponent {
     if (cover.mode === 'icon' && cover.iconId) {
       const blob = await this.packs.fetchIconPng(cover.iconId);
       return new File([blob], `${cover.iconId}.png`, { type: 'image/png' });
+    }
+    if (cover.mode === 'number' && cover.chapterNumber != null) {
+      const blob = await this.packs.fetchChapterNumberPng(cover.chapterNumber);
+      return new File([blob], `chapter-${cover.chapterNumber}.png`, { type: 'image/png' });
     }
     return null;
   }

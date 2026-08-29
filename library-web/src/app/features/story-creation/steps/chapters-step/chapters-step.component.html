@@ -68,7 +68,10 @@
                 <span class="chapter-card__hint">
                   Icon from the Lucide library or custom upload (320×240 px).
                 </span>
-                <app-node-image-input [formField]="chaptersForm.chapters[$index].image" />
+                <app-node-image-input
+                  [formField]="chaptersForm.chapters[$index].image"
+                  [chapterNumber]="$index + 1"
+                />
               </div>
             </div>
           </div>

@@ -130,10 +130,12 @@ export interface ChapterIconsResponse {
   icons: ChapterIconDto[];
 }
 
-export type NodeImageMode = 'icon' | 'image';
+export type NodeImageMode = 'icon' | 'image' | 'number';
 
 export interface NodeImageSelection {
   mode: NodeImageMode;
   iconId: string | null;
   file: File | null;
+  /** Chapter number to render as the image (only used when `mode === 'number'`). */
+  chapterNumber?: number | null;
 }

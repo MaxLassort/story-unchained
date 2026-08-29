@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '../../../../../environments/environment';
+import { PacksService } from '../../../../core/services/packs.service';
 import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '../../../../core/models';
 
 /**
@@ -34,32 +35,43 @@ import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '..
 })
 export class NodeImageInputComponent implements FormValueControl<NodeImageSelection | null> {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly packs = inject(PacksService);
 
   readonly label = input('Node image');
   readonly expectedWidth = input(320);
   readonly expectedHeight = input(240);
 
-  readonly iconLibraryTooltip =
-    'Icons are fetched live from the Lucide icon library (lucide.dev, ISC license). ' +
-    'Search by name to browse the full catalog (~2000 icons). ' +
-    'Selected icons are rendered as white-on-black PNG at Lunii node resolution.';
+  /**
+   * When set (e.g. from the chapters step), adds a "Chapter number" mode option
+   * that renders the given number as a white-on-black image.
+   */
+  readonly chapterNumber = input<number | null>(null);
+
 
   readonly imageSpecTooltip = computed(() =>
-    `Custom images must be PNG or JPEG, exactly ${this.expectedWidth()}×${this.expectedHeight()} px. ` +
+    `Custom images must be PNG or JPEG (or an SVG that will be converted to PNG), ` +
+    `exactly ${this.expectedWidth()}×${this.expectedHeight()} px. ` +
     'This is the native Lunii display resolution. Images are converted to 4-bpp RLE on the device.',
   );
+
+  readonly chapterNumberTooltip =
+    'Renders the chapter number as a white-on-black PNG at Lunii node resolution. ' +
+    'This option is only available when configuring a chapter.';
 
   readonly value = model.required<NodeImageSelection | null>();
 
   readonly mode = computed<NodeImageMode>(() => this.value()?.mode ?? 'icon');
   protected readonly iconId = computed(() => this.value()?.iconId ?? null);
   protected readonly file = computed(() => this.value()?.file ?? null);
+  protected readonly selectedChapterNumber = computed(() => this.value()?.chapterNumber ?? null);
 
   readonly searchQuery = signal('');
   readonly dragging = signal(false);
   readonly typeError = signal<string | null>(null);
   readonly dimensionError = signal<string | null>(null);
   readonly validating = signal(false);
+  readonly converting = signal(false);
+  readonly convertError = signal<string | null>(null);
   readonly previewUrl = signal<string | null>(null);
 
   private previewedFile: File | null = null;
@@ -88,6 +100,20 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
       const f = this.file();
       untracked(() => this.setPreview(f));
     });
+    // Keep the stored chapter number in sync with the current `chapterNumber()`
+    // input while in number mode, so deleting/reordering chapters reindexes the
+    // generated image (e.g. `[chapterNumber]="$index + 1"`).
+    effect(() => {
+      const current = this.chapterNumber();
+      untracked(() => {
+        if (current == null || this.value()?.mode !== 'number') return;
+        this.value.update((v) =>
+          v?.mode === 'number' && v.chapterNumber !== current
+            ? { ...v, chapterNumber: current }
+            : v,
+        );
+      });
+    });
     this.destroyRef.onDestroy(() => this.revokePreview());
   }
 
@@ -95,10 +121,16 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     if (!next || next === this.mode()) return;
     this.typeError.set(null);
     this.dimensionError.set(null);
+    this.convertError.set(null);
+    if (next === 'number') {
+      this.selectChapterNumber();
+      return;
+    }
     this.value.update((v) => ({
       mode: next,
       iconId: v?.iconId ?? null,
       file: v?.file ?? null,
+      chapterNumber: v?.chapterNumber ?? null,
     }));
   }
 
@@ -111,6 +143,20 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
       mode: v?.mode ?? 'icon',
       iconId,
       file: v?.file ?? null,
+      chapterNumber: v?.chapterNumber ?? null,
+    }));
+  }
+
+  selectChapterNumber(chapterNumber = this.chapterNumber()): void {
+    if (chapterNumber == null) return;
+    // Preserve the previous icon/file selection so switching back to icon/image
+    // mode does not lose what the user had already picked (see docstring: the
+    // value holds both fields so switching modes does not lose the selection).
+    this.value.update((v) => ({
+      mode: 'number',
+      iconId: v?.iconId ?? null,
+      file: v?.file ?? null,
+      chapterNumber,
     }));
   }
 
@@ -118,19 +164,29 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     return `${this.imagesUrl}/preview?iconId=${encodeURIComponent(iconId)}`;
   }
 
+  chapterNumberPreviewSrc(chapterNumber: number): string {
+    return `${this.imagesUrl}/preview?chapterNumber=${encodeURIComponent(chapterNumber)}`;
+  }
+
   onFileSelected(file: File | null): void {
     this.typeError.set(null);
     this.dimensionError.set(null);
+    this.convertError.set(null);
     if (!file) {
       this.value.update((v) => ({
         mode: v?.mode ?? 'image',
         iconId: v?.iconId ?? null,
         file: null,
+        chapterNumber: v?.chapterNumber ?? null,
       }));
       return;
     }
+    if (this.isSvg(file)) {
+      void this.convertSvgAndSet(file);
+      return;
+    }
     if (!this.isImage(file)) {
-      this.typeError.set('PNG or JPEG only.');
+      this.typeError.set('PNG, JPEG or SVG only.');
       return;
     }
     void this.validateAndSet(file);
@@ -172,9 +228,34 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
         mode: v?.mode ?? 'image',
         iconId: v?.iconId ?? null,
         file,
+        chapterNumber: v?.chapterNumber ?? null,
       }));
     } finally {
       this.validating.set(false);
+    }
+  }
+
+  private async convertSvgAndSet(file: File): Promise<void> {
+    this.converting.set(true);
+    this.convertError.set(null);
+    try {
+      const blob = await this.packs.renderSvg(file);
+      // Strip any trailing extension (case-insensitive) so an SVG detected only by
+      // mime ("photo.svg") or a case variant ("cat.SVG") yields one clean "*.png".
+      const base = file.name.replace(/\.[^.]+$/, '');
+      const png = new File([blob], `${base}.png`, {
+        type: blob.type || 'image/png',
+      });
+      this.value.update((v) => ({
+        mode: v?.mode ?? 'image',
+        iconId: v?.iconId ?? null,
+        file: png,
+        chapterNumber: v?.chapterNumber ?? null,
+      }));
+    } catch {
+      this.convertError.set('Could not convert this SVG. Please try another file.');
+    } finally {
+      this.converting.set(false);
     }
   }
 
@@ -198,6 +279,10 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
 
   private isImage(file: File): boolean {
     return file.type === 'image/png' || file.type === 'image/jpeg';
+  }
+
+  private isSvg(file: File): boolean {
+    return file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
   }
 
   private setPreview(file: File | null): void {

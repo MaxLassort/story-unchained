@@ -10,19 +10,26 @@
         <mat-icon aria-hidden="true">apps</mat-icon>
         Select Icon
       </mat-button-toggle>
-      <mat-button-toggle value="image" matTooltip="Upload a custom image (PNG/JPEG)">
+      <mat-button-toggle value="image" matTooltip="Upload a custom image (PNG/JPEG) or an SVG to convert">
         <mat-icon aria-hidden="true">upload_file</mat-icon>
         Upload Image
       </mat-button-toggle>
+      @if (chapterNumber() !== null) {
+        <mat-button-toggle value="number" matTooltip="Render the chapter number as the image">
+          <mat-icon aria-hidden="true">tag</mat-icon>
+          Chapter Number
+        </mat-button-toggle>
+      }
     </mat-button-toggle-group>
 
     @if (mode() === 'icon') {
+    } @else if (mode() === 'number') {
       <button
         mat-icon-button
         type="button"
         class="node-image__info"
-        aria-label="About the icon library"
-        [matTooltip]="iconLibraryTooltip"
+        aria-label="About the chapter number option"
+        [matTooltip]="chapterNumberTooltip"
       >
         <mat-icon>info</mat-icon>
       </button>
@@ -84,6 +91,24 @@
         <span class="node-image__preview-label">{{ selectedIconName() }}</span>
       </div>
     }
+  } @else if (mode() === 'number') {
+    @if (selectedChapterNumber(); as number) {
+      <div class="node-image__number">
+        <img [src]="chapterNumberPreviewSrc(number)" alt="" class="node-image__number-img" />
+        <span class="node-image__number-label">Chapter {{ number }}</span>
+        <button
+          mat-stroked-button
+          type="button"
+          class="node-image__number-toggle"
+          (click)="onModeChange('image')"
+        >
+          <mat-icon aria-hidden="true">upload_file</mat-icon>
+          Upload a custom image instead
+        </button>
+      </div>
+    } @else {
+      <span class="node-image__hint">No chapter number available.</span>
+    }
   } @else {
     <div
       class="node-image__zone"
@@ -114,20 +139,29 @@
         <mat-icon class="node-image__zone-icon">upload_file</mat-icon>
         <span class="node-image__zone-title">Drag and drop image here or click to browse</span>
         <span class="node-image__zone-hint">
-          PNG/JPEG — {{ expectedWidth() }}×{{ expectedHeight() }} px required
+          PNG/JPEG — {{ expectedWidth() }}×{{ expectedHeight() }} px, or SVG to convert
         </span>
       }
       <input
         #fileInput
         class="node-image__file-input"
         type="file"
-        accept="image/png,image/jpeg"
+        accept="image/png,image/jpeg,image/svg+xml"
         (change)="onFileSelected(fileInput.files?.[0] ?? null); fileInput.value = ''"
       />
     </div>
 
+    @if (converting()) {
+      <span class="node-image__hint">
+        <mat-icon class="node-image__spinner-icon" aria-hidden="true">settings</mat-icon>
+        Converting SVG to PNG…
+      </span>
+    }
     @if (validating()) {
       <span class="node-image__hint">Validating dimensions…</span>
+    }
+    @if (convertError(); as error) {
+      <span class="node-image__error">{{ error }}</span>
     }
     @if (typeError(); as error) {
       <span class="node-image__error">{{ error }}</span>
