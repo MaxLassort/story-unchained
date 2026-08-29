@@ -47,12 +47,12 @@ describe('StoryDetailsStepComponent', () => {
     return fixture;
   }
 
-  it('renders the title, description, title audio, thumbnail and cover sections', async () => {
+  it('renders the title, description, title audio, menu audio, thumbnail and cover sections', async () => {
     const fixture = await createComponent();
     const root: HTMLElement = fixture.nativeElement;
     expect(root.querySelector('h2')?.textContent).toContain('Story Details');
-    expect(root.querySelectorAll('mat-form-field').length).toBe(4);
-    expect(root.querySelector('app-title-audio-input')).not.toBeNull();
+    expect(root.querySelectorAll('mat-form-field').length).toBe(5);
+    expect(root.querySelectorAll('app-title-audio-input').length).toBe(2);
     expect(root.querySelector('app-image-drop-input')).not.toBeNull();
     expect(root.querySelector('app-node-image-input')).not.toBeNull();
   });
@@ -70,6 +70,7 @@ describe('StoryDetailsStepComponent', () => {
       title: 'Ma petite histoire',
       description: 'x',
       titleAudio: null,
+      menuAudio: null,
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
       cover: { mode: 'icon', iconId: 'star', file: null },
     });
@@ -87,6 +88,7 @@ describe('StoryDetailsStepComponent', () => {
       title: 'Mon histoire',
       description: 'Une description',
       titleAudio: { mode: 'text', text: 'Mon titre', file: null },
+      menuAudio: null,
       thumbnail: thumbFile,
       cover: { mode: 'image', iconId: null, file: new File(['x'], 'cover.png', { type: 'image/png' }) },
     });
@@ -113,6 +115,7 @@ describe('StoryDetailsStepComponent', () => {
       title: 'Mon histoire',
       description: '',
       titleAudio: null,
+      menuAudio: null,
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
       cover: { mode: 'icon', iconId: 'star', file: null },
     });

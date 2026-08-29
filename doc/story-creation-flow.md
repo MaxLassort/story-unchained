@@ -47,27 +47,47 @@ POST /stories/drafts/{id}/finalize
 L'image d'un chapitre, le titre audio et l'audio du pack sont **optionnels** (fallbacks,
 voir plus bas).
 
-## Construction du graphe linéaire
+## Construction du graphe (menu de sélection Lunii)
 
-Un histoire linéaire (cover → chapitre 1 → … → chapitre N) est encodée ainsi
-(`CreateStoryUseCase.finalize`) :
+Un histoire linéaire est encodée avec le **menu classique Lunii** (question → options → histoire),
+exactement comme les packs de référence (`CreateStoryUseCase.finalize`) :
 
 ```
-cover (squareOne, type=COVER)
-   │ okTransition ──► action #1 ── option 0 ──► chapitre 1 (type=STORY)
-   │                                               │ okTransition ──► action #2 ──► chapitre 2
-   │                                               │                                     │ okTransition
-   │                                               │                                     ▼
-   │                                               │                        (dernier chapitre)
-   │                                               │ okTransition ──► action #fin ── option 0 ──► cover
+cover (squareOne, type=cover)
+   │ okTransition ──► actionQ (menu.questionaction) ──► menuQuestion (menu.questionstage)
+   │
+menuQuestion (audio = prompt, autoplay=true)
+   │ okTransition ──► actionOptions (menu.optionsaction)  ← la molette parcourt les options
+   │
+option k (menu.optionstage : image du chapitre + titre audio, wheel=true, ok=true)
+   │ okTransition ──► storyAction_k ──► story k (type=story)
+   │
+story k (audio = narration seule, autoplay=true, ok=true, home=true)
+   │ okTransition / fin de l'audio ──► story k+1               ← OK ET autoplay avancent
+   │ homeTransition ──► actionQ ──► menuQuestion
+   │
+story N (dernier)
+   │ okTransition / fin de l'audio ──► actionQ ──► menuQuestion  ← fin : retour au menu
+   │ homeTransition ──► actionQ ──► menuQuestion
 ```
 
-- La cover a `okTransition → action #1` ; chaque chapitre k a `okTransition → action #(k+1)`
-  dont l'unique option est le chapitre suivant ; **le dernier chapitre a un `okTransition`
-  valide** vers un action node de fin dont l'unique option est **la cover** (boucle).
-- `controlSettings` par défaut : `ok=on, home=on, pause=on` (voir § « Rôle des transitions »).
-- Les types d'enrichissement (champs éditeur, ignorés par la Lunii) : cover → `COVER`,
-  chapitre → `STORY`, action → `ACTION`.
+- **cover** : image = cover, audio = titre du pack, `wheel+ok` (comme le pack de référence).
+- **menuQuestion** : pas d'image, audio = **prompt de sélection** (audio uploadé ou texte TTS
+  configuré en step 1 ; sinon défaut « Choisissez un chapitre » synthétisé — **pas le titre du
+  livre**, déjà lu sur la cover), `autoplay` → avance vers les options.
+- **option k** : **une page par chapitre** — image du chapitre + **audio du titre du chapitre**
+  (le menu lit **chaque titre** pendant la sélection), `wheel=true, ok=true, home=true` : la
+  molette navigue entre les options, OK lance le chapitre.
+- **story k** : pas d'image (l'image de l'option reste affichée), audio = **narration seule**
+  (le titre n'est **pas relu** après OK : il a déjà été annoncé à la sélection),
+  `autoplay=true, ok=true, home=true, pause=true` : **quand l'audio se termine OU qu'on
+  appuie sur OK, on passe au chapitre suivant** ; le dernier chapitre revient au menu ;
+  HOME retourne toujours au menu (via `actionQ`).
+- **Chaque `stageNode` a un `okTransition` valide** : la Lunii affiche « error card » sur un
+  nœud dont l'OK est indéfini (cause du premier bug — voir plus bas).
+- Types d'enrichissement : cover → `COVER`, menu question → `MENU_QUESTION_STAGE`,
+  option → `MENU_OPTION_STAGE`, histoire → `STORY`, actions → `MENU_QUESTION_ACTION`,
+  `MENU_OPTIONS_ACTION`, `STORY_ACTION`.
 
 ### ⚠️ Le bug « error card » et la règle des transitions
 
@@ -114,15 +134,13 @@ Observé sur les packs qui marchent (Hayat, Disney, packs convertis) :
 
 ### Audio d'un chapitre
 
-`audio_chapitre = concat(titre, narration)` où :
+Deux audios par chapitre :
 
-- `titre` = `titleAudioFile` uploadé (bytes d'origine) **ou** TTS de `titleText` **ou** TTS
-  du nom du chapitre (hiérarchie)
-- `narration` = le fichier uploadé (`narrationAudioFile`)
-
-Le concat décodage PCM → concaténation → ré-encodage MP3 : les deux sources sont normalisées
-en WAV mono 32 kHz (`AudioConversion.anyToWave`), leurs PCM concaténés, re-enveloppés en WAV,
-puis ré-encodés via `AudioConversion.anyToMp3`.
+- **option (menu)** : le **titre** du chapitre — `titleAudioFile` uploadé (bytes d'origine)
+  **ou** TTS de `titleText` **ou** TTS du nom du chapitre (hiérarchie). Le menu le lit
+  **pendant la sélection** (molette).
+- **story (chapitre)** : la **narration seule** (`narrationAudioFile`, normalisée en MP3).
+  Le titre n'est **pas relu** après OK : il a déjà été annoncé à la sélection.
 
 ### ⚠️ Format audio compatible Lunii
 
@@ -177,7 +195,10 @@ Le pack est enregistré via `PackRepositoryPort.savePack` avec :
 1. Créer une histoire (titre, thumbnail, cover, audio pack, chapitres complets) → finaliser
    → 200 + navigation vers `/packs/{id}` dans le front.
 2. Vérifier que le zip est dans la bibliothèque et que `meta/thumbnail.png` est servi.
-3. Convertir en FS (`POST /packs/{id}/convert`) et copier sur la Lunii → l'histoire joue,
-   **OK sur le dernier chapitre revient à la cover sans « error card »**.
+3. Convertir en FS (`POST /packs/{id}/convert`) et copier sur la Lunii :
+   - choisir l'histoire → cover → OK → **menu** (molette : parcours les chapitres, chaque
+     option montre l'image + le titre du chapitre) ;
+   - OK sur une option → le chapitre joue → **OK ou HOME → retour au menu** ;
+   - pas de « error card » sur les nœuds.
 4. Draft incomplet (pas de narration) → finalize → 409, aucun fichier en bibliothèque/BDD.
 5. Après finalisation, un nouveau `GET /stories/drafts/current` renvoie 404 (draft purgé).

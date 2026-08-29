@@ -151,6 +151,26 @@ class StoryDraftStore(
             }
         }
 
+    /** Uploaded chapter-selection menu audio. Replaces any TTS menu text. */
+    fun setMenuAudio(id: String, bytes: ByteArray, contentType: String): StoryDraftState? =
+        synchronized(lock) {
+            mutateDraft(id) { draft ->
+                draft.copy(
+                    menuAudioFile = writeDraftBinary(id, "menu", bytes, contentType),
+                    menuText = null,
+                )
+            }
+        }
+
+    /** Menu prompt TTS text (chapter-selection node audio at finalization). Replaces any uploaded audio. */
+    fun setMenuText(id: String, text: String): StoryDraftState? =
+        synchronized(lock) {
+            mutateDraft(id) { draft ->
+                deleteBinary(id, draft.menuAudioFile)
+                draft.copy(menuText = text, menuAudioFile = null)
+            }
+        }
+
     /** Uploaded title audio replaces any TTS text for the chapter title. */
     fun setTitleAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraftState? =
         synchronized(lock) {

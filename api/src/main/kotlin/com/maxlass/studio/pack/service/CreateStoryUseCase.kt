@@ -25,6 +25,8 @@ import com.maxlass.studio.pack.port.external.PackFileMetadata
 import com.maxlass.studio.pack.port.external.UpdatePackFileMetadataPort
 import com.maxlass.studio.pack.port.persistence.PackRepositoryPort
 import com.maxlass.studio.settings.service.SettingsService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
@@ -35,10 +37,6 @@ import java.nio.file.StandardCopyOption
 import java.util.Base64
 import java.util.UUID
 import javax.imageio.ImageIO
-import javax.sound.sampled.AudioFileFormat
-import javax.sound.sampled.AudioFormat
-import javax.sound.sampled.AudioInputStream
-import javax.sound.sampled.AudioSystem
 import java.io.ByteArrayInputStream
 
 /** Thrown when a draft is missing required fields at finalization (mapped to HTTP 409). */
@@ -61,13 +59,51 @@ class CreateStoryUseCase(
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(CreateStoryUseCase::class.java)
-        private val DEFAULT_CONTROLS = ControlSettings(
+        /** Cover page: OK opens the menu (reference pack keeps wheel+ok on the cover). */
+        private val COVER_CONTROLS = ControlSettings(
+            wheelEnabled = true,
+            okEnabled = true,
+            homeEnabled = false,
+            pauseEnabled = false,
+            autoJumpEnabled = false,
+        )
+        /** Menu question page: plays the prompt then auto-advances to the options. */
+        private val MENU_QUESTION_CONTROLS = ControlSettings(
+            wheelEnabled = false,
+            okEnabled = false,
+            homeEnabled = false,
+            pauseEnabled = false,
+            autoJumpEnabled = true,
+        )
+        /** One selectable option: wheel navigates, OK launches the chapter, HOME exits. */
+        private val OPTION_CONTROLS = ControlSettings(
+            wheelEnabled = true,
+            okEnabled = true,
+            homeEnabled = true,
+            pauseEnabled = false,
+            autoJumpEnabled = false,
+        )
+        /** Story chapter: plays by itself (autoplay) AND OK advances to the next chapter;
+         * HOME returns to the menu. */
+        private val STORY_CONTROLS = ControlSettings(
             wheelEnabled = false,
             okEnabled = true,
             homeEnabled = true,
             pauseEnabled = true,
-            autoJumpEnabled = false,
+            autoJumpEnabled = true,
         )
+
+        /**
+         * Converts any supported audio format to mono 44.1 kHz MP3 (the Lunii format).
+         * Falls back to the original data if the format is not decodable by Java Sound
+         * (e.g. old WebM/Opus recordings from before the frontend WAV encoder).
+         */
+        private fun toMp3(data: ByteArray): ByteArray = try {
+            AudioConversion.anyToMp3(data)
+        } catch (e: Exception) {
+            logger.warn("Audio to MP3 conversion failed, keeping original data: {}", e.message)
+            data
+        }
     }
 
     private val archiveWriter = ArchiveStoryPackWriter()
@@ -83,35 +119,62 @@ class CreateStoryUseCase(
         val description = draft.description
 
         val coverImage = readImageBytes(draftId, draft.coverFile!!)
-        val coverAudio = draft.titleAudioFile?.let { draftStore.readBinary(draftId, it) }
+        val coverAudio = draft.titleAudioFile?.let { draftStore.readBinary(draftId, it) }?.let { toMp3(it) }
             ?: ttsEngine.synthesize(draft.titleText?.trim()?.takeIf { it.isNotEmpty() } ?: title)
+        // Menu prompt: uploaded audio, else TTS of the typed text, else a default prompt.
+        val menuPrompt = draft.menuAudioFile?.let { draftStore.readBinary(draftId, it) }?.let { toMp3(it) }
+            ?: draft.menuText?.trim()?.takeIf { it.isNotEmpty() }?.let { ttsEngine.synthesize(it) }
+            ?: ttsEngine.synthesize("Choisissez un chapitre")
 
-        val chapters = draft.chapters.mapIndexed { index, chapter ->
-            buildChapterNode(draftId, chapter, chaptersIndex = index + 1)
+        // The pack UUID is ALSO the first stage node (cover) UUID: the library scanner
+        // identifies a pack by the first stage node's UUID, so they must match or a second
+        // duplicate pack is registered when the library is rescanned.
+
+        fun action(type: EnrichedNodeType, options: List<StageNode>, x: Int): ActionNode = ActionNode(
+            options = options,
+            enriched = EnrichedNodeMetadata(
+                name = null,
+                type = type,
+                groupId = null,
+                position = EnrichedNodePosition(x.toShort(), 64),
+            ),
+        )
+
+        // Classic Lunii menu graph (reference pack):
+        //   cover -> actionQ -> menuQuestion (autoplay) -> actionOptions (wheel)
+        //     -> option k -> storyAction_k -> story k
+        //   story k --ok/home--> actionQ (back to the menu question)
+        val chapterPairs = draft.chapters.mapIndexed { index, chapter ->
+            buildChapterPair(draftId, chapter, chaptersIndex = index + 1)
         }
+        val options = chapterPairs.map { it.first }
+        val stories = chapterPairs.map { it.second }
 
-        // Linear graph: cover (squareOne) -> action #1 -> chapter 1 -> action #2 -> ... -> last chapter.
-        // The last chapter loops back to the cover: every stage node MUST have a valid OK
-        // transition, otherwise the Lunii shows an "error card" when the story reaches it.
-        val actionNodes = chapters.indices.map { index ->
-            ActionNode(
-                options = listOf(chapters[index]),
-                enriched = EnrichedNodeMetadata(
-                    name = null,
-                    type = EnrichedNodeType.ACTION,
-                    groupId = null,
-                    position = EnrichedNodePosition((index * 8).toShort(), 64),
-                ),
-            )
-        }.toMutableList()
+        // actionQ: the single "question" action (cover -> question, stories -> question).
+        val actionOptions = action(EnrichedNodeType.MENU_OPTIONS_ACTION, options, 0)
+        val menuQuestion = StageNode(
+            uuid = UUID.randomUUID().toString(),
+            image = null,
+            audio = AudioAsset("audio/mpeg", menuPrompt, null),
+            okTransition = Transition(actionOptions, 0),
+            homeTransition = null,
+            controlSettings = MENU_QUESTION_CONTROLS,
+            enriched = EnrichedNodeMetadata(
+                name = "Menu node",
+                type = EnrichedNodeType.MENU_QUESTION_STAGE,
+                groupId = null,
+                position = EnrichedNodePosition(0, 0),
+            ),
+        )
+        val actionQ = action(EnrichedNodeType.MENU_QUESTION_ACTION, listOf(menuQuestion), 0)
 
         val coverNode = StageNode(
-            uuid = UUID.randomUUID().toString(),
+            uuid = packUuid,
             image = ImageAsset(mimeTypeOf(draft.coverFile!!), coverImage, null),
             audio = AudioAsset("audio/mpeg", coverAudio, null),
-            okTransition = null,
+            okTransition = Transition(actionQ, 0),
             homeTransition = null,
-            controlSettings = DEFAULT_CONTROLS,
+            controlSettings = COVER_CONTROLS,
             enriched = EnrichedNodeMetadata(
                 name = title,
                 type = EnrichedNodeType.COVER,
@@ -120,34 +183,34 @@ class CreateStoryUseCase(
             ),
         )
 
-        // cover -> action #1 ; chapter k -> action #(k+1) ; last chapter loops back to the cover
-        // through a dedicated end action so its OK transition is never undefined.
-        chapters.forEachIndexed { index, node ->
-            if (index == 0) {
-                coverNode.okTransition = Transition(actionNodes[0], 0)
+        // Each option launches its story; stories flow forward (auto + OK -> next chapter),
+// the last story returns to the menu question; HOME always returns to the menu.
+        val storyActions = options.mapIndexed { index, option ->
+            val storyAction = action(EnrichedNodeType.STORY_ACTION, listOf(stories[index]), index + 2)
+            option.okTransition = Transition(storyAction, 0)
+            storyAction
+        }
+        val nextActions = stories.dropLast(1).mapIndexed { index, _ ->
+            action(EnrichedNodeType.STORY_ACTION, listOf(stories[index + 1]), index + 2 + options.size)
+        }
+        stories.forEachIndexed { index, story ->
+            // Chapter k -> next chapter (autoplay finish or OK); last chapter -> back to menu.
+            story.okTransition = if (index < stories.size - 1) {
+                Transition(nextActions[index], 0)
             } else {
-                chapters[index - 1].okTransition = Transition(actionNodes[index], 0)
+                Transition(actionQ, 0)
             }
+            story.homeTransition = Transition(actionQ, 0)
         }
-        if (chapters.isNotEmpty()) {
-            val endAction = ActionNode(
-                options = listOf(coverNode),
-                enriched = EnrichedNodeMetadata(
-                    name = null,
-                    type = EnrichedNodeType.ACTION,
-                    groupId = null,
-                    position = EnrichedNodePosition((chapters.size * 8).toShort(), 64),
-                ),
-            )
-            chapters.last().okTransition = Transition(endAction, 0)
-            actionNodes.add(endAction)
-        }
+
+        val stageNodes = listOf(coverNode, menuQuestion) + options + stories
+        val actionNodes = listOf(actionQ, actionOptions) + storyActions + nextActions
 
         val pack = StoryPack(
             uuid = packUuid,
             factoryDisabled = false,
             version = 1,
-            stageNodes = listOf(coverNode) + chapters,
+            stageNodes = stageNodes,
             enriched = EnrichedPackMetadata(title, description),
             nightModeAvailable = true,
         )
@@ -159,15 +222,23 @@ class CreateStoryUseCase(
         val libraryDir = Path.of(settingsService.getLibraryPath()).also { Files.createDirectories(it) }
         val destination = libraryDir.resolve("$packUuid.$PACK_EXT_ZIP")
 
-        val tmp = Files.createTempFile("studio_kmp_finalize_", ".$PACK_EXT_ZIP")
+        val tmp = withContext(Dispatchers.IO) {
+            Files.createTempFile("studio_kmp_finalize_", ".$PACK_EXT_ZIP")
+        }
         try {
-            FileOutputStream(tmp.toFile()).use { archiveWriter.write(pack, it) }
+            withContext(Dispatchers.IO) {
+                FileOutputStream(tmp.toFile()).use { archiveWriter.write(pack, it) }
+            }
             if (thumbnailPng != null) {
                 updatePackMetadata.updateArchiveMetadata(tmp, PackFileMetadata(thumbnailPngBytes = thumbnailPng))
             }
-            Files.move(tmp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            withContext(Dispatchers.IO) {
+                Files.move(tmp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            }
         } catch (e: Exception) {
-            Files.deleteIfExists(tmp)
+            withContext(Dispatchers.IO) {
+                Files.deleteIfExists(tmp)
+            }
             throw e
         }
 
@@ -211,40 +282,62 @@ class CreateStoryUseCase(
         }
     }
 
-    /** Builds one story chapter stage node, with its image and concatenated (title + narration) audio. */
-    private suspend fun buildChapterNode(
+    /**
+     * Builds the two pages of a chapter: the **option** page (shown in the menu wheel, with the
+     * chapter image + title audio) and the **story** page (plays the narration audio only).
+     *
+     * During the menu selection each option reads its chapter title; once OK is pressed, the
+     * story plays the narration WITHOUT re-reading the title (it was already announced).
+     */
+    private suspend fun buildChapterPair(
         draftId: String,
         chapter: com.maxlass.studio.pack.domain.model.StoryChapterDraftState,
         chaptersIndex: Int,
-    ): StageNode {
+    ): Pair<StageNode, StageNode> {
         val imageBytes = chapter.imageFile?.let { readImageBytes(draftId, it) }
             ?: chapter.iconId?.let { renderIcon(it) }
             ?: ChapterImageGenerator.generate(chaptersIndex)
 
-        val titleAudio = chapter.titleAudioFile?.let { draftStore.readBinary(draftId, it) }
+        val titleAudio = chapter.titleAudioFile?.let { draftStore.readBinary(draftId, it) }?.let { toMp3(it) }
             ?: ttsEngine.synthesize(chapter.titleText?.trim()?.takeIf { it.isNotEmpty() } ?: chapter.name)
         val narration = chapter.narrationAudioFile?.let { draftStore.readBinary(draftId, it) }
             ?: throw DraftIncompleteException("Chapter '${chapter.name}' has no narration audio")
-        val audio = concatMp3(titleAudio, narration)
+        val storyAudio = toMp3(narration)
 
-        return StageNode(
+        val groupId = UUID.randomUUID().toString()
+        val image = chapter.imageFile?.let { mimeTypeOf(it) } ?: "image/png"
+
+        val option = StageNode(
             uuid = UUID.randomUUID().toString(),
-            image = ImageAsset(
-                mimeType = chapter.imageFile?.let { mimeTypeOf(it) } ?: "image/png",
-                rawData = imageBytes,
-                name = null,
-            ),
-            audio = AudioAsset("audio/mpeg", audio, null),
+            image = ImageAsset(mimeType = image, rawData = imageBytes, name = null),
+            // The menu reads each option's chapter title while selecting.
+            audio = AudioAsset("audio/mpeg", titleAudio, null),
             okTransition = null,
             homeTransition = null,
-            controlSettings = DEFAULT_CONTROLS,
+            controlSettings = OPTION_CONTROLS,
             enriched = EnrichedNodeMetadata(
-                name = chapter.name,
-                type = EnrichedNodeType.STORY,
-                groupId = null,
+                name = "Option #$chaptersIndex",
+                type = EnrichedNodeType.MENU_OPTION_STAGE,
+                groupId = groupId,
                 position = EnrichedNodePosition(0, (chaptersIndex * 8).toShort()),
             ),
         )
+
+        val story = StageNode(
+            uuid = UUID.randomUUID().toString(),
+            image = null,
+            audio = AudioAsset("audio/mpeg", storyAudio, null),
+            okTransition = null,
+            homeTransition = null,
+            controlSettings = STORY_CONTROLS,
+            enriched = EnrichedNodeMetadata(
+                name = chapter.name,
+                type = EnrichedNodeType.STORY,
+                groupId = groupId,
+                position = EnrichedNodePosition(0, (chaptersIndex * 8).toShort()),
+            ),
+        )
+        return option to story
     }
 
     private suspend fun renderIcon(iconId: String): ByteArray {
@@ -269,31 +362,5 @@ class CreateStoryUseCase(
         val output = ByteArrayOutputStream()
         if (!ImageIO.write(image, "png", output)) return bytes
         return output.toByteArray()
-    }
-
-    /** Concatenates multiple audio payloads (any format) into a single mono 44.1 kHz MP3. */
-    private fun concatMp3(vararg audios: ByteArray): ByteArray {
-        if (audios.size == 1) return AudioConversion.anyToMp3(audios[0])
-        val waves = audios.map { AudioConversion.anyToWave(it) }
-        val pcmLength = waves.sumOf { it.size - 44 }
-        val pcm = ByteArray(pcmLength)
-        var offset = 0
-        for (wave in waves) {
-            wave.copyInto(pcm, offset, 44, wave.size)
-            offset += wave.size - 44
-        }
-        val format = AudioFormat(
-            AudioFormat.Encoding.PCM_SIGNED,
-            AudioConversion.WAVE_SAMPLE_RATE,
-            AudioConversion.BITSIZE,
-            AudioConversion.CHANNELS,
-            AudioConversion.CHANNELS * 2,
-            AudioConversion.WAVE_SAMPLE_RATE,
-            false,
-        )
-        val input = AudioInputStream(ByteArrayInputStream(pcm), format, (pcm.size / 2).toLong())
-        val output = ByteArrayOutputStream()
-        AudioSystem.write(input, AudioFileFormat.Type.WAVE, output)
-        return AudioConversion.anyToMp3(output.toByteArray())
     }
 }

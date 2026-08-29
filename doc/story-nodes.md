@@ -186,21 +186,30 @@ l'`optionIndex` de la transition qui y mène.
 
 ## 7. Guide pratique — construire une histoire
 
-**Pack linéaire simple (cover + N chapitres)** — ce que génère `CreateStoryUseCase` :
+**Pack avec menu de sélection (cover + N chapitres)** — le modèle Lunii classique (référence) :
 
 ```
-cover (type=cover, squareOne)
-   ok ──► action#1 ── option 0 ──► chapitre 1 (type=story)
-   chapitre 1 ok ──► action#2 ── option 0 ──► chapitre 2
-   …
-   dernier chapitre ok ──► action#fin ── option 0 ──► cover  (boucle)
+cover (type=cover, squareOne, wheel+ok)
+   ok ──► actionQ ──► menuQuestion (menu.questionstage, autoplay)   ← "choisis un chapitre"
+menuQuestion
+   ok ──► actionOptions (menu.optionsaction)
+option k (menu.optionstage : image chapitre + titre audio, wheel+ok+home)
+   ok ──► storyAction_k ──► story k (type=story)
+   (le menu lit le titre de chaque option pendant la sélection)
+story k (autoplay, ok, home)
+   ok / fin d'audio ──► story k+1    ← OK ET autoplay avancent au chapitre suivant
+   home ──► actionQ ──► menuQuestion
+dernier chapitre
+   ok / fin d'audio ──► actionQ ──► menuQuestion   ← fin : retour au menu
 ```
 
-- `cover` : image du squareOne, audio = titre du pack, `okTransition` vers le 1er choix.
-- `chapitre k` : image du chapitre, audio = titre du chapitre + narration, `okTransition`
-  vers la suite ; `controlSettings` type « histoire » (`autoplay`).
-- Le dernier chapitre : `okTransition` vers un choix de fin dont l'unique option est la cover
-  → à la fin, OK relance le pack.
+- `cover` / `option` / `story` : voir §2 pour leurs `controlSettings`.
+- La `menuQuestion` n'a pas d'image, joue le prompt du menu puis avance en `autoplay`.
+- Chaque option est une page distincte (image du chapitre + titre audio — le menu lit chaque
+  titre pendant la sélection) : la molette les parcourt, OK lance le chapitre, HOME sort.
+- Le chapitre n'a pas d'image (l'image de l'option reste affichée), joue la **narration seule**
+  (le titre n'est pas relu après OK) : **quand l'audio se termine OU qu'on appuie sur OK, on
+  passe au chapitre suivant** ; le dernier chapitre revient au menu.
 
 **Pack à menu (type Hayat/Disney)** :
 

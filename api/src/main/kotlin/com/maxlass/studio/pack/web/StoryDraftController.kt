@@ -158,6 +158,57 @@ class StoryDraftController(
     }
 
     @Operation(
+        summary = "Uploader l'audio du menu de sélection",
+        description = "Upload multipart (`file`, audio/*) = audio du nœud de sélection des " +
+            "chapitres (menu question). Remplace tout texte TTS de menu précédemment saisi.",
+    )
+    @ApiResponse(responseCode = "200", description = "Audio enregistré (état du draft)")
+    @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
+    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
+    @PutMapping("/{id}/menu-audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun setMenuAudio(
+        @PathVariable id: String,
+        @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
+        @RequestPart("file") file: MultipartFile,
+    ): StoryDraftSummary {
+        val type = audioTypeOf(file)
+        return store.setMenuAudio(id, file.bytes, type)?.let(::toSummary)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+    }
+
+    @Operation(
+        summary = "Saisir le texte du menu (TTS)",
+        description = "Texte du prompt du menu de sélection des chapitres à la place d'un " +
+            "fichier audio : la synthèse TTS se fait à la finalisation. Remplace tout audio " +
+            "de menu uploadé précédemment.",
+    )
+    @ApiResponse(responseCode = "200", description = "Texte enregistré (état du draft)")
+    @ApiResponse(responseCode = "400", description = "Texte vide")
+    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
+    @PutMapping("/{id}/menu-text")
+    fun setMenuText(
+        @PathVariable id: String,
+        @Valid @RequestBody body: SetTitleTextRequest,
+    ): StoryDraftSummary =
+        store.setMenuText(id, body.text.trim())?.let(::toSummary)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+
+    @Operation(
+        summary = "Télécharger l'audio du menu de sélection",
+        description = "Retourne les bytes bruts de l'audio du menu stocké dans le draft.",
+    )
+    @ApiResponse(responseCode = "200", description = "Audio binaire")
+    @ApiResponse(responseCode = "404", description = "Brouillon ou audio de menu inexistant")
+    @GetMapping("/{id}/menu-audio/file")
+    fun downloadMenuAudio(@PathVariable id: String): ResponseEntity<ByteArray> {
+        val draft = store.get(id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
+        val rel = draft.menuAudioFile
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No menu audio in draft")
+        return serveBinary(id, rel)
+    }
+
+    @Operation(
         summary = "Télécharger l'audio du titre d'un chapitre",
         description = "Retourne les bytes bruts de l'audio du titre du chapitre stocké dans le draft.",
     )
@@ -489,6 +540,9 @@ class StoryDraftController(
         hasTitleAudio = draft.titleAudioFile != null,
         titleAudioBytes = sizeOf(draft.id, draft.titleAudioFile),
         titleText = draft.titleText,
+        hasMenuAudio = draft.menuAudioFile != null,
+        menuAudioBytes = sizeOf(draft.id, draft.menuAudioFile),
+        menuText = draft.menuText,
         chapters = draft.chapters.map { chapter ->
             StoryChapterDraftSummary(
                 id = chapter.id,

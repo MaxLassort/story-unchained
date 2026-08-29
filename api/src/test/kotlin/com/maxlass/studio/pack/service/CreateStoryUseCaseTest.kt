@@ -87,24 +87,33 @@ class CreateStoryUseCaseTest : StringSpec({
             val zip = library.resolve("$packId.zip")
             zip.toFile().exists() shouldBe true
 
-            // Round-trips through the archive reader with the linear graph.
+            // Round-trips through the archive reader with the classic Lunii menu graph:
+            // cover -> menuQuestion (autoplay) -> actionOptions -> option -> story -> back to question.
             val pack = ArchiveStoryPackReader().read(java.io.FileInputStream(zip.toFile()))
             pack.enriched!!.title shouldBe "Mon histoire"
             pack.stageNodes shouldNotBe null
             val nodes = pack.stageNodes!!
-            nodes.size shouldBe 2 // cover + 1 chapter
+            // The pack UUID must equal the first stage node (cover) UUID: the library scanner
+            // identifies a pack by its first stage node UUID, otherwise a duplicate appears.
+            pack.uuid shouldBe nodes[0].uuid
+            pack.uuid shouldBe packId
+            nodes.size shouldBe 4 // cover + menuQuestion + option + story
             nodes[0].image shouldNotBe null
             nodes[0].audio shouldNotBe null
             nodes[0].okTransition shouldNotBe null
-            nodes[1].image shouldNotBe null
-            nodes[1].audio shouldNotBe null
-            // The last chapter must have a valid OK transition (looping back to the cover),
-            // otherwise the Lunii shows an "error card" when the story reaches it.
-            nodes[1].okTransition shouldNotBe null
-            nodes[1].enriched!!.name shouldBe "Chapitre un"
-            val endAction = nodes[1].okTransition!!.actionNode
-            endAction shouldNotBe null
-            endAction!!.options.orEmpty().firstOrNull() shouldBe nodes[0]
+            // Cover OK -> menu question.
+            nodes[0].okTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe nodes[1]
+            // Menu question autoplays into the options action (wheel menu).
+            nodes[1].controlSettings!!.autoJumpEnabled shouldBe true
+            nodes[1].okTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe nodes[2]
+            // Option page: wheel + ok, launches its story.
+            nodes[2].controlSettings!!.wheelEnabled shouldBe true
+            nodes[2].okTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe nodes[3]
+            // Story page: autoplay, returns to the menu question on OK and HOME.
+            nodes[3].controlSettings!!.autoJumpEnabled shouldBe true
+            nodes[3].okTransition shouldNotBe null
+            nodes[3].okTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe nodes[1]
+            nodes[3].homeTransition shouldNotBe null
 
             // Draft purged.
             store.get(draft.id) shouldBe null
@@ -151,6 +160,53 @@ class CreateStoryUseCaseTest : StringSpec({
                 packRepository = mockk(relaxed = true),
             )
             shouldThrow<NoSuchElementException> { useCase.finalize(UUID.randomUUID().toString()) }
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    "stories chain forward: chapter 1 auto/OK advances to chapter 2, last returns to the menu" {
+        val root = Files.createTempDirectory("finalize-test-4")
+        try {
+            val store = StoryDraftStore(StudioProperties(storageDir = root))
+            val library = Files.createTempDirectory("library-test-4").also { Files.createDirectories(it) }
+            val settings = mockk<com.maxlass.studio.settings.service.SettingsService>(relaxed = true)
+            coEvery { settings.getLibraryPath() } returns library.toString()
+            val tts = mockk<TtsEngine>(relaxed = true)
+            coEvery { tts.synthesize(any(), any(), any()) } returns tinyMp3()
+            val useCase = CreateStoryUseCase(
+                draftStore = store,
+                ttsEngine = tts,
+                iconCatalog = mockk(relaxed = true),
+                updatePackMetadata = mockk(relaxed = true),
+                settingsService = settings,
+                packRepository = mockk(relaxed = true),
+            )
+
+            val draft = store.create()
+            store.updateMetadata(draft.id, "Titre", "Desc")
+            store.setThumbnail(draft.id, tinyPng(), "image/png")
+            store.setCover(draft.id, tinyPng(), "image/png")
+            store.addChapter(draft.id, "Premier")
+            store.addChapter(draft.id, "Second")
+            val chapters = store.get(draft.id)!!.chapters
+            store.setNarrationAudio(draft.id, chapters[0].id, tinyMp3(), "audio/mpeg")
+            store.setNarrationAudio(draft.id, chapters[1].id, tinyMp3(), "audio/mpeg")
+
+            val packId = useCase.finalize(draft.id)
+            val pack = ArchiveStoryPackReader().read(java.io.FileInputStream(library.resolve("$packId.zip").toFile()))
+            val nodes = pack.stageNodes!!
+            // cover, menuQuestion, option1, option2, story1, story2
+            nodes.size shouldBe 6
+            val story1 = nodes[4]
+            val story2 = nodes[5]
+            // chapter 1 -> chapter 2 (auto + OK)
+            story1.controlSettings!!.okEnabled shouldBe true
+            story1.controlSettings!!.autoJumpEnabled shouldBe true
+            story1.okTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe story2
+            // last chapter -> back to the menu question
+            story2.okTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe nodes[1]
+            story2.homeTransition!!.actionNode!!.options.orEmpty().firstOrNull() shouldBe nodes[1]
         } finally {
             root.toFile().deleteRecursively()
         }

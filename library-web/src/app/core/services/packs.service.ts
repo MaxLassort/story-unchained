@@ -142,6 +142,22 @@ export class PacksService {
     return firstValueFrom(this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/title-text`, { text }));
   }
 
+  async uploadDraftMenuAudio(id: string, file: File): Promise<StoryDraftSummary> {
+    const form = new FormData();
+    form.append('file', file);
+    return firstValueFrom(this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/menu-audio`, form));
+  }
+
+  async setDraftMenuText(id: string, text: string): Promise<StoryDraftSummary> {
+    return firstValueFrom(this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/menu-text`, { text }));
+  }
+
+  async downloadDraftMenuAudio(id: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${this.draftsUrl}/${id}/menu-audio/file`, { responseType: 'blob' }),
+    );
+  }
+
   async uploadDraftThumbnail(id: string, file: File): Promise<StoryDraftSummary> {
     const form = new FormData();
     form.append('file', file);

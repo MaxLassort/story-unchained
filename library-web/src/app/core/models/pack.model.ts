@@ -110,6 +110,9 @@ export interface StoryDraftSummary {
   hasTitleAudio: boolean;
   titleAudioBytes: number;
   titleText: string | null;
+  hasMenuAudio: boolean;
+  menuAudioBytes: number;
+  menuText: string | null;
   chapters: StoryChapterDraftSummary[];
 }
 

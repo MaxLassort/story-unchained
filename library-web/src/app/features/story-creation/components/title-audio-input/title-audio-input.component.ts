@@ -11,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { lastValueFrom } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
+import { blobToWavFile } from './wav-encoder.util';
 
 export type TitleAudioMode = 'audio' | 'text' | 'record';
 
@@ -156,7 +157,7 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
     if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop();
   }
 
-  private finishRecording(): void {
+  private async finishRecording(): Promise<void> {
     this.recording.set(false);
     if (this.timerId !== null) {
       window.clearInterval(this.timerId);
@@ -166,8 +167,9 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
     this.stopTracks();
     const type = this.recorder?.mimeType || 'audio/webm';
     const blob = new Blob(this.chunks, { type });
-    const extension = type.includes('mp4') ? 'mp4' : 'webm';
-    const file = new File([blob], `recording.${extension}`, { type });
+    // Convert the recorded WebM/Opus audio to WAV so the backend's Java
+    // AudioSystem can decode it during Lunii pack format conversion.
+    const file = await blobToWavFile(blob, 'recording.wav');
     this.revokePreview();
     this.value.update((v) => ({ mode: 'audio', text: v?.text ?? '', file }));
     this.audioUrl.set(URL.createObjectURL(file));

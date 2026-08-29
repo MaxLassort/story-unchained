@@ -21,3 +21,9 @@ node_modules/
 
 # graphify / agent tooling outputs
 graphify-out/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+/AGENTS.md
+/.github/copilot-instructions.md
+/opencode.json

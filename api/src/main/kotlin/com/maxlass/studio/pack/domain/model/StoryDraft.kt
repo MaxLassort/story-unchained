@@ -18,6 +18,10 @@ import kotlinx.serialization.Serializable
  * exclusive with [titleText].
  * @property titleText Text entered instead of pack title audio → TTS at finalization
  * (cover audio = TTS of the title when absent). Mutually exclusive with [titleAudioFile].
+ * @property menuAudioFile Uploaded audio of the chapter-selection node (menu question).
+ * Mutually exclusive with [menuText]. When absent, a default prompt is synthesized.
+ * @property menuText Text of the menu prompt → TTS at finalization. Mutually exclusive
+ * with [menuAudioFile].
  */
 @Serializable
 data class StoryDraftState(
@@ -28,6 +32,8 @@ data class StoryDraftState(
     val coverFile: String? = null,
     val titleAudioFile: String? = null,
     val titleText: String? = null,
+    val menuAudioFile: String? = null,
+    val menuText: String? = null,
     val chapters: List<StoryChapterDraftState> = emptyList(),
     val createdAtEpochMs: Long,
 )

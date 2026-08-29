@@ -128,22 +128,41 @@ object PackAssetsCompression {
             node.audio?.let { audio ->
                 val audioData = audio.rawData ?: return@let
                 val assetHash = BytesUtils.sha1Hex(audioData)
+                // Track whether we successfully rewrote the audio as MP3
+                var asMpeg = false
+                var converted: ByteArray = audioData
                 if (assets[assetHash] == null) {
-                    val converted = if (audio.mimeType == "audio/mp3" || audio.mimeType == "audio/mpeg") {
-                        prepareMp3(audioData)
-                    } else {
-                        AudioConversion.anyToMp3(audioData)
+                    when (audio.mimeType) {
+                        "audio/mp3", "audio/mpeg" -> {
+                            // Already MP3/MPEG: try a light re‑encode (strip ID3, re‑format).
+                            try {
+                                converted = prepareMp3(audioData)
+                                asMpeg = true
+                            } catch (e: Exception) {
+                                log.warn("MP3 preparation failed, keeping original audio data: {}", e.message)
+                            }
+                        }
+                        else -> {
+                            // Non‑MP3 source: try to decode→re‑encode to MP3.
+                            try {
+                                converted = AudioConversion.anyToMp3(audioData)
+                                asMpeg = true
+                            } catch (e: Exception) {
+                                log.warn("Audio to MP3 conversion failed, keeping original audio data: {}", e.message)
+                            }
+                        }
                     }
                     assets[assetHash] = converted
                 }
-                audio.rawData = assets.getValue(assetHash)
-                audio.mimeType = "audio/mpeg"
+                // If we rewrote the audio as MP3, set the mime accordingly;
+                // otherwise keep the original mime so the downstream isn't mis‑led.
+                audio.mimeType = if (asMpeg) "audio/mpeg" else audio.mimeType
             }
         }
         return pack
     }
 
-    /** Strips ID3 tags and re-encodes the MP3 when it is not mono / 44.1 kHz. */
+    /** Strips ID3 tags and re‑encodes the MP3 when it is not mono / 44.1 kHz. */
     private fun prepareMp3(audioData: ByteArray): ByteArray {
         var mp3 = Id3Tags.removeId3v1Tag(audioData)
         mp3 = Id3Tags.removeId3v2Tag(mp3)

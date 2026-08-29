@@ -13,6 +13,7 @@ export interface StoryDetailsModel {
   title: string;
   description: string;
   titleAudio: TitleAudioSelection | null;
+  menuAudio: TitleAudioSelection | null;
   thumbnail: File | null;
   cover: NodeImageSelection | null;
 }
@@ -30,6 +31,7 @@ export class StoryDetailsStepComponent {
     title: '',
     description: '',
     titleAudio: null,
+    menuAudio: null,
     thumbnail: null,
     cover: null,
   });
@@ -61,7 +63,7 @@ export class StoryDetailsStepComponent {
     await submit(this.detailsForm, async () => {
       this.saving.set(true);
       try {
-        const { title, description, titleAudio, thumbnail, cover } = this.model();
+        const { title, description, titleAudio, menuAudio, thumbnail, cover } = this.model();
         const draftId = await this.packs.ensureDraft();
 
         await this.packs.updateDraftMetadata(draftId, { title, description });
@@ -80,6 +82,14 @@ export class StoryDetailsStepComponent {
             await this.packs.setDraftTitleText(draftId, titleAudio.text.trim());
           } else if (titleAudio.mode === 'audio' && titleAudio.file) {
             await this.packs.uploadDraftTitleAudio(draftId, titleAudio.file);
+          }
+        }
+
+        if (menuAudio) {
+          if (menuAudio.mode === 'text' && menuAudio.text.trim()) {
+            await this.packs.setDraftMenuText(draftId, menuAudio.text.trim());
+          } else if (menuAudio.mode === 'audio' && menuAudio.file) {
+            await this.packs.uploadDraftMenuAudio(draftId, menuAudio.file);
           }
         }
 
@@ -140,10 +150,24 @@ export class StoryDetailsStepComponent {
         }
       }
 
+      let menuAudio: TitleAudioSelection | null = null;
+      if (draft.menuText) {
+        menuAudio = { mode: 'text', text: draft.menuText, file: null };
+      } else if (draft.hasMenuAudio) {
+        try {
+          const blob = await this.packs.downloadDraftMenuAudio(draft.id);
+          const file = new File([blob], 'menu-audio.mp3', { type: blob.type || 'audio/mpeg' });
+          menuAudio = { mode: 'audio', text: '', file };
+        } catch {
+          /* binary missing */
+        }
+      }
+
       this.model.set({
         title: draft.title ?? '',
         description: draft.description ?? '',
         titleAudio,
+        menuAudio,
         thumbnail,
         cover,
       });

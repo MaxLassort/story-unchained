@@ -38,6 +38,7 @@ describe('StoryCreationPageComponent', () => {
       title: 'Mon histoire',
       description: '',
       titleAudio: null,
+      menuAudio: null,
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
       cover: { mode: 'icon', iconId: 'star', file: null },
     });

@@ -27,6 +27,24 @@ class FakeMediaRecorder {
   }
 }
 
+/** Minimal fake AudioBuffer for WAV encoding in tests. */
+function fakeAudioBuffer(length = 100): AudioBuffer {
+  return {
+    length,
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    duration: length / 44100,
+    getChannelData: () => new Float32Array(length),
+    copyFromChannel: vi.fn(),
+    copyToChannel: vi.fn(),
+  } as unknown as AudioBuffer;
+}
+
+class FakeAudioContext {
+  decodeAudioData = vi.fn().mockResolvedValue(fakeAudioBuffer());
+  close = vi.fn().mockResolvedValue(undefined);
+}
+
 describe('TitleAudioInputComponent', () => {
   let getUserMediaMock: ReturnType<typeof vi.fn>;
   let enumerateDevicesMock: ReturnType<typeof vi.fn>;
@@ -42,6 +60,7 @@ describe('TitleAudioInputComponent', () => {
       configurable: true,
     });
     vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
+    vi.stubGlobal('AudioContext', FakeAudioContext);
   });
 
   afterEach(() => {
@@ -116,12 +135,14 @@ describe('TitleAudioInputComponent', () => {
     expect(getUserMediaMock).toHaveBeenCalledWith({ audio: true });
 
     component.stopRecording();
+    await fixture.whenStable(); // wait for async finishRecording to complete
     fixture.detectChanges();
 
     expect(component.recording()).toBe(false);
     expect(component.value()?.mode).toBe('audio');
     expect(component.value()?.file).toBeInstanceOf(File);
-    expect(component.value()?.file?.name).toBe('recording.webm');
+    expect(component.value()?.file?.name).toBe('recording.wav');
+    expect(component.value()?.file?.type).toBe('audio/wav');
     expect(component.hasAudio()).toBe(true);
   });
 

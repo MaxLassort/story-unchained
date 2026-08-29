@@ -43,6 +43,8 @@ PUT    /stories/drafts/{id}/thumbnail           (multipart PNG/JPEG → meta/thu
 PUT    /stories/drafts/{id}/cover               (multipart PNG/JPEG → thumbnail Lunii, squareOne)
 PUT    /stories/drafts/{id}/title-audio         (multipart audio/* → audio du pack, joué sur le cover)
 PUT    /stories/drafts/{id}/title-text          {text} (TTS du titre du pack, à la finalisation)
+PUT    /stories/drafts/{id}/menu-audio          (multipart audio/* → audio du nœud de sélection des chapitres)
+PUT    /stories/drafts/{id}/menu-text           {text} (TTS du prompt du menu, à la finalisation)
 
 POST   /stories/drafts/{id}/chapters            → {name} → 201 {draftId, chapterId}
 DELETE /stories/drafts/{id}/chapters/{chapterId}
@@ -72,6 +74,8 @@ PUT    /stories/drafts/{id}/chapters/{cid}/icon         {iconId}
 | `PUT /stories/drafts/{id}/cover` | multipart `file` (PNG/JPEG) | `StoryDraftSummary` | 400, 404 |
 | `PUT /stories/drafts/{id}/title-audio` | multipart `file` (audio/*) | `StoryDraftSummary` | 400, 404 |
 | `PUT /stories/drafts/{id}/title-text` | `{text}` | `StoryDraftSummary` | 400, 404 |
+| `PUT /stories/drafts/{id}/menu-audio` | multipart `file` (audio/*) | `StoryDraftSummary` | 400, 404 |
+| `PUT /stories/drafts/{id}/menu-text` | `{text}` | `StoryDraftSummary` | 400, 404 |
 | `POST /stories/drafts/{id}/chapters` | `{name}` | 201 `{draftId, chapterId}` | 400, 404 |
 | `DELETE /stories/drafts/{id}/chapters/{chapterId}` | — | 204 | 404 |
 | `PUT …/chapters/{cid}/audio` | multipart `file` (audio/*) | `StoryDraftSummary` | 400, 404 |
@@ -81,13 +85,19 @@ PUT    /stories/drafts/{id}/chapters/{cid}/icon         {iconId}
 | `PUT …/chapters/{cid}/icon` | `{iconId}` | `StoryDraftSummary` | 400, 404 |
 
 `StoryDraftSummary` : `{id, title?, description?, hasThumbnail, thumbnailBytes, hasCover,
-coverBytes, hasTitleAudio, titleAudioBytes, titleText?, chapters[]}` où chaque chapitre est
+coverBytes, hasTitleAudio, titleAudioBytes, titleText?, hasMenuAudio, menuAudioBytes,
+menuText?, chapters[]}` où chaque chapitre est
 `{id, name, hasTitleAudio, titleAudioBytes, titleText?, hasNarrationAudio,
 narrationAudioBytes, hasImage, imageBytes, iconId?}`.
 
 L'**audio du pack** (`title-audio`/`title-text`, mutuellement exclusifs) est l'audio joué sur
 le cover (squareOne) : à la finalisation, si un `titleText` est saisi, l'audio du cover est
 synthétisé par TTS depuis le titre ; sinon c'est l'audio uploadé qui est utilisé.
+
+L'**audio du menu de sélection** (`menu-audio`/`menu-text`, mutuellement exclusifs) est joué
+sur le nœud de sélection des chapitres : à la finalisation, si un `menuText` est saisi, il est
+synthétisé par TTS ; sinon c'est l'audio uploadé ; si les deux sont absents, un prompt par
+défaut (« Choisissez un chapitre ») est synthétisé.
 
 ## Emplacement des binaires
 

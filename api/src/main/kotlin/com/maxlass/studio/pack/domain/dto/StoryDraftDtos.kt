@@ -16,6 +16,9 @@ data class StoryDraftSummary(
     val hasTitleAudio: Boolean = false,
     val titleAudioBytes: Long = 0,
     val titleText: String? = null,
+    val hasMenuAudio: Boolean = false,
+    val menuAudioBytes: Long = 0,
+    val menuText: String? = null,
     val chapters: List<StoryChapterDraftSummary> = emptyList(),
 )
 
