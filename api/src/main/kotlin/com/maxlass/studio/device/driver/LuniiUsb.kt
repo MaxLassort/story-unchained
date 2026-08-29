@@ -111,7 +111,7 @@ class LuniiUsb(
         )) {
             val callback = HotplugCallback { _, device, event, _ ->
                 val plugged = event == LibUsb.HOTPLUG_EVENT_DEVICE_ARRIVED
-                log.info("Hotplug event ({}:{:04x}): {}", Integer.toHexString(vid), pid, if (plugged) "plugged" else "unplugged")
+                log.info("Hotplug event ({}:{}): {}", Integer.toHexString(vid), String.format("%04x", pid), if (plugged) "plugged" else "unplugged")
                 dispatch(kind, plugged, device)
                 0
             }

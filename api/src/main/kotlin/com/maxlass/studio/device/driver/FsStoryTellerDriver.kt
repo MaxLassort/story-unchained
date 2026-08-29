@@ -14,6 +14,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * FS Lunii 2.x/3.x driver: operates directly on the mounted partition (no USB access beyond
@@ -33,7 +34,7 @@ class FsStoryTellerDriver {
         private const val BOOT_FILENAME = "bt"
 
         private const val MOUNTPOINT_POLL_DELAY_MS = 1_000L
-        private const val MOUNTPOINT_RETRY = 10
+        private const val MOUNTPOINT_RETRY = 15
         private const val DELETE_DIRECTORY_MAX_ATTEMPTS = 5
         private const val DELETE_DIRECTORY_RETRY_DELAY_MILLIS = 300L
     }
@@ -43,14 +44,14 @@ class FsStoryTellerDriver {
 
     /** Polls the mount points until the device partition (`.md` file) appears. */
     suspend fun onPlugged() {
-        val found = withTimeoutOrNull(MOUNTPOINT_RETRY * MOUNTPOINT_POLL_DELAY_MS) {
+        val found = withTimeoutOrNull((MOUNTPOINT_RETRY * MOUNTPOINT_POLL_DELAY_MS).milliseconds) {
             var mountPoint: String? = null
             while (mountPoint == null) {
                 mountPoint = listMountPoints().firstOrNull { mp ->
                     Files.exists(Paths.get(mp).resolve(DEVICE_METADATA_FILENAME))
                 }
                 if (mountPoint == null) {
-                    delay(MOUNTPOINT_POLL_DELAY_MS)
+                    delay(MOUNTPOINT_POLL_DELAY_MS.milliseconds)
                 }
             }
             mountPoint
@@ -311,18 +312,28 @@ class FsStoryTellerDriver {
         if (os.contains("win")) {
             return File.listRoots().map { it.path }
         }
-        val isMac = os.contains("mac")
-        val cmd = if (isMac) "df" else "df -l"
+        if (os.contains("mac")) {
+            // USB mass-storage volumes mount under /Volumes. Enumerate the directory
+            // directly instead of parsing `df`: FSKit-backed FAT mounts (macOS 15+/Tahoe,
+            // e.g. some Lunii firmware 3.x devices) do NOT appear in `df` output, only in
+            // `mount`. Scanning /Volumes catches both classic msdosfs and FSKit mounts.
+            return File("/Volumes")
+                .takeIf { it.isDirectory }
+                ?.listFiles()
+                ?.filter { it.isDirectory }
+                ?.map { it.absolutePath }
+                ?: emptyList()
+        }
         val pattern = Regex("^([^ ]+)[^/]+(/.*)$")
         return runCatching {
-            val process = Runtime.getRuntime().exec(cmd)
+            val process = Runtime.getRuntime().exec("df -l")
             val lines = process.inputStream.bufferedReader().readLines()
             process.waitFor()
             lines.mapNotNull { line ->
                 val match = pattern.matchEntire(line) ?: return@mapNotNull null
                 val dev = match.groupValues[1]
                 val root = match.groupValues[2]
-                if (!dev.startsWith("/dev/") && !isMac) null else root
+                if (!dev.startsWith("/dev/")) null else root
             }
         }.getOrDefault(emptyList())
     }

@@ -20,9 +20,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -35,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import java.io.IOException
 
 private val json = Json { encodeDefaults = true }
 
@@ -50,6 +53,10 @@ class DeviceController(
     private val driverDeviceConnector: DriverDeviceConnector,
 ) {
     private val sseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    companion object {
+        private val log = LoggerFactory.getLogger(DeviceController::class.java)
+    }
 
     @Operation(
         summary = "Infos de l'appareil connecté",
@@ -141,26 +148,34 @@ class DeviceController(
     @GetMapping(value = ["/events"], produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
     fun deviceEvents(): SseEmitter {
         val emitter = SseEmitter(0L) // no timeout, server-driven
-        sseScope.launch {
+        val job = sseScope.launch {
             try {
                 emitter.send(
                     SseEmitter.event()
                         .data(json.encodeToString(DeviceEvent.serializer(), buildDeviceEvent()))
                 )
                 driverDeviceConnector.onDeviceChanged.collect {
-                    runCatching {
-                        emitter.send(
-                            SseEmitter.event()
-                                .data(json.encodeToString(DeviceEvent.serializer(), buildDeviceEvent()))
-                        )
-                    }.onFailure {
-                        emitter.completeWithError(it)
-                    }
+                    // Let IOException (broken pipe / client gone) propagate to break out of
+                    // collect — otherwise every later event re-fails and re-logs.
+                    emitter.send(
+                        SseEmitter.event()
+                            .data(json.encodeToString(DeviceEvent.serializer(), buildDeviceEvent()))
+                    )
                 }
+            } catch (e: IOException) {
+                // SSE client disconnected (refresh, navigation, hot-reload) — normal, stop silently.
+                log.debug("SSE /devices/events client disconnected: {}", e.message)
+                emitter.complete()
             } catch (e: Exception) {
-                emitter.completeWithError(e)
+                log.debug("SSE /devices/events stream ended: {}", e.message)
+                emitter.complete()
             }
         }
+        // If the container detects the disconnect first, cancel the collecting coroutine so it
+        // doesn't leak waiting for the next event (and then fail to send).
+        emitter.onCompletion { job.cancel() }
+        emitter.onTimeout { job.cancel() }
+        emitter.onError { job.cancel() }
         return emitter
     }
 
@@ -168,8 +183,7 @@ class DeviceController(
         val infos = driverDeviceConnector.deviceState.value
         val packs = if (infos.plugged) {
             runCatching { driverDeviceConnector.getDevicePacks() }.getOrElse {
-                org.slf4j.LoggerFactory.getLogger(DeviceController::class.java)
-                    .warn("Failed to read device packs for SSE event: {}", it.message)
+                log.warn("Failed to read device packs for SSE event: {}", it.message)
                 null
             }
         } else {
