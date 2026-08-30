@@ -7,7 +7,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.format-badge[data-format='ARCHIVE'] { background: #1565c0; color: #fff; }
+.format-badge[data-format='ARCHIVE'] { background: var(--mat-sys-tertiary); color: #fff; }
 .format-badge[data-format='RAW']    { background: #2e7d32; color: #fff; }
-.format-badge[data-format='FS']     { background: #e65100; color: #fff; }
+.format-badge[data-format='FS']     { background: #212529; color: #fff; }
 .format-badge[data-format='UNKNOWN'] { background: #616161; color: #fff; }

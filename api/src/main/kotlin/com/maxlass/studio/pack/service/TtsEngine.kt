@@ -11,10 +11,15 @@ import org.springframework.stereotype.Service
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Thrown when a keyed TTS provider (OPENAI / ELEVENLABS) is requested but no API key is configured. */
+class TtsApiKeyMissingException(val provider: TtsProvider) :
+    RuntimeException("No API key configured for ${provider.name}. Add one in Settings to use this provider.")
+
 /**
  * TTS engine: selects the provider configured in user settings (BYOK), falls back to the
- * free Google Translate adapter when no provider or API key is set, or when the provider
- * call fails. All output is normalized to MP3 mono 44.1 kHz via [AudioConversion.anyToMp3].
+ * free Google Translate adapter when the provider call fails. When OPENAI / ELEVENLABS is
+ * explicitly selected but no API key is set, throws [TtsApiKeyMissingException] instead of
+ * silently falling back. All output is normalized to MP3 mono 44.1 kHz via [AudioConversion.anyToMp3].
  */
 @Service
 class TtsEngine(
@@ -39,13 +44,13 @@ class TtsEngine(
         // ---- resolve the effective provider (explicit > settings) ----
         val effectiveProvider = when {
             provider != null -> provider
-            else -> TtsProvider.fromSettings(settings.ttsProvider)
+            else -> TtsProvider.fromSettings(settings.ttsProvider) ?: TtsProvider.FREE
         }
         val apiKey = when (effectiveProvider) {
             TtsProvider.OPENAI -> settings.ttsOpenAiApiKey
             TtsProvider.ELEVENLABS -> settings.ttsElevenLabsApiKey
             else -> null
-        }.takeIf { it.isNotBlank() }
+        }?.takeIf { it.isNotBlank() }
 
         val effectiveVoice = voice ?: settings.ttsVoice
         val effectiveLang = lang ?: settings.ttsLang ?: "fr"
@@ -56,6 +61,13 @@ class TtsEngine(
             else -> null
         }
 
+        // A keyed provider was explicitly requested (via this call's provider override or user
+        // settings) but no API key is configured — surface this to the caller instead of
+        // silently degrading to the free engine.
+        if (adapter == null && effectiveProvider != TtsProvider.FREE) {
+            throw TtsApiKeyMissingException(effectiveProvider)
+        }
+
         val raw = if (adapter != null) {
             try {
                 adapter.synthesize(text, lang = effectiveLang)
@@ -64,7 +76,7 @@ class TtsEngine(
                 freeTtsAdapter.synthesize(text, lang = effectiveLang)
             }
         } else {
-            logger.info("No TTS provider configured, using free Google Translate TTS")
+            logger.info("Using free Google Translate TTS")
             freeTtsAdapter.synthesize(text, lang = effectiveLang)
         }
 

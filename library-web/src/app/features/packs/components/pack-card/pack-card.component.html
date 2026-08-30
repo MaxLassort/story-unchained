@@ -16,7 +16,7 @@
       </div>
 
       <div class="card__fab" (click)="$event.stopPropagation()">
-        <button mat-mini-fab color="primary" [matMenuTriggerFor]="menu">
+        <button matMiniFab  [matMenuTriggerFor]="menu">
           <mat-icon>more_vert</mat-icon>
         </button>
         <mat-menu #menu="matMenu">

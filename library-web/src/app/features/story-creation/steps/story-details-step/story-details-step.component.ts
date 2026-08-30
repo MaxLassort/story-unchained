@@ -41,13 +41,24 @@ export class StoryDetailsStepComponent {
 
   readonly detailsForm = form(this.model, (schemaPath) => {
     required(schemaPath.title, { message: 'Title is required' });
+    required(schemaPath.titleAudio, { message: 'Title audio is required' });
+    required(schemaPath.menuAudio, { message: 'Chapter selection audio is required' });
     required(schemaPath.thumbnail, { message: 'Thumbnail is required' });
     required(schemaPath.cover, { message: 'Cover image is required' });
   });
 
+  /** A title-audio selection is usable when it has non-empty text or an uploaded file. */
+  private audioSelectionIsUsable(selection: TitleAudioSelection | null): boolean {
+    if (!selection) return false;
+    if (selection.mode === 'text') return selection.text.trim() !== '';
+    return selection.file !== null;
+  }
+
   readonly complete = computed(() => {
     if (!this.detailsForm().valid()) return false;
-    const cover = this.detailsForm().value().cover;
+    const { titleAudio, menuAudio, cover } = this.detailsForm().value();
+    if (!this.audioSelectionIsUsable(titleAudio)) return false;
+    if (!this.audioSelectionIsUsable(menuAudio)) return false;
     if (!cover) return false;
     if (cover.mode === 'icon') return cover.iconId !== null;
     if (cover.mode === 'number') return cover.chapterNumber != null;

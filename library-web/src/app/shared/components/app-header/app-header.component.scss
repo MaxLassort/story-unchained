@@ -62,14 +62,13 @@
   align-self: stretch;
   position: relative;
   color: var(--mat-sys-on-surface-variant);
-  font-size: 0.75rem;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .app-nav a:hover,
 .app-nav__link--active {
-  color: var(--mat-sys-primary) !important;
+  color: var(--mat-sys-tertiary) !important;
 }
 
 .app-nav__link--active::after {
@@ -79,7 +78,7 @@
   bottom: 0;
   left: 0;
   height: 2px;
-  background: var(--mat-sys-primary);
+  background: var(--mat-sys-tertiary);
 }
 
 .app-header__tools {
@@ -120,7 +119,6 @@
   background: transparent;
   color: var(--mat-sys-on-surface);
   font: inherit;
-  font-size: 0.7rem;
 }
 
 .sr-only {

@@ -32,7 +32,7 @@
     </mat-form-field>
 
     <div class="story-details__title-audio">
-      <span class="story-details__label">Pack title audio</span>
+      <span class="story-details__label">Pack title audio *</span>
       <span class="story-details__hint">
         Audio played on the story cover. Upload a file, or enter the text to be read aloud by
         the TTS engine at finalization.
@@ -41,10 +41,10 @@
     </div>
 
     <div class="story-details__menu-audio">
-      <span class="story-details__label">Chapter selection audio</span>
+      <span class="story-details__label">Chapter selection audio *</span>
       <span class="story-details__hint">
         Audio played on the chapter selection node. Upload a file, or enter the text to be read
-        aloud by the TTS engine at finalization. If empty, a default prompt is generated.
+        aloud by the TTS engine at finalization. Required to continue.
       </span>
       <app-title-audio-input [formField]="detailsForm.menuAudio" />
     </div>

@@ -1,5 +1,5 @@
 import { Component, computed, DestroyRef, inject, input, model, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { FormValueControl } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -71,6 +71,7 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
   protected readonly previewing = signal(false);
   readonly audioUrl = signal<string | null>(null);
   readonly hasAudio = signal(false);
+  readonly ttsError = signal<string | null>(null);
 
   readonly recording = signal(false);
   protected readonly recordingSeconds = signal(0);
@@ -239,6 +240,7 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
     const value = this.text().trim();
     if (!value || this.previewing()) return;
     this.previewing.set(true);
+    this.ttsError.set(null);
     try {
       const blob = await lastValueFrom(
         this.http.get(`${environment.apiUrl}/tts/preview`, {
@@ -249,11 +251,35 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
       this.revokePreview();
       this.audioUrl.set(URL.createObjectURL(blob));
       this.hasAudio.set(true);
-    } catch {
-      this.hasAudio.set(false);
+    } catch (err) {
+      this.revokePreview();
+      this.ttsError.set(await this.extractErrorMessage(err));
     } finally {
       this.previewing.set(false);
     }
+  }
+
+  /** Extracts a human-readable message from an error response (JSON {error}, possibly blob-wrapped). */
+  private async extractErrorMessage(err: unknown): Promise<string> {
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error;
+      // responseType 'blob' wraps JSON error bodies in a Blob — decode it to read the message.
+      if (body instanceof Blob && body.type.includes('json')) {
+        try {
+          const parsed = JSON.parse(await body.text());
+          if (parsed?.error) return parsed.error;
+        } catch {
+          /* fall through to status-based message */
+        }
+      } else if (body?.error) {
+        return body.error as string;
+      }
+      if (err.status === 409) {
+        return 'API key missing for the selected provider. Add it in Settings.';
+      }
+      return `TTS preview failed (HTTP ${err.status}).`;
+    }
+    return 'Unknown error while generating the TTS preview.';
   }
 
   private revokePreview(): void {

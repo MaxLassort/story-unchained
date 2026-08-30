@@ -1,6 +1,7 @@
 package com.maxlass.studio.pack.web
 
 import com.maxlass.studio.pack.domain.dto.TtsVoicesResponse
+import com.maxlass.studio.pack.port.external.TtsProvider
 import com.maxlass.studio.pack.service.TtsEngine
 import com.maxlass.studio.pack.service.TtsVoiceCatalogService
 import io.swagger.v3.oas.annotations.Operation

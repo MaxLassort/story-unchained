@@ -2,6 +2,7 @@ package com.maxlass.studio.core.web
 
 import com.maxlass.studio.core.api.ApiStatusResponse
 import com.maxlass.studio.pack.service.DraftIncompleteException
+import com.maxlass.studio.pack.service.TtsApiKeyMissingException
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -48,6 +49,11 @@ class GlobalExceptionHandler {
     fun handleResponseStatus(e: ResponseStatusException): ResponseEntity<ApiStatusResponse> =
         ResponseEntity.status(e.statusCode)
             .body(ApiStatusResponse(ok = false, error = e.reason ?: "HTTP ${e.statusCode.value()}"))
+
+    @ExceptionHandler(TtsApiKeyMissingException::class)
+    fun handleTtsApiKeyMissing(e: TtsApiKeyMissingException): ResponseEntity<ApiStatusResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ApiStatusResponse(ok = false, error = e.message ?: "TTS API key missing"))
 
     @ExceptionHandler(DraftIncompleteException::class)
     fun handleDraftIncomplete(e: DraftIncompleteException): ResponseEntity<ApiStatusResponse> =

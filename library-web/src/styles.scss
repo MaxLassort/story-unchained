@@ -10,7 +10,7 @@ html {
   @include mat.theme(
     (
       color: (
-        primary: mat.$orange-palette,
+        primary: mat.$yellow-palette,
         tertiary: mat.$blue-palette,
       ),
       typography: Roboto,
@@ -18,11 +18,32 @@ html {
     )
   );
 
-  // StoryUnchained brand primary, matching the first UI mockup.
-  --mat-sys-primary: #ff542d;
-  --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #ffdbd0;
-  --mat-sys-on-primary-container: #3b0800;
+  // StoryUnchained brand colors, matching the UI mockup:
+  // golden yellow for primary actions and blue for secondary accents.
+  --mat-sys-primary: #f5b301;
+  --mat-sys-on-primary: #221a00;
+  --mat-sys-primary-container: #ffe9b3;
+  --mat-sys-on-primary-container: #2b1d00;
+  --mat-sys-tertiary: #4a90e2;
+  --mat-sys-on-tertiary: #ffffff;
+  --mat-sys-tertiary-container: #d8e7fa;
+  --mat-sys-on-tertiary-container: #0e3d68;
+
+  // Neutral white surfaces and grays: the mockup uses a pure white canvas,
+  // while the yellow palette generates warm cream neutrals by default.
+  --mat-sys-background: #ffffff;
+  --mat-sys-surface: #ffffff;
+  --mat-sys-surface-bright: #ffffff;
+  --mat-sys-surface-dim: #ecedef;
+  --mat-sys-surface-container-lowest: #ffffff;
+  --mat-sys-surface-container-low: #f9fafb;
+  --mat-sys-surface-container: #f5f6f7;
+  --mat-sys-surface-container-high: #f0f1f3;
+  --mat-sys-surface-container-highest: #e9eaec;
+  --mat-sys-surface-variant: #eaebec;
+  --mat-sys-on-surface-variant: #4b4d52;
+  --mat-sys-outline: #75777a;
+  --mat-sys-outline-variant: #dde0e3;
 }
 
 body {
@@ -53,23 +74,15 @@ app-root .app-content > router-outlet + * {
 }
 
 .snackbar-success {
-  --mdc-snackbar-container-color: #2e7d32;
-  --mdc-snackbar-supporting-text-color: #fff;
-  --mat-snack-bar-actions-color: #fff;
-
-  .mdc-button__label {
-    color: #fff;
-  }
+  --mat-snack-bar-container-color: #2e7d32;
+  --mat-snack-bar-supporting-text-color: #fff;
+  --mat-snack-bar-button-color: #fff;
 }
 
 .snackbar-error {
-  --mdc-snackbar-container-color: #c62828;
-  --mdc-snackbar-supporting-text-color: #fff;
-  --mat-snack-bar-actions-color: #fff;
-
-  .mdc-button__label {
-    color: #fff;
-  }
+  --mat-snack-bar-container-color: #c62828;
+  --mat-snack-bar-supporting-text-color: #fff;
+  --mat-snack-bar-button-color: #fff;
 }
 
 // Material's MatDialogContainer ships component-encapsulated styles with

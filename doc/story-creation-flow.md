@@ -121,8 +121,8 @@ Observé sur les packs qui marchent (Hayat, Disney, packs convertis) :
 - Dans notre graphe linéaire, le dernier chapitre a un OK valide qui boucle vers la cover :
   à la fin du récit, OK relance depuis la cover (comportement des histoires sans menu).
 
-> Référence format : `doc/pack-format-archive.md` § 5 (Transitions).
-> **Référence nœuds** (format de chaque node + rôle de chaque option) : `doc/story-nodes.md`.
+> **Références** : `doc/format/pack-model.md` (nœuds, transitions, options) ·
+> `doc/format/studio-archive-format.md` (format archive/STUdio) · `doc/format/README.md` (index).
 
 ## Audio
 

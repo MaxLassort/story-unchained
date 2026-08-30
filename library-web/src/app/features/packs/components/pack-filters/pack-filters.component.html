@@ -5,7 +5,7 @@
   <mat-chip-option [selected]="showUnavailable()" (selectionChange)="showUnavailable.set($event.selected)">
     Show unavailable
   </mat-chip-option>
-  <mat-chip-option [selected]="showFrFr()" (selectionChange)="showFrFr.set($event.selected)">
+  <mat-chip-option [selected]="showFrFr()" (selectionChange)="showFrFr.set($event.selected)" class="filters__chip--lang">
     French only
   </mat-chip-option>
 </mat-chip-listbox>

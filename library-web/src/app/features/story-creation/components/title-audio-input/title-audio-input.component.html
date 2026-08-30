@@ -28,6 +28,9 @@
         <mat-option value="ELEVENLABS">ElevenLabs</mat-option>
       </mat-select>
     </mat-form-field>
+    @if (ttsError()) {
+      <p class="title-audio__tts-error" role="alert">⚠️ {{ ttsError() }}</p>
+    }
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__text">
       <mat-label>{{ label() }} — text</mat-label>
       <input

@@ -70,8 +70,8 @@
   font-size: 0.7rem;
   font-weight: 500;
   text-transform: uppercase;
-  background: #6a1b9a;
-  color: #fff;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
 }
 
 .card__title {

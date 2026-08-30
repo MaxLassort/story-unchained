@@ -189,7 +189,7 @@ Permettre à l'utilisateur de créer une histoire (pack STUdio) depuis le front 
 - Pipeline complet (draft → zip → BDD → conversion), diagramme de séquence
 - Mapping draft → `story.json` (squareOne, types COVER/STORY, transitions linéaires, nommage SHA-1 des assets, concat audio)
 - Règles de validation (obligatoires/optionnels) + codes d'erreur
-- Référence croisée `doc/pack-format-archive.md` (format STUdio) + rappel convertisseur existant
+- Référence croisée `doc/format/studio-archive-format.md` (format STUdio) + rappel convertisseur existant
 
 ## Étape 6 — Front : formulaire de création d'histoire — *dépend du back (1→5)*
 

@@ -71,21 +71,55 @@ describe('StoryDetailsStepComponent', () => {
     expect(fixture.componentInstance.complete()).toBe(false);
   });
 
-  it('is complete when title, thumbnail and cover are provided', async () => {
+  it('is complete when title, both audios, thumbnail and cover are provided', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
 
     component.model.set({
       title: 'Ma petite histoire',
       description: 'x',
-      titleAudio: null,
-      menuAudio: null,
+      titleAudio: { mode: 'text', text: 'Mon titre', file: null },
+      menuAudio: { mode: 'text', text: 'Choisissez un chapitre', file: null },
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
       cover: { mode: 'icon', iconId: 'star', file: null },
     });
     fixture.detectChanges();
 
     expect(component.complete()).toBe(true);
+  });
+
+  it('is incomplete when menu audio is missing', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.model.set({
+      title: 'Ma petite histoire',
+      description: 'x',
+      titleAudio: { mode: 'text', text: 'Mon titre', file: null },
+      menuAudio: null,
+      thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
+      cover: { mode: 'icon', iconId: 'star', file: null },
+    });
+    fixture.detectChanges();
+
+    expect(component.complete()).toBe(false);
+  });
+
+  it('is incomplete when title audio has empty text', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.model.set({
+      title: 'Ma petite histoire',
+      description: 'x',
+      titleAudio: { mode: 'text', text: '   ', file: null },
+      menuAudio: { mode: 'text', text: 'Choisissez un chapitre', file: null },
+      thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
+      cover: { mode: 'icon', iconId: 'star', file: null },
+    });
+    fixture.detectChanges();
+
+    expect(component.complete()).toBe(false);
   });
 
   it('saves all fields to the backend on save()', async () => {
@@ -97,7 +131,7 @@ describe('StoryDetailsStepComponent', () => {
       title: 'Mon histoire',
       description: 'Une description',
       titleAudio: { mode: 'text', text: 'Mon titre', file: null },
-      menuAudio: null,
+      menuAudio: { mode: 'text', text: 'Choisissez un chapitre', file: null },
       thumbnail: thumbFile,
       cover: { mode: 'image', iconId: null, file: new File(['x'], 'cover.png', { type: 'image/png' }) },
     });

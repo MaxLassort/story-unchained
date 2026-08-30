@@ -37,7 +37,7 @@
       </div>
     </mat-step>
 
-    <mat-step label="Bulk Upload" [completed]="bulkStep()?.complete() ?? false">
+    <mat-step label="Bulk Upload" [completed]="detailsStep()?.complete() && bulkStep()?.complete() ?? false">
       <mat-card class="step-card">
         <mat-card-content>
           <app-bulk-audio-step />

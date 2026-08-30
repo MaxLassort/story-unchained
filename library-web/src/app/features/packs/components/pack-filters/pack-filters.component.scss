@@ -9,22 +9,34 @@
   padding: 0.75rem 0;
 }
 
+// Selected filter chips are solid brand yellow with dark text.
 .filters__chips {
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
   gap: 0.35rem;
-  --mdc-chip-elevated-selected-container-color: var(--mat-sys-primary);
-  --mdc-chip-elevated-selected-label-text-color: var(--mat-sys-on-primary);
-  --mdc-chip-outline-selected-label-text-color: var(--mat-sys-on-primary);
+  --mat-chip-elevated-selected-container-color: var(--mat-sys-primary);
+  --mat-chip-selected-label-text-color: var(--mat-sys-on-primary);
+  --mat-chip-with-icon-selected-icon-color: var(--mat-sys-on-primary);
+  --mat-chip-selected-hover-state-layer-color: var(--mat-sys-on-primary);
+  --mat-chip-selected-focus-state-layer-color: var(--mat-sys-on-primary);
+}
+
+// The language filter is a secondary accent, so it selects in blue.
+.filters__chips .filters__chip--lang {
+  --mat-chip-elevated-selected-container-color: var(--mat-sys-tertiary);
+  --mat-chip-selected-label-text-color: var(--mat-sys-on-tertiary);
+  --mat-chip-with-icon-selected-icon-color: var(--mat-sys-on-tertiary);
+  --mat-chip-selected-hover-state-layer-color: var(--mat-sys-on-tertiary);
+  --mat-chip-selected-focus-state-layer-color: var(--mat-sys-on-tertiary);
 }
 
 .filters__sort {
   flex: 0 0 auto;
   cursor: pointer;
-  --mdc-chip-elevated-container-color: var(--mat-sys-surface-container-low);
-  --mdc-chip-elevated-label-text-color: var(--mat-sys-on-surface);
-  --mdc-chip-outline-color: var(--mat-sys-outline-variant);
+  --mat-chip-elevated-container-color: var(--mat-sys-surface-container-low);
+  --mat-chip-label-text-color: var(--mat-sys-on-surface);
+  --mat-chip-outline-color: var(--mat-sys-outline-variant);
 }
 
 .filters__sort mat-icon {
