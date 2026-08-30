@@ -29,7 +29,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import jakarta.annotation.PreDestroy
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -67,6 +69,11 @@ class PackController(
     private val driverDeviceConnector: DriverDeviceConnector,
 ) {
     private val conversionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @PreDestroy
+    fun shutdown() {
+        conversionScope.cancel("PackController shutting down")
+    }
 
     @Operation(
         summary = "Lister les packs (paginé)",

@@ -4,7 +4,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { StoryCreationPageComponent } from './story-creation-page.component';
 
 describe('StoryCreationPageComponent', () => {
-  it('renders the wizard with a three-step linear stepper', async () => {
+  it('renders the wizard with a four-step linear stepper', async () => {
     await TestBed.configureTestingModule({
       imports: [RouterTestingModule, StoryCreationPageComponent],
     }).compileComponents();
@@ -16,7 +16,7 @@ describe('StoryCreationPageComponent', () => {
     expect(root.querySelector('h1')?.textContent).toContain('Create a story');
     expect(root.querySelector('a')?.getAttribute('routerlink')).toBe('/packs');
     expect(root.querySelector('mat-stepper')).not.toBeNull();
-    expect(root.querySelectorAll('mat-step-header').length).toBe(3);
+    expect(root.querySelectorAll('mat-step-header').length).toBe(4);
   });
 
   it('disables the next action until the details step is complete', async () => {

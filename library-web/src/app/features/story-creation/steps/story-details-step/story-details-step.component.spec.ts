@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { StoryDetailsStepComponent } from './story-details-step.component';
-import { PacksService } from '../../../../core/services/packs.service';
+import { StoryDraftService } from '../../../../core/services/story-draft.service';
+import { StoryImageService } from '../../../../core/services/story-image.service';
 
 describe('StoryDetailsStepComponent', () => {
-  let packsMock: {
+  let draftsMock: {
     ensureDraft: ReturnType<typeof vi.fn>;
     uploadDraftThumbnail: ReturnType<typeof vi.fn>;
     uploadDraftCover: ReturnType<typeof vi.fn>;
-    fetchIconPng: ReturnType<typeof vi.fn>;
     getCurrentDraft: ReturnType<typeof vi.fn>;
     downloadDraftThumbnail: ReturnType<typeof vi.fn>;
     downloadDraftCover: ReturnType<typeof vi.fn>;
@@ -18,13 +18,15 @@ describe('StoryDetailsStepComponent', () => {
     uploadDraftTitleAudio: ReturnType<typeof vi.fn>;
     setDraftTitleText: ReturnType<typeof vi.fn>;
   };
+  let imagesMock: {
+    fetchIconPng: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
-    packsMock = {
+    draftsMock = {
       ensureDraft: vi.fn().mockResolvedValue('draft-1'),
       uploadDraftThumbnail: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       uploadDraftCover: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      fetchIconPng: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
       getCurrentDraft: vi.fn().mockResolvedValue(null),
       downloadDraftThumbnail: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
       downloadDraftCover: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
@@ -33,12 +35,19 @@ describe('StoryDetailsStepComponent', () => {
       uploadDraftTitleAudio: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       setDraftTitleText: vi.fn().mockResolvedValue({ id: 'draft-1' }),
     };
+    imagesMock = {
+      fetchIconPng: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
+    };
   });
 
   async function createComponent() {
     await TestBed.configureTestingModule({
       imports: [StoryDetailsStepComponent],
-      providers: [provideHttpClient(), { provide: PacksService, useValue: packsMock }],
+      providers: [
+        provideHttpClient(),
+        { provide: StoryDraftService, useValue: draftsMock },
+        { provide: StoryImageService, useValue: imagesMock },
+      ],
     }).compileComponents();
     const fixture = TestBed.createComponent(StoryDetailsStepComponent);
     fixture.detectChanges();
@@ -96,20 +105,20 @@ describe('StoryDetailsStepComponent', () => {
 
     const ok = await component.save();
     expect(ok).toBe(true);
-    expect(packsMock.updateDraftMetadata).toHaveBeenCalledWith('draft-1', {
+    expect(draftsMock.updateDraftMetadata).toHaveBeenCalledWith('draft-1', {
       title: 'Mon histoire',
       description: 'Une description',
     });
-    expect(packsMock.uploadDraftThumbnail).toHaveBeenCalledWith('draft-1', thumbFile);
-    expect(packsMock.uploadDraftCover).toHaveBeenCalled();
-    expect(packsMock.setDraftTitleText).toHaveBeenCalledWith('draft-1', 'Mon titre');
+    expect(draftsMock.uploadDraftThumbnail).toHaveBeenCalledWith('draft-1', thumbFile);
+    expect(draftsMock.uploadDraftCover).toHaveBeenCalled();
+    expect(draftsMock.setDraftTitleText).toHaveBeenCalledWith('draft-1', 'Mon titre');
   });
 
   it('returns false and sets error when save fails', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
 
-    packsMock.updateDraftMetadata.mockRejectedValueOnce(new Error('boom'));
+    draftsMock.updateDraftMetadata.mockRejectedValueOnce(new Error('boom'));
 
     component.model.set({
       title: 'Mon histoire',

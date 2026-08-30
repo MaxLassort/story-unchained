@@ -24,10 +24,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
+import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
@@ -69,6 +71,11 @@ class SyncPacksService(
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queueProcessing = AtomicBoolean(false)
     private val tx = TransactionTemplate(transactionManager)
+
+    @PreDestroy
+    fun shutdown() {
+        backgroundScope.cancel("SyncPacksService shutting down")
+    }
 
     private val inspector = PackFileInspector(metadataReader)
     private val extractor = PackMetaExtractor(metadataReader, extractThumbnailFromFsPack, thumbnailCache)

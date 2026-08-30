@@ -22,8 +22,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -56,6 +58,11 @@ class DeviceController(
 
     companion object {
         private val log = LoggerFactory.getLogger(DeviceController::class.java)
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        sseScope.cancel("DeviceController shutting down")
     }
 
     @Operation(

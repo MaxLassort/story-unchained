@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -15,6 +15,7 @@ import { CreateStoryButtonComponent } from '../create-story-button/create-story-
   imports: [RouterLink, RouterLinkActive, MatButtonModule, MatIconModule, MatTooltipModule, CreateStoryButtonComponent],
   templateUrl: './app-header.component.html',
   styleUrl: './app-header.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppHeaderComponent {
   private readonly dialog = inject(MatDialog);

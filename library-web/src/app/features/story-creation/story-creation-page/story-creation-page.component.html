@@ -30,9 +30,31 @@
           @if (detailsStep()?.saving()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" />
           } @else {
-            Next: Chapters
+            Next: Bulk Upload
             <mat-icon aria-hidden="true">arrow_forward</mat-icon>
           }
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step label="Bulk Upload" [completed]="bulkStep()?.complete() ?? false">
+      <mat-card class="step-card">
+        <mat-card-content>
+          <app-bulk-audio-step />
+        </mat-card-content>
+      </mat-card>
+
+      <div class="step-actions">
+        <button mat-button type="button" matStepperPrevious>Back</button>
+        <button
+          mat-flat-button
+          type="button"
+          color="primary"
+          [disabled]="!bulkStep()?.complete()"
+          (click)="confirmBulkAndNext()"
+        >
+          Confirm &amp; Add to Story
+          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
         </button>
       </div>
     </mat-step>

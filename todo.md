@@ -1,0 +1,2 @@
+- remove multi call on devices screen,
+- remove sync each refresh 

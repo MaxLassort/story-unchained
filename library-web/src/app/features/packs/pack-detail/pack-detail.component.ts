@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
 import { form, FormField, submit } from '@angular/forms/signals';
@@ -33,6 +33,7 @@ const LOCALES = [
   imports: [CdkCopyToClipboard, FormField, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatOptionModule, MatSelectModule, RouterModule, FormatBadgeComponent, LoadingOverlayComponent],
   templateUrl: './pack-detail.component.html',
   styleUrl: './pack-detail.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PackDetailComponent {
   private readonly route = inject(ActivatedRoute);

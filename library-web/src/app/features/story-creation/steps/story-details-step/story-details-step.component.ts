@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { form, FormField, required, submit } from '@angular/forms/signals';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { PacksService } from '../../../../core/services/packs.service';
+import { StoryDraftService } from '../../../../core/services/story-draft.service';
+import { StoryImageService } from '../../../../core/services/story-image.service';
 import type { NodeImageSelection } from '../../../../core/models';
 import { ImageDropInputComponent } from '../../components/image-drop-input/image-drop-input.component';
 import { NodeImageInputComponent } from '../../components/node-image-input/node-image-input.component';
@@ -21,11 +22,13 @@ export interface StoryDetailsModel {
 @Component({
   selector: 'app-story-details-step',
   imports: [FormField, ImageDropInputComponent, NodeImageInputComponent, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, TitleAudioInputComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './story-details-step.component.html',
   styleUrl: './story-details-step.component.scss',
 })
 export class StoryDetailsStepComponent {
-  private readonly packs = inject(PacksService);
+  private readonly drafts = inject(StoryDraftService);
+  private readonly images = inject(StoryImageService);
 
   readonly model = signal<StoryDetailsModel>({
     title: '',
@@ -66,32 +69,32 @@ export class StoryDetailsStepComponent {
       this.saving.set(true);
       try {
         const { title, description, titleAudio, menuAudio, thumbnail, cover } = this.model();
-        const draftId = await this.packs.ensureDraft();
+        const draftId = await this.drafts.ensureDraft();
 
-        await this.packs.updateDraftMetadata(draftId, { title, description });
+        await this.drafts.updateDraftMetadata(draftId, { title, description });
 
         if (thumbnail) {
-          await this.packs.uploadDraftThumbnail(draftId, thumbnail);
+          await this.drafts.uploadDraftThumbnail(draftId, thumbnail);
         }
 
         if (cover) {
           const coverFile = await this.coverToFile(cover);
-          if (coverFile) await this.packs.uploadDraftCover(draftId, coverFile);
+          if (coverFile) await this.drafts.uploadDraftCover(draftId, coverFile);
         }
 
         if (titleAudio) {
           if (titleAudio.mode === 'text' && titleAudio.text.trim()) {
-            await this.packs.setDraftTitleText(draftId, titleAudio.text.trim());
+            await this.drafts.setDraftTitleText(draftId, titleAudio.text.trim());
           } else if (titleAudio.mode === 'audio' && titleAudio.file) {
-            await this.packs.uploadDraftTitleAudio(draftId, titleAudio.file);
+            await this.drafts.uploadDraftTitleAudio(draftId, titleAudio.file);
           }
         }
 
         if (menuAudio) {
           if (menuAudio.mode === 'text' && menuAudio.text.trim()) {
-            await this.packs.setDraftMenuText(draftId, menuAudio.text.trim());
+            await this.drafts.setDraftMenuText(draftId, menuAudio.text.trim());
           } else if (menuAudio.mode === 'audio' && menuAudio.file) {
-            await this.packs.uploadDraftMenuAudio(draftId, menuAudio.file);
+            await this.drafts.uploadDraftMenuAudio(draftId, menuAudio.file);
           }
         }
 
@@ -108,11 +111,11 @@ export class StoryDetailsStepComponent {
   private async coverToFile(cover: NodeImageSelection): Promise<File | null> {
     if (cover.mode === 'image' && cover.file) return cover.file;
     if (cover.mode === 'icon' && cover.iconId) {
-      const blob = await this.packs.fetchIconPng(cover.iconId);
+      const blob = await this.images.fetchIconPng(cover.iconId);
       return new File([blob], `${cover.iconId}.png`, { type: 'image/png' });
     }
     if (cover.mode === 'number' && cover.chapterNumber != null) {
-      const blob = await this.packs.fetchChapterNumberPng(cover.chapterNumber);
+      const blob = await this.images.fetchChapterNumberPng(cover.chapterNumber);
       return new File([blob], `chapter-${cover.chapterNumber}.png`, { type: 'image/png' });
     }
     return null;
@@ -120,13 +123,13 @@ export class StoryDetailsStepComponent {
 
   private async loadExistingDraft(): Promise<void> {
     try {
-      const draft = await this.packs.getCurrentDraft();
+      const draft = await this.drafts.getCurrentDraft();
       if (!draft) return;
 
       let thumbnail: File | null = null;
       if (draft.hasThumbnail) {
         try {
-          const blob = await this.packs.downloadDraftThumbnail(draft.id);
+          const blob = await this.drafts.downloadDraftThumbnail(draft.id);
           thumbnail = new File([blob], 'thumbnail.png', { type: blob.type || 'image/png' });
         } catch {
           /* binary missing — user can re-upload */
@@ -136,7 +139,7 @@ export class StoryDetailsStepComponent {
       let cover: NodeImageSelection | null = null;
       if (draft.hasCover) {
         try {
-          const blob = await this.packs.downloadDraftCover(draft.id);
+          const blob = await this.drafts.downloadDraftCover(draft.id);
           cover = { mode: 'image', iconId: null, file: new File([blob], 'cover.png', { type: blob.type || 'image/png' }) };
         } catch {
           /* binary missing — user can re-upload */
@@ -148,7 +151,7 @@ export class StoryDetailsStepComponent {
         titleAudio = { mode: 'text', text: draft.titleText, file: null };
       } else if (draft.hasTitleAudio) {
         try {
-          const blob = await this.packs.downloadDraftTitleAudio(draft.id);
+          const blob = await this.drafts.downloadDraftTitleAudio(draft.id);
           const file = new File([blob], 'title-audio.mp3', { type: blob.type || 'audio/mpeg' });
           titleAudio = { mode: 'audio', text: '', file };
         } catch {
@@ -161,7 +164,7 @@ export class StoryDetailsStepComponent {
         menuAudio = { mode: 'text', text: draft.menuText, file: null };
       } else if (draft.hasMenuAudio) {
         try {
-          const blob = await this.packs.downloadDraftMenuAudio(draft.id);
+          const blob = await this.drafts.downloadDraftMenuAudio(draft.id);
           const file = new File([blob], 'menu-audio.mp3', { type: blob.type || 'audio/mpeg' });
           menuAudio = { mode: 'audio', text: '', file };
         } catch {

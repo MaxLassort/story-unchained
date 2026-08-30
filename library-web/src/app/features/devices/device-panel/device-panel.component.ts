@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -18,6 +18,7 @@ import { environment } from '../../../../environments/environment';
   imports: [CdkCopyToClipboard, MatButtonModule, MatDividerModule, MatIconModule, MatListModule, MatProgressBarModule, MatTooltipModule, LoadingOverlayComponent],
   templateUrl: './device-panel.component.html',
   styleUrl: './device-panel.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DevicePanelComponent {
   private readonly sseService = inject(SseService);

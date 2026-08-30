@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, effect, inject, input, model, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, model, signal, untracked } from '@angular/core';
 import { httpResource } from '@angular/common/http';
 import { FormValueControl } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,7 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '../../../../../environments/environment';
-import { PacksService } from '../../../../core/services/packs.service';
+import { StoryImageService } from '../../../../core/services/story-image.service';
 import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '../../../../core/models';
 
 /**
@@ -32,10 +32,11 @@ import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '..
   ],
   templateUrl: './node-image-input.component.html',
   styleUrl: './node-image-input.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NodeImageInputComponent implements FormValueControl<NodeImageSelection | null> {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly packs = inject(PacksService);
+  private readonly images = inject(StoryImageService);
 
   readonly label = input('Node image');
   readonly expectedWidth = input(320);
@@ -239,7 +240,7 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     this.converting.set(true);
     this.convertError.set(null);
     try {
-      const blob = await this.packs.renderSvg(file);
+      const blob = await this.images.renderSvg(file);
       // Strip any trailing extension (case-insensitive) so an SVG detected only by
       // mime ("photo.svg") or a case variant ("cat.SVG") yields one clean "*.png".
       const base = file.name.replace(/\.[^.]+$/, '');

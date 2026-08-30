@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -22,6 +22,7 @@ import { LoadingOverlayComponent } from '../../../../shared/components/loading-o
   imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, FormatBadgeComponent, LoadingOverlayComponent],
   templateUrl: './pack-card.component.html',
   styleUrl: './pack-card.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PackCardComponent {
   readonly pack = input.required<Pack>();

@@ -2,15 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { NodeImageInputComponent } from './node-image-input.component';
-import { PacksService } from '../../../../core/services/packs.service';
+import { StoryImageService } from '../../../../core/services/story-image.service';
 
 describe('NodeImageInputComponent', () => {
-  let packsMock: {
+  let imagesMock: {
     renderSvg: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
-    packsMock = {
+    imagesMock = {
       renderSvg: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
     };
   });
@@ -18,7 +18,7 @@ describe('NodeImageInputComponent', () => {
   async function createComponent() {
     await TestBed.configureTestingModule({
       imports: [NodeImageInputComponent],
-      providers: [provideHttpClient(), { provide: PacksService, useValue: packsMock }],
+      providers: [provideHttpClient(), { provide: StoryImageService, useValue: imagesMock }],
     }).compileComponents();
     const fixture = TestBed.createComponent(NodeImageInputComponent);
     fixture.componentInstance.value.set(null);
@@ -166,7 +166,7 @@ describe('NodeImageInputComponent', () => {
     fixture.detectChanges();
     await vi.waitFor(() => expect(component.value()?.file).not.toBeNull());
 
-    expect(packsMock.renderSvg).toHaveBeenCalledWith(svg);
+    expect(imagesMock.renderSvg).toHaveBeenCalledWith(svg);
     expect(component.value()?.mode).toBe('image');
     expect(component.value()?.file?.name).toBe('icon.png');
   });
@@ -206,7 +206,7 @@ describe('NodeImageInputComponent', () => {
   });
 
   it('surfaces an error when the SVG conversion fails', async () => {
-    packsMock.renderSvg.mockRejectedValueOnce(new Error('boom'));
+    imagesMock.renderSvg.mockRejectedValueOnce(new Error('boom'));
     const fixture = await createComponent();
     const component = fixture.componentInstance;
     component.onModeChange('image');

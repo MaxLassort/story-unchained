@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,6 +30,7 @@ import { DevicePanelComponent } from '../../devices/device-panel/device-panel.co
   ],
   templateUrl: './pack-list.component.html',
   styleUrl: './pack-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PackListComponent {
   private readonly router = inject(Router);

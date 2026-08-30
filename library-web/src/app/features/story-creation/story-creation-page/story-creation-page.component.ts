@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -6,9 +6,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
-import { PacksService } from '../../../core/services/packs.service';
+import { StoryDraftService } from '../../../core/services/story-draft.service';
 import { StoryDetailsStepComponent } from '../steps/story-details-step/story-details-step.component';
+import { BulkAudioStepComponent } from '../steps/bulk-audio-step/bulk-audio-step.component';
 import { ChaptersStepComponent } from '../steps/chapters-step/chapters-step.component';
+import { ChaptersEditorState } from '../chapters-editor-state.service';
 
 @Component({
   selector: 'app-story-creation-page',
@@ -21,17 +23,21 @@ import { ChaptersStepComponent } from '../steps/chapters-step/chapters-step.comp
     MatSnackBarModule,
     MatStepperModule,
     StoryDetailsStepComponent,
+    BulkAudioStepComponent,
     ChaptersStepComponent,
   ],
+  providers: [ChaptersEditorState],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './story-creation-page.component.html',
   styleUrl: './story-creation-page.component.scss',
 })
 export class StoryCreationPageComponent {
   private readonly router = inject(Router);
-  private readonly packs = inject(PacksService);
+  private readonly drafts = inject(StoryDraftService);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly detailsStep = viewChild(StoryDetailsStepComponent);
+  readonly bulkStep = viewChild(BulkAudioStepComponent);
   readonly chaptersStep = viewChild(ChaptersStepComponent);
   readonly stepper = viewChild(MatStepper);
 
@@ -39,7 +45,7 @@ export class StoryCreationPageComponent {
   readonly finalizeError = signal<string | null>(null);
 
   protected readonly canFinalize = computed(
-    () => !!this.packs.draftId() && !this.finalizing(),
+    () => !!this.drafts.draftId() && !this.finalizing(),
   );
 
   protected cancel(): void {
@@ -64,14 +70,19 @@ export class StoryCreationPageComponent {
     }
   }
 
+  /** Bulk step pre-fills the shared chapters state; confirming just moves to the Chapters step. */
+  confirmBulkAndNext(): void {
+    this.stepper()?.next();
+  }
+
   async createPack(): Promise<void> {
-    const draftId = this.packs.draftId();
+    const draftId = this.drafts.draftId();
     if (!draftId || this.finalizing()) return;
     this.finalizing.set(true);
     this.finalizeError.set(null);
     try {
-      const { packId } = await this.packs.finalizeDraft(draftId);
-      this.packs.draftId.set(null);
+      const { packId } = await this.drafts.finalizeDraft(draftId);
+      this.drafts.draftId.set(null);
       this.snackBar.open('Story created successfully!', 'Close', {
         duration: 4000,
         panelClass: 'snackbar-success',

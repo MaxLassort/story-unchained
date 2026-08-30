@@ -1,0 +1,94 @@
+<div class="bulk-audio">
+  <div class="bulk-audio__header">
+    <h2 class="bulk-audio__title">Bulk Audio Import</h2>
+    <p class="bulk-audio__subtitle">
+      Upload multiple audio files at once. Each file automatically becomes a new chapter in your
+      story, pre-filled with a title, a title audio and a chapter image.
+    </p>
+  </div>
+
+  @if (typeError(); as error) {
+    <div class="bulk-audio__error">{{ error }}</div>
+  }
+
+  <!-- Drop zone -->
+  <div
+    class="bulk-audio__zone"
+    [class.bulk-audio__zone--dragging]="dragging()"
+    (click)="fileInput.click()"
+    (keydown.enter)="fileInput.click()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+    role="button"
+    tabindex="0"
+    aria-label="Drop audio files or browse to add them"
+  >
+    <mat-icon class="bulk-audio__zone-icon" aria-hidden="true">cloud_upload</mat-icon>
+    <span class="bulk-audio__zone-title">Drag &amp; drop audio files here</span>
+    <span class="bulk-audio__zone-hint">
+      or <span class="bulk-audio__zone-browse">browse</span> — MP3, WAV, OGG up to 50&nbsp;MB each
+    </span>
+    <input
+      #fileInput
+      class="bulk-audio__input"
+      type="file"
+      accept="audio/*"
+      multiple
+      (change)="onFileInput($event)"
+    />
+  </div>
+
+    <!-- Staging area -->
+    @if (chapters().length > 0) {
+      <div class="bulk-audio__staging">
+        <div class="bulk-audio__staging-header">
+          <h3 class="bulk-audio__staging-title">Staging area</h3>
+          <span class="bulk-audio__staging-meta">{{ totalSizeLabel() }}</span>
+        </div>
+
+        <div class="bulk-audio__list">
+          @for (chapter of chapters(); track chapter.narrationFile; let i = $index) {
+            <mat-card class="bulk-card" appearance="outlined">
+              <mat-card-content class="bulk-card__content">
+                <div class="bulk-card__status" aria-hidden="true">
+                  <mat-icon class="bulk-card__status-icon">check_circle</mat-icon>
+                </div>
+
+                <div class="bulk-card__main">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bulk-card__name">
+                    <mat-label>Chapter {{ i + 1 }} — Name</mat-label>
+                    <input
+                      matInput
+                      [value]="chapter.name"
+                      (input)="renameChapter(i, $any($event.target).value)"
+                      autocomplete="off"
+                    />
+                  </mat-form-field>
+                  <span class="bulk-card__file">
+                    <mat-icon class="bulk-card__file-icon" aria-hidden="true">audio_file</mat-icon>
+                    {{ chapter.narrationFile?.name }}
+                    <span class="bulk-card__file-size">{{ fileSizeLabel(chapter.narrationFile!) }}</span>
+                  </span>
+                </div>
+
+                <div class="bulk-card__actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    matTooltip="Remove chapter"
+                    aria-label="Remove chapter"
+                    (click)="removeChapter(i)"
+                  >
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          }
+        </div>
+      </div>
+    } @else {
+      <p class="bulk-audio__empty">No files yet — drop or browse audio files to stage chapters.</p>
+    }
+</div>

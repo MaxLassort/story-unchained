@@ -41,6 +41,9 @@ data class StoryChapterDraftSummary(
 data class DraftCreatedResponse(val draftId: String)
 
 @Serializable
+data class FinalizedPackResponse(val packId: String)
+
+@Serializable
 data class ChapterCreatedResponse(val draftId: String, val chapterId: String)
 
 @Serializable

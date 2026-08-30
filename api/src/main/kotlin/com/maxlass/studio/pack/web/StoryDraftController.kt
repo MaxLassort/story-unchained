@@ -3,6 +3,7 @@ package com.maxlass.studio.pack.web
 import com.maxlass.studio.pack.domain.dto.ChapterCreatedResponse
 import com.maxlass.studio.pack.domain.dto.CreateChapterRequest
 import com.maxlass.studio.pack.domain.dto.DraftCreatedResponse
+import com.maxlass.studio.pack.domain.dto.FinalizedPackResponse
 import com.maxlass.studio.pack.domain.dto.SetChapterIconRequest
 import com.maxlass.studio.pack.domain.dto.SetTitleTextRequest
 import com.maxlass.studio.pack.domain.dto.StoryChapterDraftSummary
@@ -10,7 +11,6 @@ import com.maxlass.studio.pack.domain.dto.StoryDraftSummary
 import com.maxlass.studio.pack.domain.dto.UpdateDraftRequest
 import com.maxlass.studio.pack.domain.model.StoryDraftState
 import com.maxlass.studio.pack.service.CreateStoryUseCase
-import com.maxlass.studio.pack.service.DraftIncompleteException
 import com.maxlass.studio.pack.service.StoryDraftStore
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -65,7 +65,7 @@ class StoryDraftController(
         ])
     ])
     @PostMapping
-    fun createDraft(): ResponseEntity<DraftCreatedResponse> {
+    suspend fun createDraft(): ResponseEntity<DraftCreatedResponse> {
         val draft = store.create()
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(DraftCreatedResponse(draftId = draft.id))
@@ -79,7 +79,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "État du brouillon actuel")
     @ApiResponse(responseCode = "404", description = "Aucun brouillon sur disque")
     @GetMapping("/current")
-    fun getCurrentDraft(): ResponseEntity<StoryDraftSummary> {
+    suspend fun getCurrentDraft(): ResponseEntity<StoryDraftSummary> {
         val draft = store.findCurrent()
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(toSummary(draft))
@@ -99,17 +99,9 @@ class StoryDraftController(
     @ApiResponse(responseCode = "409", description = "Draft incomplet")
     @ApiResponse(responseCode = "404", description = "Draft inconnu")
     @PostMapping("/{id}/finalize")
-    suspend fun finalizeDraft(@PathVariable id: String): ResponseEntity<Any> {
-        return try {
-            val packId = createStory.finalize(id)
-            ResponseEntity.ok(mapOf("packId" to packId))
-        } catch (e: DraftIncompleteException) {
-            ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(mapOf("ok" to false, "error" to (e.message ?: "Draft incomplete")))
-        } catch (e: NoSuchElementException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("ok" to false, "error" to (e.message ?: "Draft not found")))
-        }
+    suspend fun finalizeDraft(@PathVariable id: String): ResponseEntity<FinalizedPackResponse> {
+        val packId = createStory.finalize(id)
+        return ResponseEntity.ok(FinalizedPackResponse(packId = packId))
     }
 
     @Operation(
@@ -119,7 +111,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Image binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon ou thumbnail inexistante")
     @GetMapping("/{id}/thumbnail/file")
-    fun downloadThumbnail(@PathVariable id: String): ResponseEntity<ByteArray> {
+    suspend fun downloadThumbnail(@PathVariable id: String): ResponseEntity<ByteArray> {
         val draft = store.get(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
         val rel = draft.thumbnailFile
@@ -134,7 +126,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Image binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon ou cover inexistante")
     @GetMapping("/{id}/cover/file")
-    fun downloadCover(@PathVariable id: String): ResponseEntity<ByteArray> {
+    suspend fun downloadCover(@PathVariable id: String): ResponseEntity<ByteArray> {
         val draft = store.get(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
         val rel = draft.coverFile
@@ -149,7 +141,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Audio binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon ou audio de titre inexistant")
     @GetMapping("/{id}/title-audio/file")
-    fun downloadTitleAudio(@PathVariable id: String): ResponseEntity<ByteArray> {
+    suspend fun downloadTitleAudio(@PathVariable id: String): ResponseEntity<ByteArray> {
         val draft = store.get(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
         val rel = draft.titleAudioFile
@@ -166,7 +158,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PutMapping("/{id}/menu-audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setMenuAudio(
+    suspend fun setMenuAudio(
         @PathVariable id: String,
         @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
@@ -186,7 +178,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Texte vide")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PutMapping("/{id}/menu-text")
-    fun setMenuText(
+    suspend fun setMenuText(
         @PathVariable id: String,
         @Valid @RequestBody body: SetTitleTextRequest,
     ): StoryDraftSummary =
@@ -200,7 +192,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Audio binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon ou audio de menu inexistant")
     @GetMapping("/{id}/menu-audio/file")
-    fun downloadMenuAudio(@PathVariable id: String): ResponseEntity<ByteArray> {
+    suspend fun downloadMenuAudio(@PathVariable id: String): ResponseEntity<ByteArray> {
         val draft = store.get(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
         val rel = draft.menuAudioFile
@@ -215,7 +207,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Audio binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon, chapitre ou audio inexistant")
     @GetMapping("/{id}/chapters/{chapterId}/title-audio/file")
-    fun downloadChapterTitleAudio(
+    suspend fun downloadChapterTitleAudio(
         @PathVariable id: String,
         @PathVariable chapterId: String,
     ): ResponseEntity<ByteArray> {
@@ -231,7 +223,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Audio binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon, chapitre ou narration inexistante")
     @GetMapping("/{id}/chapters/{chapterId}/narration/file")
-    fun downloadChapterNarration(
+    suspend fun downloadChapterNarration(
         @PathVariable id: String,
         @PathVariable chapterId: String,
     ): ResponseEntity<ByteArray> {
@@ -247,7 +239,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Image binaire")
     @ApiResponse(responseCode = "404", description = "Brouillon, chapitre ou image inexistante")
     @GetMapping("/{id}/chapters/{chapterId}/image/file")
-    fun downloadChapterImage(
+    suspend fun downloadChapterImage(
         @PathVariable id: String,
         @PathVariable chapterId: String,
     ): ResponseEntity<ByteArray> {
@@ -264,7 +256,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "État du brouillon")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @GetMapping("/{id}")
-    fun getDraft(@PathVariable id: String): StoryDraftSummary =
+    suspend fun getDraft(@PathVariable id: String): StoryDraftSummary =
         store.get(id)?.let(::toSummary)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
 
@@ -275,7 +267,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "200", description = "Brouillon mis à jour")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PatchMapping("/{id}")
-    fun updateDraft(
+    suspend fun updateDraft(
         @PathVariable id: String,
         @Valid @RequestBody body: UpdateDraftRequest,
     ): StoryDraftSummary =
@@ -291,7 +283,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non PNG/JPEG")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PutMapping("/{id}/thumbnail", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setThumbnail(
+    suspend fun setThumbnail(
         @PathVariable id: String,
         @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
@@ -310,7 +302,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non PNG/JPEG")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PutMapping("/{id}/cover", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setCover(
+    suspend fun setCover(
         @PathVariable id: String,
         @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
@@ -329,7 +321,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PutMapping("/{id}/title-audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setTitleAudio(
+    suspend fun setTitleAudio(
         @PathVariable id: String,
         @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
         @RequestPart("file") file: MultipartFile,
@@ -349,7 +341,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Texte vide")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PutMapping("/{id}/title-text")
-    fun setTitleText(
+    suspend fun setTitleText(
         @PathVariable id: String,
         @Valid @RequestBody body: SetTitleTextRequest,
     ): StoryDraftSummary =
@@ -364,7 +356,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "204", description = "Brouillon supprimé")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @DeleteMapping("/{id}")
-    fun deleteDraft(@PathVariable id: String): ResponseEntity<Unit> {
+    suspend fun deleteDraft(@PathVariable id: String): ResponseEntity<Unit> {
         if (!store.clear(id)) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
         }
@@ -385,7 +377,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Nom vide")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
     @PostMapping("/{id}/chapters")
-    fun addChapter(
+    suspend fun addChapter(
         @PathVariable id: String,
         @Valid @RequestBody body: CreateChapterRequest,
     ): ResponseEntity<ChapterCreatedResponse> {
@@ -402,7 +394,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "204", description = "Chapitre supprimé")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
     @DeleteMapping("/{id}/chapters/{chapterId}")
-    fun deleteChapter(
+    suspend fun deleteChapter(
         @PathVariable id: String,
         @PathVariable chapterId: String,
     ): ResponseEntity<Unit> {
@@ -420,7 +412,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
     @PutMapping("/{id}/chapters/{chapterId}/audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setChapterAudio(
+    suspend fun setChapterAudio(
         @PathVariable id: String,
         @PathVariable chapterId: String,
         @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
@@ -441,7 +433,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
     @PutMapping("/{id}/chapters/{chapterId}/narration", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setChapterNarration(
+    suspend fun setChapterNarration(
         @PathVariable id: String,
         @PathVariable chapterId: String,
         @Parameter(description = "Fichier audio de narration (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
@@ -462,7 +454,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Texte vide")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
     @PutMapping("/{id}/chapters/{chapterId}/title-text")
-    fun setChapterTitleText(
+    suspend fun setChapterTitleText(
         @PathVariable id: String,
         @PathVariable chapterId: String,
         @Valid @RequestBody body: SetTitleTextRequest,
@@ -480,7 +472,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Fichier vide ou non PNG/JPEG")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
     @PutMapping("/{id}/chapters/{chapterId}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun setChapterImage(
+    suspend fun setChapterImage(
         @PathVariable id: String,
         @PathVariable chapterId: String,
         @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
@@ -501,7 +493,7 @@ class StoryDraftController(
     @ApiResponse(responseCode = "400", description = "Slug vide")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
     @PutMapping("/{id}/chapters/{chapterId}/icon")
-    fun setChapterIcon(
+    suspend fun setChapterIcon(
         @PathVariable id: String,
         @PathVariable chapterId: String,
         @Valid @RequestBody body: SetChapterIconRequest,
