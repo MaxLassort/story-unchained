@@ -27,19 +27,30 @@ class TtsEngine(
         private val logger = LoggerFactory.getLogger(TtsEngine::class.java)
     }
 
-    /** Synthesizes [text] to MP3, using [voice] and [lang] when provided (else the configured settings values). */
-    suspend fun synthesize(text: String, voice: String? = null, lang: String? = null): ByteArray = withContext(Dispatchers.IO) {
+    /** Synthesizes [text] to MP3, using [voice] and [lang] when provided (else the configured settings values).
+     *  If [provider] is non‑null it overrides the provider taken from user settings for this call only. */
+    suspend fun synthesize(
+        text: String,
+        voice: String? = null,
+        lang: String? = null,
+        provider: TtsProvider? = null
+    ): ByteArray = withContext(Dispatchers.IO) {
         val settings = settingsService.getSettings()
-        val effectiveVoice = voice ?: settings.ttsVoice
-        val effectiveLang = lang ?: settings.ttsLang ?: "fr"
-        val provider = TtsProvider.fromSettings(settings.ttsProvider)
-        val apiKey = when (provider) {
+        // ---- resolve the effective provider (explicit > settings) ----
+        val effectiveProvider = when {
+            provider != null -> provider
+            else -> TtsProvider.fromSettings(settings.ttsProvider)
+        }
+        val apiKey = when (effectiveProvider) {
             TtsProvider.OPENAI -> settings.ttsOpenAiApiKey
             TtsProvider.ELEVENLABS -> settings.ttsElevenLabsApiKey
             else -> null
-        }?.takeIf { it.isNotBlank() }
+        }.takeIf { it.isNotBlank() }
 
-        val adapter = when (provider) {
+        val effectiveVoice = voice ?: settings.ttsVoice
+        val effectiveLang = lang ?: settings.ttsLang ?: "fr"
+
+        val adapter = when (effectiveProvider) {
             TtsProvider.OPENAI -> apiKey?.let { openAiTtsAdapterFactory.create(it, effectiveVoice) }
             TtsProvider.ELEVENLABS -> apiKey?.let { elevenLabsTtsAdapterFactory.create(it, effectiveVoice) }
             else -> null
@@ -49,7 +60,7 @@ class TtsEngine(
             try {
                 adapter.synthesize(text, lang = effectiveLang)
             } catch (e: Exception) {
-                logger.warn("TTS provider {} failed ({}), falling back to free TTS", provider, e.message)
+                logger.warn("TTS provider {} failed ({}), falling back to free TTS", effectiveProvider, e.message)
                 freeTtsAdapter.synthesize(text, lang = effectiveLang)
             }
         } else {

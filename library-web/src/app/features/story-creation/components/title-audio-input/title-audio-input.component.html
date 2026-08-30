@@ -20,6 +20,14 @@
   </mat-button-toggle-group>
 
   @if (mode() === 'text') {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__provider">
+      <mat-label>Provider</mat-label>
+      <mat-select [(ngModel)]="selectedProvider">
+        <mat-option value="FREE">Free (Google Translate)</mat-option>
+        <mat-option value="OPENAI">OpenAI</mat-option>
+        <mat-option value="ELEVENLABS">ElevenLabs</mat-option>
+      </mat-select>
+    </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__text">
       <mat-label>{{ label() }} — text</mat-label>
       <input
@@ -29,6 +37,7 @@
         placeholder="e.g. The little dragon"
         autocomplete="off"
       />
+
       <button
         matSuffix
         mat-icon-button

@@ -12,6 +12,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { lastValueFrom } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { blobToWavFile } from './wav-encoder.util';
+import { FormsModule } from '@angular/forms';
 
 export type TitleAudioMode = 'audio' | 'text' | 'record';
 
@@ -50,6 +51,7 @@ export interface TitleAudioSelection {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTooltipModule,
+    FormsModule,
   ],
   templateUrl: './title-audio-input.component.html',
   styleUrl: './title-audio-input.component.scss',
@@ -85,6 +87,9 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
   /** Selected microphone deviceId, `null` = system default. */
   readonly selectedDeviceId = signal<string | null>(null);
   readonly trackMuted = signal(false);
+
+  /** Selected TTS provider for the preview: FREE | OPENAI | ELEVENLABS */
+  selectedProvider = signal<'FREE' | 'OPENAI' | 'ELEVENLABS'>('FREE');
 
   private recorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
@@ -237,7 +242,7 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
     try {
       const blob = await lastValueFrom(
         this.http.get(`${environment.apiUrl}/tts/preview`, {
-          params: { text: value },
+          params: { text: value, provider: this.selectedProvider() },
           responseType: 'blob',
         }),
       );

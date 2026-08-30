@@ -20,6 +20,13 @@ enum class TtsProvider {
         fun fromSettings(value: String?): TtsProvider? = value?.let { v ->
             entries.firstOrNull { it.name.equals(v, ignoreCase = true) }
         }
+        /** Parse a free‑form query‑string ("OPENAI", "ELEVENLABS", anything else → FREE). */
+        fun fromValue(value: String?): TtsProvider
+            = when (value) {
+                "OPENAI" -> OPENAI
+                "ELEVENLABS" -> ELEVENLABS
+                else -> FREE
+            }
     }
 }
 

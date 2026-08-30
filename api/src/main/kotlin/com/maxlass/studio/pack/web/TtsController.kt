@@ -33,16 +33,19 @@ class TtsController(
     )
     @ApiResponse(responseCode = "200", description = "Audio MP3", content = [Content(mediaType = "audio/mpeg")])
     @ApiResponse(responseCode = "400", description = "Texte vide")
-    @GetMapping("/preview")
+@GetMapping("/preview")
     suspend fun preview(
         @Parameter(description = "Texte à synthétiser (non vide)")
         @RequestParam @NotBlank text: String,
         @Parameter(description = "Voix : nom OpenAI (ex. \"alloy\") ou voice id ElevenLabs. Vide = voix par défaut")
         @RequestParam(required = false) voice: String?,
-        @Parameter(description = "Langue ISO 639-1 (ex. \"fr\"), utilisée par le fallback gratuit. Défaut : fr")
+        @Parameter(description = "Langue ISO 639‑1 (ex. \"fr\"), utilisée par le fallback gratuit. Défaut : fr")
         @RequestParam(required = false) lang: String?,
+        @Parameter(description = "Provider à utiliser pour cette demande : OPENAI, ELEVENLABS ou FREE (défaut : paramètres utilisateur)")
+        @RequestParam(required = false) provider: String?,
     ): ResponseEntity<ByteArray> {
-        val audio = ttsEngine.synthesize(text.trim(), voice, lang)
+        val effectiveProvider = provider?.let { TtsProvider.fromValue(it) } ?: null
+        val audio = ttsEngine.synthesize(text.trim(), voice, lang, effectiveProvider)
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType("audio/mpeg"))
             .body(audio)
