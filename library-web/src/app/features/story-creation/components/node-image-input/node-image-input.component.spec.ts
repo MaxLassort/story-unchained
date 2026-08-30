@@ -63,6 +63,14 @@ describe('NodeImageInputComponent', () => {
     expect(url).toContain('iconId=star');
   });
 
+  it('builds the Lucide CDN URL from the slug', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    const url = component.lucideIconSrc('moon-star');
+    expect(url).toBe('https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/moon-star.svg');
+  });
+
   it('rejects non-PNG/JPEG files on drop', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;

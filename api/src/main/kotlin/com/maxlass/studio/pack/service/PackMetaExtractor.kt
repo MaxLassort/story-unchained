@@ -9,10 +9,9 @@ import com.maxlass.studio.pack.domain.model.PackMetadata
 import com.maxlass.studio.pack.domain.model.PackVariant
 import com.maxlass.studio.pack.port.external.ExtractThumbnailFromFsPackPort
 import com.maxlass.studio.pack.port.external.MetaDataReaderPort
-import com.maxlass.studio.pack.util.findThumbnailEntry
+import com.maxlass.studio.pack.util.readThumbnailBytes
 import java.io.File
 import java.util.Base64
-import java.util.zip.ZipFile
 
 class PackMetaExtractor(
     private val metadataReader: MetaDataReaderPort,
@@ -25,10 +24,12 @@ class PackMetaExtractor(
         file: File,
         meta: RawPackMeta,
         format: PackFormat,
-        officialCache: Map<String, OfficialMetadataDto>
+        officialCache: Map<String, OfficialMetadataDto>,
+        existingThumbnail: String? = null,
+        hasArchiveVariant: Boolean = false
     ): Pack {
         val fromOfficial = officialCache[meta.uuid]
-        val thumbnail = resolveThumbnail(file, meta.uuid, format, fromOfficial)
+        val thumbnail = resolveThumbnail(file, meta.uuid, format, fromOfficial, existingThumbnail, hasArchiveVariant)
         val metadata = PackMetadata(
             title = fromOfficial?.title ?: meta.title,
             description = fromOfficial?.description ?: meta.description,
@@ -55,22 +56,37 @@ class PackMetaExtractor(
         file: File,
         packId: String,
         format: PackFormat,
-        fromOfficial: OfficialMetadataDto?
+        fromOfficial: OfficialMetadataDto?,
+        existingThumbnail: String?,
+        hasArchiveVariant: Boolean
     ): String? {
         if (fromOfficial != null) return fromOfficial.thumbnailUrl
 
         return when (format) {
-            PackFormat.ARCHIVE -> resolveArchiveThumbnail(file, packId)
-            PackFormat.FS -> resolveFsThumbnail(file)
+            PackFormat.ARCHIVE -> resolveArchiveThumbnail(file, packId) ?: existingThumbnail
+            // A pack that also exists as an archive zip stores its real cover in the zip's
+            // `meta/thumbnail.png`. Reuse that cover instead of overwriting it with the raw first
+            // FS image (which is a placeholder-quality "default"), otherwise a 2-format pack ends
+            // up showing the wrong thumbnail.
+            PackFormat.FS -> if (hasArchiveVariant) {
+                resolveCachedThumbnail(packId) ?: existingThumbnail
+            } else {
+                resolveFsThumbnail(file)
+            }
             else -> null
         }
     }
+
+    private fun resolveCachedThumbnail(packId: String): String? =
+        thumbnailCache.get(packId)?.let {
+            "data:image/png;base64,${Base64.getEncoder().encodeToString(it)}"
+        }
 
     private fun resolveArchiveThumbnail(zipFile: File, packId: String): String? {
         val cached = thumbnailCache.get(packId)
         if (cached != null) return "data:image/png;base64,${Base64.getEncoder().encodeToString(cached)}"
 
-        val pngBytes = readThumbnailFromZipRoot(zipFile) ?: return null
+        val pngBytes = readThumbnailBytes(zipFile.toPath()) ?: return null
         thumbnailCache.put(packId, pngBytes)
         return "data:image/png;base64,${Base64.getEncoder().encodeToString(pngBytes)}"
     }
@@ -94,12 +110,4 @@ class PackMetaExtractor(
         }.getOrNull().also { tempDir.deleteRecursively() }
     }
 
-    private fun readThumbnailFromZipRoot(zipFile: File): ByteArray? =
-        runCatching {
-            ZipFile(zipFile).use { zf ->
-                val thumbEntry = findThumbnailEntry(zf) ?: return@use null
-                val bytes = zf.getInputStream(thumbEntry).use { it.readBytes() }
-                if (bytes.isEmpty()) null else bytes
-            }
-        }.getOrNull()
 }

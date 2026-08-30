@@ -1,2 +1,7 @@
-- remove multi call on devices screen,
+- remove multi call (thumbnails) on devices screen,
 - remove sync each refresh 
+- add error toaster when bad format
+- add book into library
+- factorisation sync lib 
+- fr language 
+- refactor lib filter 

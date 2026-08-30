@@ -62,24 +62,18 @@ export interface PackConversionResponse {
   error?: string | null;
 }
 
-export interface SyncJobStartResponse {
-  jobId: number;
-  status: string;
-}
-
-export interface SyncJobStatusResponse {
-  jobId: number;
-  status: string;
-  totalEntries: number;
-  processedEntries: number;
-  synchronizedCount: number;
-  invalidQueuedCount: number;
-  failedCount: number;
-  message: string | null;
-  startedAtEpochMs: number;
-  finishedAtEpochMs: number | null;
-  batchSize: number;
-  parallelism: number;
+export interface SyncStatusEvent {
+  status: 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
+  totalEntries?: number;
+  processedEntries?: number;
+  synchronizedCount?: number;
+  invalidQueuedCount?: number;
+  failedCount?: number;
+  message?: string | null;
+  startedAtEpochMs?: number;
+  finishedAtEpochMs?: number;
+  batchSize?: number;
+  parallelism?: number;
 }
 
 export interface DraftCreatedResponse {
@@ -119,6 +113,21 @@ export interface StoryDraftSummary {
 export interface UpdateDraftRequest {
   title?: string;
   description?: string;
+}
+
+/** Target of a consolidated draft file upload: pack root or a chapter. */
+export interface DraftFileTarget {
+  scope: 'pack' | 'chapter';
+  chapterId?: string;
+  field: 'titleAudio' | 'menuAudio' | 'thumbnail' | 'cover' | 'narration' | 'image';
+}
+
+/** Common patch payload for a draft node (pack root or chapter); only provided fields are applied. */
+export interface PatchNodePayload {
+  name?: string;
+  titleText?: string;
+  menuText?: string;
+  iconId?: string;
 }
 
 export interface ChapterIconDto {

@@ -43,15 +43,15 @@ import java.io.ByteArrayInputStream
 class DraftIncompleteException(message: String) : RuntimeException(message)
 
 /**
- * Finalizes a story draft into a playable Lunii STUdio zip: validates the draft, synthesizes
- * missing title audio with TTS, builds the linear graph (cover squareOne → action nodes →
- * story chapters), writes the archive with the thumbnail injected, stores it in the library
- * and indexes it in the DB. The draft is purged on success.
+ * Finalizes a story draft into a playable Lunii STUdio zip: validates the draft, builds the
+ * linear graph (cover squareOne → action nodes → story chapters) from the assets already
+ * stored in the draft (TTS is synthesized at step-save time by [StoryDraftStore], never here),
+ * writes the archive with the thumbnail injected, stores it in the library and indexes it in
+ * the DB. The draft is purged on success.
  */
 @Service
 class CreateStoryUseCase(
     private val draftStore: StoryDraftStore,
-    private val ttsEngine: TtsEngine,
     private val iconCatalog: ChapterIconCatalogService,
     private val updatePackMetadata: UpdatePackFileMetadataPort,
     private val settingsService: SettingsService,
@@ -119,12 +119,16 @@ class CreateStoryUseCase(
         val description = draft.description
 
         val coverImage = readImageBytes(draftId, draft.coverFile!!)
-        val coverAudio = draft.titleAudioFile?.let { draftStore.readBinary(draftId, it) }?.let { toMp3(it) }
-            ?: ttsEngine.synthesize(draft.titleText?.trim()?.takeIf { it.isNotEmpty() } ?: title)
-        // Menu prompt: uploaded audio, else TTS of the typed text, else a default prompt.
-        val menuPrompt = draft.menuAudioFile?.let { draftStore.readBinary(draftId, it) }?.let { toMp3(it) }
-            ?: draft.menuText?.trim()?.takeIf { it.isNotEmpty() }?.let { ttsEngine.synthesize(it) }
-            ?: ttsEngine.synthesize("Choisissez un chapitre")
+        // All audio must already be stored in the draft (uploaded or TTS-synthesized at
+        // step-save time). Finalization is a pure packaging step — no TTS here.
+        val coverAudioFile = draft.titleAudioFile
+            ?: throw DraftIncompleteException("Pack title audio is missing (provide a file or title text in the wizard)")
+        val coverAudio = toMp3(draftStore.readBinary(draftId, coverAudioFile)
+            ?: throw DraftIncompleteException("Pack title audio file missing on disk: $coverAudioFile"))
+        val menuAudioFile = draft.menuAudioFile
+            ?: throw DraftIncompleteException("Chapter selection audio is missing (provide it in the wizard)")
+        val menuPrompt = toMp3(draftStore.readBinary(draftId, menuAudioFile)
+            ?: throw DraftIncompleteException("Chapter selection audio file missing on disk: $menuAudioFile"))
 
         // The pack UUID is ALSO the first stage node (cover) UUID: the library scanner
         // identifies a pack by the first stage node's UUID, so they must match or a second
@@ -269,11 +273,14 @@ class CreateStoryUseCase(
         if (draft.title.isNullOrBlank()) problems += "title"
         if (draft.thumbnailFile == null) problems += "thumbnail"
         if (draft.coverFile == null) problems += "cover"
+        if (draft.titleAudioFile == null) problems += "title audio"
+        if (draft.menuAudioFile == null) problems += "chapter selection audio"
         if (draft.chapters.isEmpty()) {
             problems += "chapters"
         } else {
             draft.chapters.forEachIndexed { i, ch ->
                 if (ch.name.isBlank()) problems += "chapters[$i].name"
+                if (ch.titleAudioFile == null) problems += "chapters[$i].title audio"
                 if (ch.narrationAudioFile == null) problems += "chapters[$i].narration"
             }
         }
@@ -298,8 +305,10 @@ class CreateStoryUseCase(
             ?: chapter.iconId?.let { renderIcon(it) }
             ?: ChapterImageGenerator.generate(chaptersIndex)
 
-        val titleAudio = chapter.titleAudioFile?.let { draftStore.readBinary(draftId, it) }?.let { toMp3(it) }
-            ?: ttsEngine.synthesize(chapter.titleText?.trim()?.takeIf { it.isNotEmpty() } ?: chapter.name)
+        val titleAudioFile = chapter.titleAudioFile
+            ?: throw DraftIncompleteException("Chapter '${chapter.name}' has no title audio (provide a file or title text in the wizard)")
+        val titleAudio = toMp3(draftStore.readBinary(draftId, titleAudioFile)
+            ?: throw DraftIncompleteException("Chapter '${chapter.name}' title audio file missing on disk: $titleAudioFile"))
         val narration = chapter.narrationAudioFile?.let { draftStore.readBinary(draftId, it) }
             ?: throw DraftIncompleteException("Chapter '${chapter.name}' has no narration audio")
         val storyAudio = toMp3(narration)

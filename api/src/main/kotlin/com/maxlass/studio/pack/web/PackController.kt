@@ -15,9 +15,10 @@ import com.maxlass.studio.pack.service.ConvertPackFormatUseCase
 import com.maxlass.studio.pack.service.DeletePackFromLibraryUseCase
 import com.maxlass.studio.pack.service.GetAllPacksUseCase
 import com.maxlass.studio.pack.service.GetPacksPageUseCase
+import com.maxlass.studio.pack.service.SyncAlreadyRunningException
 import com.maxlass.studio.pack.service.SyncPacksService
 import com.maxlass.studio.pack.service.UpdatePackMetadataUseCase
-import com.maxlass.studio.pack.util.findThumbnailEntry
+import com.maxlass.studio.pack.util.readThumbnailBytes
 import com.maxlass.studio.settings.service.SettingsService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -46,7 +47,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.nio.file.Path
-import java.util.zip.ZipFile
 
 private const val DEFAULT_PAGE = 0
 private const val DEFAULT_PAGE_SIZE = 50
@@ -69,10 +69,12 @@ class PackController(
     private val driverDeviceConnector: DriverDeviceConnector,
 ) {
     private val conversionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val syncSseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @PreDestroy
     fun shutdown() {
         conversionScope.cancel("PackController shutting down")
+        syncSseScope.cancel("PackController shutting down")
     }
 
     @Operation(
@@ -117,35 +119,44 @@ class PackController(
     @Operation(
         summary = "Synchroniser la bibliothèque",
         description = "Lance un scan du dossier bibliothèque configuré dans les settings " +
-            "(détection des packs déposés/supprimés). Retourne 202 + le job créé.",
+            "(détection des packs déposés/supprimés). Retourne 202 sans jobId ; la progression " +
+            "est désormais disponible via le flux SSE /packs/sync/events.",
     )
-    @ApiResponse(responseCode = "202", description = "Job de synchronisation démarré")
+    @ApiResponse(responseCode = "202", description = "Synchronisation démarrée")
+    @ApiResponse(responseCode = "409", description = "Une synchronisation est déjà active")
     @ApiResponse(responseCode = "500", description = "Échec du démarrage")
     @PostMapping("/sync")
     suspend fun startSync(): ResponseEntity<Any> {
         val path = settings.getLibraryPath()
         return runCatching { syncPacks.startSync(path) }
             .fold(
-                onSuccess = { ResponseEntity.status(HttpStatus.ACCEPTED).body(it) },
-                onFailure = { ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiStatusResponse(ok = false, error = it.message ?: "Pack synchronization failed")) }
+                onSuccess = { ResponseEntity.status(HttpStatus.ACCEPTED).build() },
+                onFailure = { e ->
+                    when (e) {
+                        is SyncAlreadyRunningException ->
+                            ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(ApiStatusResponse(ok = false, error = e.message ?: "Sync already running"))
+                        else ->
+                            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(ApiStatusResponse(ok = false, error = e.message ?: "Pack synchronization failed"))
+                    }
+                }
             )
     }
 
     @Operation(
-        summary = "État d'un job de synchronisation",
-        description = "Retourne l'avancement du scan (statut STARTED/RUNNING/DONE/FAILED, " +
-            "compteurs traités/synchronisés/échoués, horodatages). 404 si le job est inconnu.",
+        summary = "Progression de la synchronisation (SSE)",
+        description = "Flux Server-Sent Events de la synchronisation en cours. Chaque événement " +
+            "est un objet SyncStatusEvent (PENDING, RUNNING, DONE, FAILED). Ce flux remplace " +
+            "l'ancien endpoint /packs/sync/{jobId}.",
     )
-    @ApiResponse(responseCode = "200", description = "État du job")
-    @ApiResponse(responseCode = "404", description = "Job inconnu")
-    @GetMapping("/sync/{jobId}")
-    suspend fun getSyncJobStatus(@PathVariable jobId: Long): ResponseEntity<Any> {
-        return syncPacks.getJobStatus(jobId)
-            ?.let { ResponseEntity.ok(it) }
-            ?: ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiStatusResponse(ok = false, error = "Sync job not found"))
-    }
+    @ApiResponse(responseCode = "200", description = "Flux SSE (text/event-stream)")
+    @GetMapping(value = ["/sync/events"], produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    fun syncEvents() = SseFlowEmitter.fromFlow(
+        events = syncPacks.eventPublisher().sharedEvents,
+        serializer = com.maxlass.studio.pack.domain.dto.SyncStatusEvent.serializer(),
+        scope = syncSseScope,
+    )
 
     @Operation(
         summary = "Supprimer un pack",
@@ -313,11 +324,5 @@ class PackController(
     }
 
     private fun readThumbnailFromZip(zipPath: Path): ByteArray? =
-        runCatching {
-            ZipFile(zipPath.toFile()).use { zf ->
-                val thumbEntry = findThumbnailEntry(zf) ?: return@use null
-                val bytes = zf.getInputStream(thumbEntry).use { it.readBytes() }
-                if (bytes.isEmpty()) null else bytes
-            }
-        }.getOrNull()
+        readThumbnailBytes(zipPath)
 }

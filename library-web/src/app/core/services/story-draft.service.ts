@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type {
   DraftCreatedResponse,
+  DraftFileTarget,
+  PatchNodePayload,
   StoryDraftSummary,
   UpdateDraftRequest,
 } from '../models';
@@ -110,50 +112,6 @@ export class StoryDraftService {
     );
   }
 
-  async uploadDraftTitleAudio(id: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/title-audio`, form, { context: silentHttpContext() }),
-    );
-  }
-
-  async setDraftTitleText(id: string, text: string): Promise<StoryDraftSummary> {
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/title-text`, { text }, { context: silentHttpContext() }),
-    );
-  }
-
-  async uploadDraftMenuAudio(id: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/menu-audio`, form, { context: silentHttpContext() }),
-    );
-  }
-
-  async setDraftMenuText(id: string, text: string): Promise<StoryDraftSummary> {
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/menu-text`, { text }, { context: silentHttpContext() }),
-    );
-  }
-
-  async uploadDraftThumbnail(id: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/thumbnail`, form, { context: silentHttpContext() }),
-    );
-  }
-
-  async uploadDraftCover(id: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/cover`, form, { context: silentHttpContext() }),
-    );
-  }
-
   async addDraftChapter(id: string, name: string): Promise<string> {
     const res = await firstValueFrom(
       this.http.post<{ draftId: string; chapterId: string }>(
@@ -168,62 +126,6 @@ export class StoryDraftService {
   async deleteDraftChapter(id: string, chapterId: string): Promise<void> {
     await firstValueFrom(
       this.http.delete(`${this.draftsUrl}/${id}/chapters/${chapterId}`, { context: silentHttpContext() }),
-    );
-  }
-
-  async uploadDraftChapterTitleAudio(id: string, chapterId: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(
-        `${this.draftsUrl}/${id}/chapters/${chapterId}/audio`,
-        form,
-        { context: silentHttpContext() },
-      ),
-    );
-  }
-
-  async setDraftChapterTitleText(id: string, chapterId: string, text: string): Promise<StoryDraftSummary> {
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(
-        `${this.draftsUrl}/${id}/chapters/${chapterId}/title-text`,
-        { text },
-        { context: silentHttpContext() },
-      ),
-    );
-  }
-
-  async uploadDraftChapterNarration(id: string, chapterId: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(
-        `${this.draftsUrl}/${id}/chapters/${chapterId}/narration`,
-        form,
-        { context: silentHttpContext() },
-      ),
-    );
-  }
-
-  async uploadDraftChapterImage(id: string, chapterId: string, file: File): Promise<StoryDraftSummary> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(
-        `${this.draftsUrl}/${id}/chapters/${chapterId}/image`,
-        form,
-        { context: silentHttpContext() },
-      ),
-    );
-  }
-
-  async setDraftChapterIcon(id: string, chapterId: string, iconId: string): Promise<StoryDraftSummary> {
-    return firstValueFrom(
-      this.http.put<StoryDraftSummary>(
-        `${this.draftsUrl}/${id}/chapters/${chapterId}/icon`,
-        { iconId },
-        { context: silentHttpContext() },
-      ),
     );
   }
 
@@ -249,6 +151,39 @@ export class StoryDraftService {
     return firstValueFrom(
       this.http.get(`${this.draftsUrl}/${id}/chapters/${chapterId}/image/file`, {
         responseType: 'blob',
+        context: silentHttpContext(),
+      }),
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Consolidated endpoints (preferred): one PUT for binaries, one PATCH
+  // for node edits. The per-field methods above are kept only until the
+  // migration of all steps is verified, then removed.
+  // ------------------------------------------------------------------
+
+  /** Consolidated binary upload: one PUT for every draft file (pack or chapter). */
+  async uploadDraftFile(id: string, target: DraftFileTarget, file: File): Promise<StoryDraftSummary> {
+    const form = new FormData();
+    form.append('file', file);
+    const params: Record<string, string> = { scope: target.scope, field: target.field };
+    if (target.chapterId) params['chapterId'] = target.chapterId;
+    return firstValueFrom(
+      this.http.put<StoryDraftSummary>(`${this.draftsUrl}/${id}/files`, form, {
+        params,
+        context: silentHttpContext(),
+      }),
+    );
+  }
+
+  /**
+   * Consolidated node patch: edits the pack root (nodeId = draft id) or a chapter
+   * (nodeId = chapter id). Text fields are TTS-synthesized immediately by the backend
+   * and stored as audio files in the draft. Throws on 409 (API key missing).
+   */
+  async patchDraftNode(id: string, nodeId: string, patch: PatchNodePayload): Promise<StoryDraftSummary> {
+    return firstValueFrom(
+      this.http.patch<StoryDraftSummary>(`${this.draftsUrl}/${id}/nodes/${nodeId}`, patch, {
         context: silentHttpContext(),
       }),
     );

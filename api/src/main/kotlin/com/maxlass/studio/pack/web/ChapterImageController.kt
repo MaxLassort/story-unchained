@@ -36,13 +36,15 @@ class ChapterImageController(
 ) {
 
     @Operation(
-        summary = "Icônes Lucide embarquées",
-        description = "Liste les icônes embarquées dans l'application (fallback offline, " +
-            "65 icônes). L'id est le slug kebab-case Lucide (ex. \"star\").",
+        summary = "Icônes Lucide par défaut",
+        description = "Liste les 50 premières icônes du catalogue Lucide complet (ordre " +
+            "alphabétique, catalogue fetché depuis jsDelivr et caché 24 h ; fallback sur les " +
+            "slugs connus si l'API est injoignable). L'id est le slug kebab-case Lucide " +
+            "(ex. \"star\"). Utilise /icons/search pour chercher dans les ~2000 icônes.",
     )
     @ApiResponse(responseCode = "200", description = "Liste des icônes")
     @GetMapping("/icons")
-    fun icons(): ChapterIconsResponse = ChapterIconsResponse(iconCatalog.listIcons())
+    suspend fun icons(): ChapterIconsResponse = ChapterIconsResponse(iconCatalog.defaultIcons())
 
     @Operation(
         summary = "Rechercher des icônes Lucide",

@@ -7,6 +7,8 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.mockk.coEvery
+import io.mockk.mockk
 import java.nio.file.Files
 
 class StoryDraftStoreTest : StringSpec({
@@ -17,7 +19,11 @@ class StoryDraftStoreTest : StringSpec({
         root.toFile().deleteRecursively()
     }
 
-    fun newStore(): StoryDraftStore = StoryDraftStore(StudioProperties(storageDir = root))
+    fun newStore(): StoryDraftStore {
+        val tts = mockk<TtsEngine>()
+        coEvery { tts.synthesize(any(), any(), any()) } returns byteArrayOf(1, 2, 3)
+        return StoryDraftStore(StudioProperties(storageDir = root), tts)
+    }
 
     "cleanAtStartup removes leftovers from previous runs" {
         val props = StudioProperties(storageDir = root)
@@ -25,7 +31,7 @@ class StoryDraftStoreTest : StringSpec({
         Files.createDirectories(leftovers)
         Files.write(leftovers.resolve("old.mp3"), byteArrayOf(1))
 
-        StoryDraftStore(props).cleanAtStartup()
+        StoryDraftStore(props, mockk(relaxed = true)).cleanAtStartup()
 
         props.draftsDir.toFile().exists() shouldBe false
     }
@@ -83,38 +89,35 @@ class StoryDraftStoreTest : StringSpec({
         narration.toFile().exists() shouldBe false
     }
 
-    "chapter title audio and text are mutually exclusive" {
+    "chapter setTitleText synthesizes audio immediately and stores it as a file" {
         val store = newStore()
         val draft = store.create()
         val chapter = store.addChapter(draft.id, "Chap")!!
 
         store.setTitleAudio(draft.id, chapter.id, byteArrayOf(1, 2, 3), "audio/mpeg")
-        var current = store.get(draft.id)!!.chapters.single()
-        current.titleAudioFile shouldNotBe null
-        current.titleText.shouldBeNull()
-        val oldFile = store.draftDir(draft.id).resolve(current.titleAudioFile!!)
+        val oldFile = store.draftDir(draft.id).resolve(store.get(draft.id)!!.chapters.single().titleAudioFile!!)
 
         store.setTitleText(draft.id, chapter.id, "Titre TTS")
-        current = store.get(draft.id)!!.chapters.single()
+        val current = store.get(draft.id)!!.chapters.single()
         current.titleText shouldBe "Titre TTS"
-        current.titleAudioFile.shouldBeNull()
+        // TTS is synthesized at save time: a NEW audio file exists in the draft.
+        current.titleAudioFile shouldNotBe null
+        store.draftDir(draft.id).resolve(current.titleAudioFile!!).toFile().exists() shouldBe true
         oldFile.toFile().exists() shouldBe false
     }
 
-    "setTitleAudio and setTitleText are mutually exclusive" {
+    "pack setTitleText synthesizes audio immediately and stores it as a file" {
         val store = newStore()
         val draft = store.create()
 
         store.setTitleAudio(draft.id, byteArrayOf(1, 2, 3), "audio/mpeg")
-        var current = store.get(draft.id)!!
-        current.titleAudioFile shouldNotBe null
-        current.titleText.shouldBeNull()
-        val oldFile = store.draftDir(draft.id).resolve(current.titleAudioFile!!)
+        val oldFile = store.draftDir(draft.id).resolve(store.get(draft.id)!!.titleAudioFile!!)
 
         store.setTitleText(draft.id, "Mon histoire")
-        current = store.get(draft.id)!!
+        val current = store.get(draft.id)!!
         current.titleText shouldBe "Mon histoire"
-        current.titleAudioFile.shouldBeNull()
+        current.titleAudioFile shouldNotBe null
+        store.draftDir(draft.id).resolve(current.titleAudioFile!!).toFile().exists() shouldBe true
         oldFile.toFile().exists() shouldBe false
     }
 

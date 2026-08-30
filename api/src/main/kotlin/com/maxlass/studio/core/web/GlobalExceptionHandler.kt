@@ -3,6 +3,7 @@ package com.maxlass.studio.core.web
 import com.maxlass.studio.core.api.ApiStatusResponse
 import com.maxlass.studio.pack.service.DraftIncompleteException
 import com.maxlass.studio.pack.service.TtsApiKeyMissingException
+import com.maxlass.studio.pack.service.TtsProviderException
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -49,6 +50,11 @@ class GlobalExceptionHandler {
     fun handleResponseStatus(e: ResponseStatusException): ResponseEntity<ApiStatusResponse> =
         ResponseEntity.status(e.statusCode)
             .body(ApiStatusResponse(ok = false, error = e.reason ?: "HTTP ${e.statusCode.value()}"))
+
+    @ExceptionHandler(TtsProviderException::class)
+    fun handleTtsProviderError(e: TtsProviderException): ResponseEntity<ApiStatusResponse> =
+        ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(ApiStatusResponse(ok = false, error = e.message ?: "TTS provider failed"))
 
     @ExceptionHandler(TtsApiKeyMissingException::class)
     fun handleTtsApiKeyMissing(e: TtsApiKeyMissingException): ResponseEntity<ApiStatusResponse> =

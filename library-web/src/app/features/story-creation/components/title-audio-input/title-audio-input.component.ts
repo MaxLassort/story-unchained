@@ -101,7 +101,11 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
     if (!next || next === this.value()?.mode) return;
     this.revokePreview();
     this.recordError.set(null);
-    if (next !== 'record') this.cancelRecording();
+    if (next !== 'record') {
+      this.cancelRecording();
+    } else {
+      void this.loadDevices();
+    }
     this.value.update((v) => ({ mode: next, text: v?.text ?? '', file: v?.file ?? null }));
   }
 
@@ -212,15 +216,15 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
     }
   }
 
-  private async loadDevices(): Promise<void> {
+  async loadDevices(): Promise<void> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return;
     try {
       const inputs = await navigator.mediaDevices.enumerateDevices();
       const mics = inputs.filter((device) => device.kind === 'audioinput');
-      if (mics.length === 0) return;
       this.devices.set(
-        mics.map((device) => ({
+        mics.map((device, index) => ({
           deviceId: device.deviceId,
-          label: device.label || `Microphone ${device.deviceId.slice(0, 8)}`,
+          label: device.label || (device.deviceId ? `Microphone ${device.deviceId.slice(0, 8)}` : `Microphone ${index + 1}`),
         })),
       );
       if (this.selectedDeviceId() && !mics.some((d) => d.deviceId === this.selectedDeviceId())) {
@@ -263,19 +267,32 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
   private async extractErrorMessage(err: unknown): Promise<string> {
     if (err instanceof HttpErrorResponse) {
       const body = err.error;
-      // responseType 'blob' wraps JSON error bodies in a Blob — decode it to read the message.
-      if (body instanceof Blob && body.type.includes('json')) {
+      if (body instanceof Blob) {
         try {
-          const parsed = JSON.parse(await body.text());
+          const text = await body.text();
+          const parsed = JSON.parse(text);
           if (parsed?.error) return parsed.error;
+          if (parsed?.message) return parsed.message;
         } catch {
-          /* fall through to status-based message */
+          /* not json */
         }
-      } else if (body?.error) {
-        return body.error as string;
+      } else if (typeof body === 'object' && body !== null) {
+        if (body.error) return body.error;
+        if (body.message) return body.message;
+      } else if (typeof body === 'string' && body.trim()) {
+        try {
+          const parsed = JSON.parse(body);
+          if (parsed?.error) return parsed.error;
+          if (parsed?.message) return parsed.message;
+        } catch {
+          return body;
+        }
       }
       if (err.status === 409) {
-        return 'API key missing for the selected provider. Add it in Settings.';
+        return 'API key missing for the selected provider. Add it in Settings, or switch to the free provider (Google Translate).';
+      }
+      if (err.status === 502) {
+        return 'The selected TTS provider failed. Switch to the free provider (Google Translate) and try again.';
       }
       return `TTS preview failed (HTTP ${err.status}).`;
     }
@@ -292,7 +309,19 @@ export class TitleAudioInputComponent implements FormValueControl<TitleAudioSele
   }
 
   constructor() {
+    void this.loadDevices();
+
+    const onDeviceChange = () => {
+      void this.loadDevices();
+    };
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', onDeviceChange);
+    }
+
     this.destroyRef.onDestroy(() => {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.removeEventListener) {
+        navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange);
+      }
       this.cancelRecording();
       this.revokePreview();
     });

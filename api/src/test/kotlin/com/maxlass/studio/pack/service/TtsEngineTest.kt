@@ -6,6 +6,7 @@ import com.maxlass.studio.pack.port.external.KeyedTtsAdapterFactory
 import com.maxlass.studio.pack.port.external.TextToSpeechPort
 import com.maxlass.studio.settings.domain.Settings
 import com.maxlass.studio.settings.service.SettingsService
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
@@ -68,20 +69,18 @@ class TtsEngineTest : StringSpec({
         coVerify(exactly = 0) { elevenLabsFactory.create(any(), any()) }
     }
 
-    "uses the free adapter when the provider has no API key" {
+    "throws TtsApiKeyMissingException when the provider has no API key" {
         coEvery { settingsService.getSettings() } returns settings(provider = "OPENAI")
-        coEvery { freeAdapter.synthesize("texte", null, any()) } returns byteArrayOf(1, 2, 3)
 
-        val result = engine().synthesize("texte")
-
-        result.toList() shouldBe listOf(1, 2, 3)
+        shouldThrow<TtsApiKeyMissingException> { runBlocking { engine().synthesize("texte") } }
         coVerify(exactly = 0) { openAiFactory.create(any(), any()) }
+        coVerify(exactly = 0) { freeAdapter.synthesize(any(), any(), any()) }
     }
 
     "uses the OpenAI adapter with the configured key and voice" {
         coEvery { settingsService.getSettings() } returns settings(provider = "OPENAI", openAiApiKey = "sk-test", voice = "nova")
         every { openAiFactory.create("sk-test", "nova") } returns openAiAdapter
-        coEvery { openAiAdapter.synthesize("texte", null, any()) } returns byteArrayOf(1, 2, 3)
+        coEvery { openAiAdapter.synthesize("texte", "nova", any()) } returns byteArrayOf(1, 2, 3)
 
         val result = runBlocking { engine().synthesize("texte") }
 
@@ -104,10 +103,24 @@ class TtsEngineTest : StringSpec({
         coVerify(exactly = 0) { openAiFactory.create(any(), any()) }
     }
 
+    "passes language to ElevenLabs adapter" {
+        coEvery { settingsService.getSettings() } returns settings(
+            provider = "ELEVENLABS",
+            elevenLabsApiKey = "el-key",
+            ttsLang = "it",
+        )
+        every { elevenLabsFactory.create("el-key", null) } returns elevenLabsAdapter
+        coEvery { elevenLabsAdapter.synthesize("texte", null, "it") } returns byteArrayOf(1, 2, 3)
+
+        runBlocking { engine().synthesize("texte") }
+
+        coVerify(exactly = 1) { elevenLabsAdapter.synthesize("texte", null, "it") }
+    }
+
     "prefers the requested voice over the configured one" {
         coEvery { settingsService.getSettings() } returns settings(provider = "ELEVENLABS", elevenLabsApiKey = "key", voice = "configured")
         every { elevenLabsFactory.create("key", "requested") } returns elevenLabsAdapter
-        coEvery { elevenLabsAdapter.synthesize("texte", null, any()) } returns byteArrayOf(1, 2, 3)
+        coEvery { elevenLabsAdapter.synthesize("texte", "requested", any()) } returns byteArrayOf(1, 2, 3)
 
         runBlocking { engine().synthesize("texte", voice = "requested") }
 
@@ -115,16 +128,13 @@ class TtsEngineTest : StringSpec({
         coVerify(exactly = 0) { elevenLabsFactory.create("key", "configured") }
     }
 
-    "falls back to the free adapter when the provider fails" {
+    "throws TtsProviderException when the provider fails (no silent fallback)" {
         coEvery { settingsService.getSettings() } returns settings(provider = "OPENAI", openAiApiKey = "sk-test")
         every { openAiFactory.create("sk-test", null) } returns openAiAdapter
         coEvery { openAiAdapter.synthesize(any(), any()) } throws RuntimeException("provider down")
-        coEvery { freeAdapter.synthesize("texte", null, any()) } returns byteArrayOf(9, 9)
 
-        val result = runBlocking { engine().synthesize("texte") }
-
-        result.toList() shouldBe listOf(9, 9)
-        coVerify(exactly = 1) { freeAdapter.synthesize("texte", null, any()) }
+        shouldThrow<TtsProviderException> { runBlocking { engine().synthesize("texte") } }
+        coVerify(exactly = 0) { freeAdapter.synthesize(any(), any(), any()) }
     }
 
     "normalizes the raw audio to MP3" {

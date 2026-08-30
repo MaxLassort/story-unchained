@@ -177,6 +177,23 @@ describe('TitleAudioInputComponent', () => {
     expect(component.value()?.file).toBeNull();
   });
 
+  it('always displays the microphone selection in record mode before recording', async () => {
+    enumerateDevicesMock.mockResolvedValue([
+      { kind: 'audioinput', deviceId: 'mic-1', label: 'Microphone 1' },
+    ]);
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.onModeChange('record');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const select = fixture.nativeElement.querySelector('.title-audio__device');
+    expect(select).not.toBeNull();
+    expect(component.recording()).toBe(false);
+  });
+
   it('uses the selected microphone device when one is chosen', async () => {
     enumerateDevicesMock.mockResolvedValue([
       { kind: 'audioinput', deviceId: 'mic-1', label: 'Built-in Microphone' },

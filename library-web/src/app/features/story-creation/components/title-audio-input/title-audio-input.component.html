@@ -59,20 +59,18 @@
     </mat-form-field>
   } @else if (mode() === 'record') {
     <div class="title-audio__record">
-      @if (devices().length > 1) {
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__device">
-          <mat-label>Microphone</mat-label>
-          <mat-select
-            [value]="selectedDeviceId() ?? ''"
-            (selectionChange)="onDeviceChange($event.value)"
-          >
-            <mat-option [value]="">System default</mat-option>
-            @for (device of devices(); track device.deviceId) {
-              <mat-option [value]="device.deviceId">{{ device.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      }
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="title-audio__device">
+        <mat-label>Microphone</mat-label>
+        <mat-select
+          [value]="selectedDeviceId() ?? ''"
+          (selectionChange)="onDeviceChange($event.value)"
+        >
+          <mat-option [value]="">System default</mat-option>
+          @for (device of devices(); track device.deviceId) {
+            <mat-option [value]="device.deviceId">{{ device.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
       @if (!recording()) {
         <button mat-flat-button type="button" color="primary" (click)="startRecording()">
           <mat-icon aria-hidden="true">mic</mat-icon>

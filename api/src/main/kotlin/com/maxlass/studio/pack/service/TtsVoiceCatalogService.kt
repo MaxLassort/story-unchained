@@ -22,6 +22,34 @@ class TtsVoiceCatalogService(
 
     companion object {
         private val logger = LoggerFactory.getLogger(TtsVoiceCatalogService::class.java)
+
+        /**
+         * Well-known ElevenLabs premade voice ids (public, stable, accessible on all subscription tiers
+         * including Free). Used when live fetching fails (e.g. API key without `voices_read` permission).
+         */
+        val DEFAULT_ELEVENLABS_VOICES: List<TtsVoiceDto> = listOf(
+            "Xb7hH8MSUJpSbSDYk0k2" to "Alice",
+            "9BWtsMINqrJLrRacOk9x" to "Aria",
+            "pqHfZKP75CvOlQylNhV4" to "Bill",
+            "nPczCjzI2devNBz1zQrb" to "Brian",
+            "N2lVS1w4EtoT3dr4eOWO" to "Callum",
+            "IKne3meq5aSn9XLyUdCD" to "Charlie",
+            "XB0fDUnXU5powFXDhCwa" to "Charlotte",
+            "iP95p4xoKVk53GoZ742B" to "Chris",
+            "onwK4e9ZLuTAKqWW03F9" to "Daniel",
+            "cjVigY5qzO86Huf0OWal" to "Eric",
+            "JBFqnCBsd6RMkjVDRZzb" to "George",
+            "cgSgspJ2msm6clMCkdW9" to "Jessica",
+            "FGY2WhTYpPnrIDTdsKH5" to "Laura",
+            "TX3LPaxmHKxFdv7VOQHJ" to "Liam",
+            "pFZP5JQG7iQjIQuC4Bku" to "Lily",
+            "XrExE9yKIg1Wjnnl2kTx" to "Matilda",
+            "21m00Tcm4TlvDq8ikWAM" to "Rachel",
+            "SAz9YHcvj6GT2YYXdXww" to "River",
+            "CwhRBWXzGAHq8TQ4Fs17" to "Roger",
+            "EXAVITQu4vr4xnSDxMaL" to "Sarah",
+            "bIHbv24MWmeRgasZH58o" to "Will",
+        ).map { TtsVoiceDto(id = it.first, name = it.second) }
     }
 
     suspend fun getVoices(provider: String?): TtsVoicesResponse {
@@ -48,10 +76,23 @@ class TtsVoiceCatalogService(
                 .apiKey(apiKey)
                 .build()
             val voices = api.getVoices().body?.voices().orEmpty()
-            voices
-                .sortedBy { it.name() }
-                .map { TtsVoiceDto(id = it.voiceId(), name = it.name()) }
-                .let { it to false }
+            val filtered = voices.filter { voice ->
+                // Free tier accounts cannot use community library voices via API (HTTP 402 paid_plan_required).
+                // Keep PREMADE, CLONED, GENERATED.
+                voice.category() in setOf(
+                    ElevenLabsVoicesApi.CategoryEnum.PREMADE,
+                    ElevenLabsVoicesApi.CategoryEnum.CLONED,
+                    ElevenLabsVoicesApi.CategoryEnum.GENERATED,
+                )
+            }
+            if (filtered.isEmpty()) {
+                defaultElevenLabsVoices() to true
+            } else {
+                filtered
+                    .sortedBy { it.name() }
+                    .map { TtsVoiceDto(id = it.voiceId(), name = it.name()) }
+                    .let { it to false }
+            }
         } catch (e: Exception) {
             logger.warn("Could not fetch ElevenLabs voices ({}), using built-in default voices", e.message)
             defaultElevenLabsVoices() to true
@@ -59,24 +100,5 @@ class TtsVoiceCatalogService(
     }
 
     /** Well-known ElevenLabs premade voice ids (public, stable). Used when the live list is unavailable. */
-    private fun defaultElevenLabsVoices(): List<TtsVoiceDto> = listOf(
-        "21m00Tcm4TlvDq8ikWAM" to "Rachel",
-        "pNInz6obpgDQGcFmaJgB" to "Adam",
-        "ErXwobaYiN019PkySvjV" to "Antoni",
-        "EXAVITQu4vr4xnSDxMaL" to "Bella",
-        "TxGEqnHWrfWFTfGW9XjX" to "Josh",
-        "VR6AewLTigWG4xSOukaG" to "Arnold",
-        "Aza3l4woJwNuFm0Tzc1K" to "Domi",
-        "MF3mGyEYCl7XYWbV9V6O" to "Elli",
-        "N2lVS1w4EtoT3dr4eOWO" to "Callum",
-        "IKne3meq5aSn9XLyUdCD" to "Charlie",
-        "JBFqnCBsd6RMkjVDRZzb" to "George",
-        "LcfcDiN3B44gKlibh9v7" to "Emily",
-        "oWAxZDx7w5VEj9dCyTzz" to "Grace",
-        "SOYHLrjzK2X1ezoPC6cr" to "Harry",
-        "ZQe5CZNOzWyzPSCn5a3Z" to "James",
-        "t0jbNlBVZ17f02VDIeMI" to "Jessie",
-        "TX3LPaxmHKxFdv7VOQHJ" to "Liam",
-        "XrExE9yKIg1Wjnnl2kTx" to "Matilda",
-    ).map { TtsVoiceDto(id = it.first, name = it.second) }
+    private fun defaultElevenLabsVoices(): List<TtsVoiceDto> = DEFAULT_ELEVENLABS_VOICES
 }

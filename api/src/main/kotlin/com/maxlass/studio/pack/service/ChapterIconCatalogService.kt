@@ -74,6 +74,18 @@ class ChapterIconCatalogService {
     fun listIcons(): List<ChapterIconDto> =
         bundledIcons.values.sortedBy { it.dto.id }.map { it.dto }
 
+    /**
+     * Default picker list: the first [limit] slugs of the full Lucide catalog
+     * (alphabetical), so the icon grid is not restricted to the few bundled
+     * icons. The catalog API falls back to [KNOWN_SLUGS] when unreachable.
+     */
+    suspend fun defaultIcons(limit: Int = 50): List<ChapterIconDto> = withContext(Dispatchers.IO) {
+        remoteCatalogSlugs()
+            .sorted()
+            .take(limit)
+            .map(::toDto)
+    }
+
     /** Raw SVG content of the icon with the given id, or null when unknown/unreachable. */
     suspend fun loadIcon(id: String): String? = withContext(Dispatchers.IO) {
         bundledIcons[id]?.svg

@@ -1,61 +1,100 @@
-import { Injectable, inject, signal } from '@angular/core';
-import type { SyncJobStatusResponse } from '../models';
+import { Injectable, NgZone, inject, signal } from '@angular/core';
+import type { SyncStatusEvent } from '../models';
 import { PacksService } from './packs.service';
 import { SnackbarService } from './snackbar.service';
+import { environment } from '../../../environments/environment';
 
 export interface StartSyncOptions {
   silent?: boolean;
 }
 
-const POLL_INTERVAL_MS = 1000;
-const TERMINAL_STATUSES = ['DONE', 'FAILED'];
+const TERMINAL_STATUSES: readonly SyncStatusEvent['status'][] = ['DONE', 'FAILED'];
 
 @Injectable({ providedIn: 'root' })
 export class SyncService {
+  private readonly zone = inject(NgZone);
   private readonly packsService = inject(PacksService);
   private readonly snackbar = inject(SnackbarService);
 
   readonly syncing = signal(false);
 
+  private eventSource: EventSource | null = null;
+  private hasCurrentSyncStarted = false;
+
   async startSync(options: StartSyncOptions = {}): Promise<void> {
     if (this.syncing()) return;
     this.syncing.set(true);
+    this.hasCurrentSyncStarted = false;
+
+    this.zone.runOutsideAngular(() => {
+      this.eventSource = new EventSource(`${environment.apiUrl}/packs/sync/events`);
+      this.eventSource.onmessage = (event) => {
+        try {
+          const data: SyncStatusEvent = JSON.parse(event.data);
+          this.zone.run(() => this.handleEvent(data, options));
+        } catch {
+          // ignore malformed events
+        }
+      };
+      this.eventSource.onerror = () => {
+        // EventSource will auto-reconnect; treat as transient.
+      };
+    });
+
     try {
-      const res = await this.packsService.sync();
-      const status = await this.pollUntilDone(res.jobId);
-      this.packsService.refresh();
-      this.notifyResult(status, options);
+      await this.packsService.sync();
     } catch {
+      this.closeSyncStream();
       if (!options.silent) {
         this.snackbar.error('Failed to start synchronization');
       }
-    } finally {
+      this.syncing.set(false);
+      return;
+    }
+  }
+
+  private handleEvent(event: SyncStatusEvent, options: StartSyncOptions = {}): void {
+    if (event.status === 'PENDING') {
+      this.hasCurrentSyncStarted = true;
+      return;
+    }
+
+    if (event.status === 'RUNNING') {
+      this.hasCurrentSyncStarted = true;
+      return;
+    }
+
+    if (TERMINAL_STATUSES.includes(event.status) && this.hasCurrentSyncStarted) {
+      this.notifyResult(event, options);
+      this.packsService.refresh();
+      this.closeSyncStream();
       this.syncing.set(false);
     }
   }
 
-  private async pollUntilDone(jobId: number): Promise<SyncJobStatusResponse> {
-    for (;;) {
-      const status = await this.packsService.getSyncStatus(jobId);
-      if (TERMINAL_STATUSES.includes(status.status)) {
-        return status;
-      }
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    }
-  }
-
-  private notifyResult(status: SyncJobStatusResponse, options: StartSyncOptions): void {
-    if (status.status === 'FAILED') {
+  private notifyResult(event: SyncStatusEvent, options: StartSyncOptions): void {
+    if (event.status === 'FAILED') {
       if (!options.silent) {
-        this.snackbar.error(status.message ?? 'Synchronization failed');
+        this.snackbar.error(event.message ?? 'Synchronization failed');
       }
       return;
     }
+
+    const synchronizedCount = event.synchronizedCount ?? 0;
+    const invalidQueuedCount = event.invalidQueuedCount ?? 0;
+    const failedCount = event.failedCount ?? 0;
     const summary = [
-      `${status.synchronizedCount} synchronized`,
-      `${status.invalidQueuedCount} invalid`,
-      `${status.failedCount} failed`,
+      `${synchronizedCount} synchronized`,
+      `${invalidQueuedCount} invalid`,
+      `${failedCount} failed`,
     ].join(', ');
     this.snackbar.success(`Sync complete: ${summary}`);
+  }
+
+  private closeSyncStream(): void {
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
   }
 }

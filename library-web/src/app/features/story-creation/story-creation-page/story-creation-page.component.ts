@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -70,9 +71,14 @@ export class StoryCreationPageComponent {
     }
   }
 
-  /** Bulk step pre-fills the shared chapters state; confirming just moves to the Chapters step. */
-  confirmBulkAndNext(): void {
-    this.stepper()?.next();
+  /** Bulk step pre-fills the shared chapters state; confirming saves staged chapters and moves to Chapters step. */
+  async confirmBulkAndNext(): Promise<void> {
+    const step = this.bulkStep();
+    if (!step) return;
+    const ok = await step.save();
+    if (ok) {
+      this.stepper()?.next();
+    }
   }
 
   async createPack(): Promise<void> {
@@ -88,9 +94,13 @@ export class StoryCreationPageComponent {
         panelClass: 'snackbar-success',
       });
       void this.router.navigate(['/packs', packId]);
-    } catch {
+    } catch (err) {
+      const msg =
+        err instanceof HttpErrorResponse
+          ? (err.error?.error ?? err.error?.message ?? err.message)
+          : null;
       this.finalizeError.set(
-        'Could not create the pack. Make sure every step is complete, then try again.',
+        msg ?? 'Could not create the pack. Make sure every step is complete, then try again.',
       );
     } finally {
       this.finalizing.set(false);

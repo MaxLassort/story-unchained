@@ -15,11 +15,20 @@ import kotlinx.coroutines.withContext
 class TtsApiKeyMissingException(val provider: TtsProvider) :
     RuntimeException("No API key configured for ${provider.name}. Add one in Settings to use this provider.")
 
+/** Thrown when the selected keyed TTS provider (OPENAI / ELEVENLABS) fails at call time. */
+class TtsProviderException(val provider: TtsProvider, cause: Throwable) :
+    RuntimeException(
+        "${provider.name} TTS failed: ${cause.message}. " +
+            "You can switch to the free Google Translate provider (FREE) in Settings or in the form.",
+        cause,
+    )
+
 /**
- * TTS engine: selects the provider configured in user settings (BYOK), falls back to the
- * free Google Translate adapter when the provider call fails. When OPENAI / ELEVENLABS is
- * explicitly selected but no API key is set, throws [TtsApiKeyMissingException] instead of
- * silently falling back. All output is normalized to MP3 mono 44.1 kHz via [AudioConversion.anyToMp3].
+ * TTS engine: uses the provider configured in user settings (BYOK) — **no silent fallback**.
+ * When OPENAI / ELEVENLABS is selected but no API key is set, throws [TtsApiKeyMissingException];
+ * when the provider call fails, throws [TtsProviderException] so the frontend can suggest
+ * switching to the free Google Translate provider. All output is normalized to MP3 mono
+ * 44.1 kHz via [AudioConversion.anyToMp3].
  */
 @Service
 class TtsEngine(
@@ -52,8 +61,8 @@ class TtsEngine(
             else -> null
         }?.takeIf { it.isNotBlank() }
 
-        val effectiveVoice = voice ?: settings.ttsVoice
-        val effectiveLang = lang ?: settings.ttsLang ?: "fr"
+        val effectiveVoice = voice?.takeIf { it.isNotBlank() } ?: settings.ttsVoice
+        val effectiveLang = lang?.takeIf { it.isNotBlank() } ?: settings.ttsLang ?: "fr"
 
         val adapter = when (effectiveProvider) {
             TtsProvider.OPENAI -> apiKey?.let { openAiTtsAdapterFactory.create(it, effectiveVoice) }
@@ -70,14 +79,16 @@ class TtsEngine(
 
         val raw = if (adapter != null) {
             try {
-                adapter.synthesize(text, lang = effectiveLang)
+                adapter.synthesize(text, voice = effectiveVoice, lang = effectiveLang)
             } catch (e: Exception) {
-                logger.warn("TTS provider {} failed ({}), falling back to free TTS", effectiveProvider, e.message)
-                freeTtsAdapter.synthesize(text, lang = effectiveLang)
+                logger.warn("TTS provider {} failed: {}", effectiveProvider, e.message)
+                // No silent fallback: surface the failure so the frontend can suggest
+                // switching to the free Google Translate provider.
+                throw TtsProviderException(effectiveProvider, e)
             }
         } else {
             logger.info("Using free Google Translate TTS")
-            freeTtsAdapter.synthesize(text, lang = effectiveLang)
+            freeTtsAdapter.synthesize(text, voice = effectiveVoice, lang = effectiveLang)
         }
 
         AudioConversion.anyToMp3(raw)

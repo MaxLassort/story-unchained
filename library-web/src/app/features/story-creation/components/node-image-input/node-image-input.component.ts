@@ -161,8 +161,14 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     }));
   }
 
+  /** Backend-rendered PNG preview (white on black, Lunii node resolution). */
   iconPreviewSrc(iconId: string): string {
     return `${this.imagesUrl}/preview?iconId=${encodeURIComponent(iconId)}`;
+  }
+
+  /** Raw Lucide SVG straight from the lucide-static CDN (simple picker glyph). */
+  lucideIconSrc(iconId: string): string {
+    return `https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/${encodeURIComponent(iconId)}.svg`;
   }
 
   chapterNumberPreviewSrc(chapterNumber: number): string {

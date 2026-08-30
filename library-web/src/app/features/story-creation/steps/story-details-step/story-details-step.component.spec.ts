@@ -8,15 +8,13 @@ import { StoryImageService } from '../../../../core/services/story-image.service
 describe('StoryDetailsStepComponent', () => {
   let draftsMock: {
     ensureDraft: ReturnType<typeof vi.fn>;
-    uploadDraftThumbnail: ReturnType<typeof vi.fn>;
-    uploadDraftCover: ReturnType<typeof vi.fn>;
+    uploadDraftFile: ReturnType<typeof vi.fn>;
+    patchDraftNode: ReturnType<typeof vi.fn>;
     getCurrentDraft: ReturnType<typeof vi.fn>;
     downloadDraftThumbnail: ReturnType<typeof vi.fn>;
     downloadDraftCover: ReturnType<typeof vi.fn>;
     downloadDraftTitleAudio: ReturnType<typeof vi.fn>;
     updateDraftMetadata: ReturnType<typeof vi.fn>;
-    uploadDraftTitleAudio: ReturnType<typeof vi.fn>;
-    setDraftTitleText: ReturnType<typeof vi.fn>;
   };
   let imagesMock: {
     fetchIconPng: ReturnType<typeof vi.fn>;
@@ -25,15 +23,14 @@ describe('StoryDetailsStepComponent', () => {
   beforeEach(() => {
     draftsMock = {
       ensureDraft: vi.fn().mockResolvedValue('draft-1'),
-      uploadDraftThumbnail: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      uploadDraftCover: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      uploadDraftFile: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      patchDraftNode: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       getCurrentDraft: vi.fn().mockResolvedValue(null),
       downloadDraftThumbnail: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
       downloadDraftCover: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
       downloadDraftTitleAudio: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
       updateDraftMetadata: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      uploadDraftTitleAudio: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      setDraftTitleText: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+
     };
     imagesMock = {
       fetchIconPng: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
@@ -60,7 +57,7 @@ describe('StoryDetailsStepComponent', () => {
     const fixture = await createComponent();
     const root: HTMLElement = fixture.nativeElement;
     expect(root.querySelector('h2')?.textContent).toContain('Story Details');
-    expect(root.querySelectorAll('mat-form-field').length).toBe(5);
+    expect(root.querySelectorAll('mat-form-field').length).toBe(7);
     expect(root.querySelectorAll('app-title-audio-input').length).toBe(2);
     expect(root.querySelector('app-image-drop-input')).not.toBeNull();
     expect(root.querySelector('app-node-image-input')).not.toBeNull();
@@ -143,9 +140,9 @@ describe('StoryDetailsStepComponent', () => {
       title: 'Mon histoire',
       description: 'Une description',
     });
-    expect(draftsMock.uploadDraftThumbnail).toHaveBeenCalledWith('draft-1', thumbFile);
-    expect(draftsMock.uploadDraftCover).toHaveBeenCalled();
-    expect(draftsMock.setDraftTitleText).toHaveBeenCalledWith('draft-1', 'Mon titre');
+    expect(draftsMock.uploadDraftFile).toHaveBeenCalledWith('draft-1', { scope: 'pack', field: 'thumbnail' }, thumbFile);
+    expect(draftsMock.uploadDraftFile).toHaveBeenCalledWith('draft-1', { scope: 'pack', field: 'cover' }, expect.any(File));
+    expect(draftsMock.patchDraftNode).toHaveBeenCalledWith('draft-1', 'draft-1', { titleText: 'Mon titre' });
   });
 
   it('returns false and sets error when save fails', async () => {
@@ -157,8 +154,8 @@ describe('StoryDetailsStepComponent', () => {
     component.model.set({
       title: 'Mon histoire',
       description: '',
-      titleAudio: null,
-      menuAudio: null,
+      titleAudio: { mode: 'text', text: 'Mon titre', file: null },
+      menuAudio: { mode: 'text', text: 'Menu', file: null },
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
       cover: { mode: 'icon', iconId: 'star', file: null },
     });

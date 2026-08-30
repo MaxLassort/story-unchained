@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 .bulk-audio {
   display: flex;
   flex-direction: column;
@@ -144,17 +146,10 @@
   padding: 0.75rem 1rem;
 }
 
-.bulk-card__status {
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--mat-sys-surface-container-high);
+.bulk-card__check-icon {
   color: var(--mat-sys-tertiary);
 }
+
 
 .bulk-card__main {
   flex: 1;

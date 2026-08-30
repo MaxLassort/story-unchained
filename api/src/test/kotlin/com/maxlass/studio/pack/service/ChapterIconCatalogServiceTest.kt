@@ -124,6 +124,31 @@ class ChapterIconCatalogServiceTest : StringSpec({
         }
     }
 
+    "default icons are the first slugs of the remote catalog, alphabetically" {
+        val (server, baseUrl) = server()
+        try {
+            val catalog = ChapterIconCatalogService()
+            catalog.iconBaseUrl = baseUrl
+            catalog.catalogResolveUrl = "$baseUrl/resolved"
+            catalog.catalogUrlTemplate = "$baseUrl/catalog"
+
+            val icons = runBlocking { catalog.defaultIcons(limit = 2) }
+            icons.map { it.id } shouldBe listOf("castle", "moon")
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    "default icons fall back to the known slugs when the catalog API is unreachable" {
+        val catalog = ChapterIconCatalogService()
+        catalog.catalogResolveUrl = "http://127.0.0.1:1"
+        catalog.catalogUrlTemplate = "http://127.0.0.1:1"
+
+        val icons = runBlocking { catalog.defaultIcons() }
+        icons.size shouldBe 50
+        icons.map { it.id } shouldBe icons.map { it.id }.sorted()
+    }
+
     "bundled icons are listed and loadable without the network" {
         val catalog = ChapterIconCatalogService()
         catalog.iconBaseUrl = "http://127.0.0.1:1" // unreachable

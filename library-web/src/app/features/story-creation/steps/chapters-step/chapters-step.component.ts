@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { form, FormField, required, submit } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -40,8 +41,6 @@ import { ChaptersEditorState } from '../../chapters-editor-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChaptersStepComponent {
-  private readonly drafts = inject(StoryDraftService);
-  private readonly images = inject(StoryImageService);
   private readonly chaptersState = inject(ChaptersEditorState);
 
   readonly model = this.chaptersState.model;
@@ -68,15 +67,14 @@ export class ChaptersStepComponent {
   });
 
   readonly chapters = computed(() => this.model().chapters);
-  readonly loading = signal(true);
-  readonly saving = signal(false);
-  readonly saveError = signal<string | null>(null);
+  readonly loading = this.chaptersState.loading;
+  readonly saving = this.chaptersState.saving;
+  readonly saveError = this.chaptersState.saveError;
 
   /** Pre-rendered TTS title audio by chapter number, loaded from the static assets. */
   readonly titleAudioPool = signal<Map<number, File>>(new Map());
 
   constructor() {
-    void this.loadExistingDraft();
     void this.loadTitleAudioPool();
   }
 
@@ -106,137 +104,14 @@ export class ChaptersStepComponent {
   }
 
   removeChapter(index: number): void {
-    const chapter = this.model().chapters[index];
-    if (chapter?.id && this.drafts.draftId()) {
-      void this.drafts
-        .deleteDraftChapter(this.drafts.draftId() ?? '', chapter.id)
-        .catch(() => {});
-    }
-    this.model.update((m) => ({
-      chapters: m.chapters.filter((_, i) => i !== index),
-    }));
+    this.chaptersState.deleteChapter(index);
   }
 
   async save(): Promise<boolean> {
-    this.saveError.set(null);
     let result = false;
     await submit(this.chaptersForm, async () => {
-      this.saving.set(true);
-      try {
-        const draftId = await this.drafts.ensureDraft();
-        const chapters = this.model().chapters;
-
-        for (const ch of chapters) {
-          let chapterId = ch.id;
-          if (!chapterId) {
-            chapterId = await this.drafts.addDraftChapter(draftId, ch.name);
-            this.model.update((m) => ({
-              chapters: m.chapters.map((c) => (c === ch ? { ...c, id: chapterId } : c)),
-            }));
-          }
-
-          if (ch.titleAudio) {
-            if (ch.titleAudio.mode === 'text' && ch.titleAudio.text.trim()) {
-              await this.drafts.setDraftChapterTitleText(draftId, chapterId, ch.titleAudio.text.trim());
-            } else if (ch.titleAudio.mode === 'audio' && ch.titleAudio.file) {
-              await this.drafts.uploadDraftChapterTitleAudio(draftId, chapterId, ch.titleAudio.file);
-            }
-          }
-
-          if (ch.narrationFile) {
-            await this.drafts.uploadDraftChapterNarration(draftId, chapterId, ch.narrationFile);
-          }
-
-          if (ch.image) {
-            if (ch.image.mode === 'icon' && ch.image.iconId) {
-              await this.drafts.setDraftChapterIcon(draftId, chapterId, ch.image.iconId);
-            } else if (ch.image.mode === 'image' && ch.image.file) {
-              await this.drafts.uploadDraftChapterImage(draftId, chapterId, ch.image.file);
-            } else if (ch.image.mode === 'number' && ch.image.chapterNumber != null) {
-              const blob = await this.images.fetchChapterNumberPng(ch.image.chapterNumber);
-              await this.drafts.uploadDraftChapterImage(
-                draftId,
-                chapterId,
-                new File([blob], `chapter-${ch.image.chapterNumber}.png`, {
-                  type: blob.type || 'image/png',
-                }),
-              );
-            }
-          }
-        }
-
-        result = true;
-      } catch {
-        this.saveError.set('Failed to save chapters. Please try again.');
-      } finally {
-        this.saving.set(false);
-      }
+      result = await this.chaptersState.save();
     });
     return result;
-  }
-
-  private async loadExistingDraft(): Promise<void> {
-    // The Bulk Upload step feeds the shared model before this step is shown. If it already
-    // holds chapters (pre-filled from the dropped audio files), do not overwrite them.
-    if (this.model().chapters.length > 0) {
-      this.loading.set(false);
-      return;
-    }
-    try {
-      const draft = await this.drafts.getCurrentDraft();
-      if (!draft) return;
-
-      const chapters = await Promise.all(
-        draft.chapters.map(async (c) => {
-          let titleAudio: TitleAudioSelection | null = null;
-          if (c.titleText) {
-            titleAudio = { mode: 'text', text: c.titleText, file: null };
-          } else if (c.hasTitleAudio) {
-            try {
-              const blob = await this.drafts.downloadDraftChapterTitleAudio(draft.id, c.id);
-              titleAudio = {
-                mode: 'audio',
-                text: '',
-                file: new File([blob], 'title-audio.mp3', { type: blob.type || 'audio/mpeg' }),
-              };
-            } catch {
-              /* binary missing — user can re-upload */
-            }
-          }
-
-          let narrationFile: File | null = null;
-          if (c.hasNarrationAudio) {
-            try {
-              const blob = await this.drafts.downloadDraftChapterNarration(draft.id, c.id);
-              narrationFile = new File([blob], 'narration.mp3', { type: blob.type || 'audio/mpeg' });
-            } catch {
-              /* binary missing — user can re-upload */
-            }
-          }
-
-          let image: NodeImageSelection | null = null;
-          if (c.iconId) {
-            image = { mode: 'icon', iconId: c.iconId, file: null };
-          } else if (c.hasImage) {
-            try {
-              const blob = await this.drafts.downloadDraftChapterImage(draft.id, c.id);
-              image = {
-                mode: 'image',
-                iconId: null,
-                file: new File([blob], 'image.png', { type: blob.type || 'image/png' }),
-              };
-            } catch {
-              /* binary missing — user can re-upload */
-            }
-          }
-
-          return { id: c.id, name: c.name, titleAudio, narrationFile, image };
-        }),
-      );
-
-      this.model.set({ chapters });
-    } finally {
-      this.loading.set(false);
-    }
   }
 }

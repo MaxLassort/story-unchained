@@ -4,8 +4,7 @@ import com.maxlass.studio.pack.domain.dto.ChapterCreatedResponse
 import com.maxlass.studio.pack.domain.dto.CreateChapterRequest
 import com.maxlass.studio.pack.domain.dto.DraftCreatedResponse
 import com.maxlass.studio.pack.domain.dto.FinalizedPackResponse
-import com.maxlass.studio.pack.domain.dto.SetChapterIconRequest
-import com.maxlass.studio.pack.domain.dto.SetTitleTextRequest
+import com.maxlass.studio.pack.domain.dto.PatchNodeRequest
 import com.maxlass.studio.pack.domain.dto.StoryChapterDraftSummary
 import com.maxlass.studio.pack.domain.dto.StoryDraftSummary
 import com.maxlass.studio.pack.domain.dto.UpdateDraftRequest
@@ -31,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
@@ -150,42 +150,6 @@ class StoryDraftController(
     }
 
     @Operation(
-        summary = "Uploader l'audio du menu de sélection",
-        description = "Upload multipart (`file`, audio/*) = audio du nœud de sélection des " +
-            "chapitres (menu question). Remplace tout texte TTS de menu précédemment saisi.",
-    )
-    @ApiResponse(responseCode = "200", description = "Audio enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
-    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
-    @PutMapping("/{id}/menu-audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setMenuAudio(
-        @PathVariable id: String,
-        @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
-        @RequestPart("file") file: MultipartFile,
-    ): StoryDraftSummary {
-        val type = audioTypeOf(file)
-        return store.setMenuAudio(id, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-    }
-
-    @Operation(
-        summary = "Saisir le texte du menu (TTS)",
-        description = "Texte du prompt du menu de sélection des chapitres à la place d'un " +
-            "fichier audio : la synthèse TTS se fait à la finalisation. Remplace tout audio " +
-            "de menu uploadé précédemment.",
-    )
-    @ApiResponse(responseCode = "200", description = "Texte enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Texte vide")
-    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
-    @PutMapping("/{id}/menu-text")
-    suspend fun setMenuText(
-        @PathVariable id: String,
-        @Valid @RequestBody body: SetTitleTextRequest,
-    ): StoryDraftSummary =
-        store.setMenuText(id, body.text.trim())?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-
-    @Operation(
         summary = "Télécharger l'audio du menu de sélection",
         description = "Retourne les bytes bruts de l'audio du menu stocké dans le draft.",
     )
@@ -275,80 +239,6 @@ class StoryDraftController(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
 
     @Operation(
-        summary = "Uploader la thumbnail (meta/thumbnail.png)",
-        description = "Upload multipart (`file`, PNG ou JPEG) = vignette du pack injectée dans " +
-            "`meta/thumbnail.png` à la finalisation (affichage bibliothèque).",
-    )
-    @ApiResponse(responseCode = "200", description = "Thumbnail enregistrée (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non PNG/JPEG")
-    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
-    @PutMapping("/{id}/thumbnail", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setThumbnail(
-        @PathVariable id: String,
-        @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
-        @RequestPart("file") file: MultipartFile,
-    ): StoryDraftSummary {
-        val type = imageTypeOf(file)
-        return store.setThumbnail(id, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-    }
-
-    @Operation(
-        summary = "Uploader la cover (thumbnail Lunii)",
-        description = "Upload multipart (`file`, PNG ou JPEG) = image du nœud squareOne (cover " +
-            "de l'histoire, affichée par la Lunii au démarrage du pack).",
-    )
-    @ApiResponse(responseCode = "200", description = "Cover enregistrée (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non PNG/JPEG")
-    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
-    @PutMapping("/{id}/cover", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setCover(
-        @PathVariable id: String,
-        @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
-        @RequestPart("file") file: MultipartFile,
-    ): StoryDraftSummary {
-        val type = imageTypeOf(file)
-        return store.setCover(id, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-    }
-
-    @Operation(
-        summary = "Uploader l'audio du pack (titre)",
-        description = "Upload multipart (`file`, audio/*) = audio joué sur le cover du pack " +
-            "(titre de l'histoire). Remplace tout texte TTS de titre précédemment saisi.",
-    )
-    @ApiResponse(responseCode = "200", description = "Audio enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
-    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
-    @PutMapping("/{id}/title-audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setTitleAudio(
-        @PathVariable id: String,
-        @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
-        @RequestPart("file") file: MultipartFile,
-    ): StoryDraftSummary {
-        val type = audioTypeOf(file)
-        return store.setTitleAudio(id, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-    }
-
-    @Operation(
-        summary = "Saisir le texte du titre du pack (TTS)",
-        description = "Texte du titre de l'histoire à la place d'un fichier audio : la synthèse " +
-            "TTS est faite à la finalisation et jouée sur le cover. Remplace tout audio " +
-            "uploadé précédemment.",
-    )
-    @ApiResponse(responseCode = "200", description = "Texte enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Texte vide")
-    @ApiResponse(responseCode = "404", description = "Brouillon inconnu")
-    @PutMapping("/{id}/title-text")
-    suspend fun setTitleText(
-        @PathVariable id: String,
-        @Valid @RequestBody body: SetTitleTextRequest,
-    ): StoryDraftSummary =
-        store.setTitleText(id, body.text.trim())?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft not found: $id")
-
-    @Operation(
         summary = "Supprimer le brouillon",
         description = "Supprime le brouillon (fichiers du dossier temp, équivalent à quitter " +
             "l'appli).",
@@ -366,8 +256,9 @@ class StoryDraftController(
     @Operation(
         summary = "Ajouter un chapitre",
         description = "Ajoute un chapitre au brouillon. `name` est le nom du chapitre ; " +
-            "l'audio du titre peut ensuite être fourni soit par upload (PUT …/audio), soit par " +
-            "texte (PUT …/title-text) — la synthèse TTS se fait à la finalisation.",
+            "l'audio du titre peut ensuite être fourni soit par upload (PUT …/files, " +
+            "field=titleAudio), soit par texte (PATCH …/nodes/{chapterId}, titleText) — " +
+            "la synthèse TTS se fait immédiatement et le MP3 est stocké dans le draft.",
     )
     @ApiResponse(responseCode = "201", description = "Chapitre créé", content = [
         Content(examples = [
@@ -403,103 +294,65 @@ class StoryDraftController(
         return ResponseEntity.noContent().build()
     }
 
+
+
     @Operation(
-        summary = "Uploader l'audio du titre du chapitre",
-        description = "Upload multipart (`file`, audio/* : MP3, WAV, OGG…) = audio du titre du " +
-            "chapitre. Remplace tout texte TTS précédemment saisi pour ce chapitre.",
+        summary = "Uploader un fichier binaire dans le draft (endpoint consolidé)",
+        description = "Upload multipart (`file`) avec une cible : `scope` = `pack` ou `chapter`, " +
+            "`chapterId` (si scope=chapter) et `field` = `titleAudio` | `menuAudio` | `thumbnail` | " +
+            "`cover` | `narration` | `image`. Valide le content-type selon le champ.",
     )
-    @ApiResponse(responseCode = "200", description = "Audio enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
+    @ApiResponse(responseCode = "200", description = "Fichier enregistré (état du draft)")
+    @ApiResponse(responseCode = "400", description = "Cible ou fichier invalide")
     @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
-    @PutMapping("/{id}/chapters/{chapterId}/audio", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setChapterAudio(
+    @PutMapping("/{id}/files", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    suspend fun setDraftFile(
         @PathVariable id: String,
-        @PathVariable chapterId: String,
-        @Parameter(description = "Fichier audio (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
+        @Parameter(description = "Scope de la cible : `pack` ou `chapter`")
+        @RequestParam scope: String,
+        @Parameter(description = "Id du chapitre (requis si scope=chapter)")
+        @RequestParam(required = false) chapterId: String?,
+        @Parameter(description = "Champ cible : titleAudio | menuAudio | thumbnail | cover | narration | image")
+        @RequestParam field: String,
         @RequestPart("file") file: MultipartFile,
     ): StoryDraftSummary {
-        val type = audioTypeOf(file)
-        return store.setTitleAudio(id, chapterId, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
+        val family = store.binaryFields[field]
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown field: $field")
+        val type = when (family) {
+            "audio" -> audioTypeOf(file)
+            "image" -> imageTypeOf(file)
+            else -> throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown field: $field")
+        }
+        return store.setDraftFile(id, scope, chapterId, field, file.bytes, type)
+            ?.let(::toSummary)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft, chapter or target not found")
     }
 
     @Operation(
-        summary = "Uploader l'audio du chapitre (narration)",
-        description = "Upload multipart (`file`, audio/*) = la narration du chapitre elle-même " +
-            "(peut durer des heures au total pour toute l'histoire). Stocké sur disque, jamais " +
-            "en RAM.",
+        summary = "Éditer un nœud du draft (endpoint consolidé)",
+        description = "Applique un patch partiel sur le nœud racine du pack (`nodeId` = id du " +
+            "draft) ou sur un chapitre (`nodeId` = id du chapitre). Champs : `name`, `titleText` " +
+            "et `menuText` (racine du pack) ou `name`, `titleText`, `iconId` (chapitre). Les " +
+            "textes TTS sont synthétisés immédiatement et stockés dans le draft.",
     )
-    @ApiResponse(responseCode = "200", description = "Audio enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non-audio")
-    @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
-    @PutMapping("/{id}/chapters/{chapterId}/narration", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setChapterNarration(
+    @ApiResponse(responseCode = "200", description = "Nœud mis à jour (état du draft)")
+    @ApiResponse(responseCode = "409", description = "Clé API TTS manquante pour le provider configuré")
+    @ApiResponse(responseCode = "404", description = "Brouillon ou nœud inconnu")
+    @PatchMapping("/{id}/nodes/{nodeId}")
+    suspend fun patchNode(
         @PathVariable id: String,
-        @PathVariable chapterId: String,
-        @Parameter(description = "Fichier audio de narration (MP3, WAV, OGG…)", schema = Schema(type = "string", format = "binary"))
-        @RequestPart("file") file: MultipartFile,
-    ): StoryDraftSummary {
-        val type = audioTypeOf(file)
-        return store.setNarrationAudio(id, chapterId, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
-    }
-
-    @Operation(
-        summary = "Saisir le texte du titre (TTS)",
-        description = "Texte du titre du chapitre à la place d'un fichier audio : la synthèse " +
-            "TTS (provider configuré dans les settings) est faite à la finalisation. " +
-            "Remplace tout audio uploadé précédemment pour ce chapitre.",
-    )
-    @ApiResponse(responseCode = "200", description = "Texte enregistré (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Texte vide")
-    @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
-    @PutMapping("/{id}/chapters/{chapterId}/title-text")
-    suspend fun setChapterTitleText(
-        @PathVariable id: String,
-        @PathVariable chapterId: String,
-        @Valid @RequestBody body: SetTitleTextRequest,
+        @PathVariable nodeId: String,
+        @Valid @RequestBody body: PatchNodeRequest,
     ): StoryDraftSummary =
-        store.setTitleText(id, chapterId, body.text.trim())?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
-
-    @Operation(
-        summary = "Uploader l'image du chapitre",
-        description = "Upload multipart (`file`, PNG ou JPEG uniquement — un SVG doit d'abord " +
-            "être converti via POST /stories/images/render). L'icône Lucide (`iconId`) reste " +
-            "le fallback si aucune image n'est uploadée.",
-    )
-    @ApiResponse(responseCode = "200", description = "Image enregistrée (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Fichier vide ou non PNG/JPEG")
-    @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
-    @PutMapping("/{id}/chapters/{chapterId}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    suspend fun setChapterImage(
-        @PathVariable id: String,
-        @PathVariable chapterId: String,
-        @Parameter(description = "Fichier image (PNG ou JPEG)", schema = Schema(type = "string", format = "binary"))
-        @RequestPart("file") file: MultipartFile,
-    ): StoryDraftSummary {
-        val type = imageTypeOf(file)
-        return store.setChapterImage(id, chapterId, file.bytes, type)?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
-    }
-
-    @Operation(
-        summary = "Choisir l'icône Lucide du chapitre",
-        description = "Associe un icône Lucide (slug kebab-case, ex. \"star\") au chapitre : " +
-            "l'image est rendue à la finalisation (blanc sur noir 320×240). Fallback si aucune " +
-            "image n'est uploadée.",
-    )
-    @ApiResponse(responseCode = "200", description = "Icône enregistrée (état du draft)")
-    @ApiResponse(responseCode = "400", description = "Slug vide")
-    @ApiResponse(responseCode = "404", description = "Brouillon ou chapitre inconnu")
-    @PutMapping("/{id}/chapters/{chapterId}/icon")
-    suspend fun setChapterIcon(
-        @PathVariable id: String,
-        @PathVariable chapterId: String,
-        @Valid @RequestBody body: SetChapterIconRequest,
-    ): StoryDraftSummary =
-        store.setChapterIcon(id, chapterId, body.iconId.trim())?.let(::toSummary)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or chapter not found")
+        store.patchNode(
+            id,
+            nodeId,
+            name = body.name?.trim()?.takeIf { it.isNotEmpty() },
+            titleText = body.titleText?.trim()?.takeIf { it.isNotEmpty() },
+            menuText = body.menuText?.trim()?.takeIf { it.isNotEmpty() },
+            iconId = body.iconId?.trim()?.takeIf { it.isNotEmpty() },
+        )?.let(::toSummary)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Draft or node not found: $nodeId")
 
     /** Validates a PNG/JPEG multipart payload and returns its normalized content type. */
     private fun imageTypeOf(file: MultipartFile): String {

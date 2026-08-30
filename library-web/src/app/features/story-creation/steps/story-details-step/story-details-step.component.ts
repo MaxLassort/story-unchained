@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { form, FormField, required, submit } from '@angular/forms/signals';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -85,33 +86,45 @@ export class StoryDetailsStepComponent {
         await this.drafts.updateDraftMetadata(draftId, { title, description });
 
         if (thumbnail) {
-          await this.drafts.uploadDraftThumbnail(draftId, thumbnail);
+          await this.drafts.uploadDraftFile(draftId, { scope: 'pack', field: 'thumbnail' }, thumbnail);
         }
 
         if (cover) {
           const coverFile = await this.coverToFile(cover);
-          if (coverFile) await this.drafts.uploadDraftCover(draftId, coverFile);
+          if (coverFile) await this.drafts.uploadDraftFile(draftId, { scope: 'pack', field: 'cover' }, coverFile);
         }
 
         if (titleAudio) {
           if (titleAudio.mode === 'text' && titleAudio.text.trim()) {
-            await this.drafts.setDraftTitleText(draftId, titleAudio.text.trim());
+            // Backend synthesizes TTS immediately and stores the MP3 in the draft.
+            await this.drafts.patchDraftNode(draftId, draftId, { titleText: titleAudio.text.trim() });
           } else if (titleAudio.mode === 'audio' && titleAudio.file) {
-            await this.drafts.uploadDraftTitleAudio(draftId, titleAudio.file);
+            await this.drafts.uploadDraftFile(draftId, { scope: 'pack', field: 'titleAudio' }, titleAudio.file);
           }
         }
 
         if (menuAudio) {
           if (menuAudio.mode === 'text' && menuAudio.text.trim()) {
-            await this.drafts.setDraftMenuText(draftId, menuAudio.text.trim());
+            // Backend synthesizes TTS immediately and stores the MP3 in the draft.
+            await this.drafts.patchDraftNode(draftId, draftId, { menuText: menuAudio.text.trim() });
           } else if (menuAudio.mode === 'audio' && menuAudio.file) {
-            await this.drafts.uploadDraftMenuAudio(draftId, menuAudio.file);
+            await this.drafts.uploadDraftFile(draftId, { scope: 'pack', field: 'menuAudio' }, menuAudio.file);
           }
         }
 
         result = true;
-      } catch {
-        this.saveError.set('Failed to save story details. Please try again.');
+      } catch (err) {
+        this.saveError.set(
+          err instanceof HttpErrorResponse
+            ? (err.error?.error ??
+                err.error?.message ??
+                (err.status === 409
+                  ? 'API key missing for the selected TTS provider. Add it in Settings, or switch to the free provider (Google Translate).'
+                  : err.status === 502
+                  ? 'The selected TTS provider failed. Switch to the free provider (Google Translate) and try again.'
+                  : err.message ?? 'Failed to save story details. Please try again.'))
+            : 'Failed to save story details. Please try again.',
+        );
       } finally {
         this.saving.set(false);
       }

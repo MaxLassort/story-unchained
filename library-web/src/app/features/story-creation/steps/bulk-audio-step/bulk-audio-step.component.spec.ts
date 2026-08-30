@@ -1,13 +1,45 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
 import { BulkAudioStepComponent } from './bulk-audio-step.component';
 import { ChaptersEditorState } from '../../chapters-editor-state.service';
+import { StoryDraftService } from '../../../../core/services/story-draft.service';
 
 describe('BulkAudioStepComponent', () => {
+  let draftsMock: {
+    ensureDraft: ReturnType<typeof vi.fn>;
+    addDraftChapter: ReturnType<typeof vi.fn>;
+    deleteDraftChapter: ReturnType<typeof vi.fn>;
+    getCurrentDraft: ReturnType<typeof vi.fn>;
+    uploadDraftFile: ReturnType<typeof vi.fn>;
+    patchDraftNode: ReturnType<typeof vi.fn>;
+    downloadDraftChapterTitleAudio: ReturnType<typeof vi.fn>;
+    downloadDraftChapterNarration: ReturnType<typeof vi.fn>;
+    downloadDraftChapterImage: ReturnType<typeof vi.fn>;
+    draftId: ReturnType<typeof vi.fn>;
+  };
+
   beforeEach(async () => {
+    draftsMock = {
+      ensureDraft: vi.fn().mockResolvedValue('draft-1'),
+      addDraftChapter: vi.fn().mockResolvedValue('chapter-uuid'),
+      deleteDraftChapter: vi.fn().mockResolvedValue(undefined),
+      getCurrentDraft: vi.fn().mockResolvedValue(null),
+      uploadDraftFile: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      patchDraftNode: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      downloadDraftChapterTitleAudio: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
+      downloadDraftChapterNarration: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
+      downloadDraftChapterImage: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
+      draftId: vi.fn().mockReturnValue('draft-1'),
+    };
+
     await TestBed.configureTestingModule({
       imports: [BulkAudioStepComponent],
-      providers: [ChaptersEditorState],
+      providers: [
+        provideHttpClient(),
+        { provide: StoryDraftService, useValue: draftsMock },
+        ChaptersEditorState,
+      ],
     }).compileComponents();
   });
 
@@ -98,5 +130,42 @@ describe('BulkAudioStepComponent', () => {
     c.renameChapter(0, 'Ma première aventure');
     fixture.detectChanges();
     expect(c.chapters()[0].name).toBe('Ma première aventure');
+  });
+
+  it('loads chapters from an existing draft into the staging area', async () => {
+    draftsMock.getCurrentDraft.mockResolvedValue({
+      id: 'draft-1',
+      title: 'Mon histoire',
+      chapters: [
+        {
+          id: 'chap-1',
+          name: 'Chapitre 1',
+          hasTitleAudio: true,
+          hasNarrationAudio: true,
+          hasImage: true,
+        },
+      ],
+    });
+
+    const fixture = createComponent();
+    const state = TestBed.inject(ChaptersEditorState);
+    await state.loadExistingDraft();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.chapters().length).toBe(1);
+    expect(fixture.componentInstance.chapters()[0].id).toBe('chap-1');
+    expect(fixture.componentInstance.chapters()[0].narrationFile).not.toBeNull();
+  });
+
+  it('saves staged chapters to the draft via save()', async () => {
+    const fixture = createComponent();
+    const c = fixture.componentInstance;
+    const file = new File(['audio'], 'intro.mp3', { type: 'audio/mpeg' });
+    await c.addFiles([file]);
+
+    const ok = await c.save();
+    expect(ok).toBe(true);
+    expect(draftsMock.addDraftChapter).toHaveBeenCalledWith('draft-1', 'Chapitre 1');
+    expect(draftsMock.uploadDraftFile).toHaveBeenCalled();
   });
 });

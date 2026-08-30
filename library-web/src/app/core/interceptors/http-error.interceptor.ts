@@ -13,12 +13,28 @@ export const httpErrorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err) => {
-      const message =
-        err?.error?.error ??
-        err?.error?.message ??
-        err?.message ??
-        `Erreur ${err?.status ?? 'réseau'}`;
-      snackbar.error(message);
+      if (err?.error instanceof Blob) {
+        err.error
+          .text()
+          .then((text: string) => {
+            try {
+              const parsed = JSON.parse(text);
+              snackbar.error(parsed?.error ?? parsed?.message ?? text);
+            } catch {
+              snackbar.error(text || `Erreur ${err?.status ?? 'réseau'}`);
+            }
+          })
+          .catch(() => {
+            snackbar.error(err?.message ?? `Erreur ${err?.status ?? 'réseau'}`);
+          });
+      } else {
+        const message =
+          err?.error?.error ??
+          err?.error?.message ??
+          err?.message ??
+          `Erreur ${err?.status ?? 'réseau'}`;
+        snackbar.error(message);
+      }
       return throwError(() => err);
     }),
   );

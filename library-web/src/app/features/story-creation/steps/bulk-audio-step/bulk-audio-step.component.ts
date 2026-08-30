@@ -45,6 +45,9 @@ export class BulkAudioStepComponent {
 
   readonly dragging = signal(false);
   readonly typeError = signal<string | null>(null);
+  readonly loading = this.chaptersState.loading;
+  readonly saving = this.chaptersState.saving;
+  readonly saveError = this.chaptersState.saveError;
 
   readonly totalSizeLabel = computed(() => {
     const k = this.staged().length;
@@ -105,17 +108,20 @@ export class BulkAudioStepComponent {
   }
 
   removeChapter(index: number): void {
-    this.chaptersState.model.update((m) => ({
-      chapters: m.chapters.filter((_, i) => i !== index),
-    }));
+    this.chaptersState.deleteChapter(index);
   }
 
   clear(): void {
-    this.chaptersState.model.set({ chapters: [] });
+    this.chaptersState.clearChapters();
     this.typeError.set(null);
   }
 
-  fileSizeLabel(file: File): string {
+  save(): Promise<boolean> {
+    return this.chaptersState.save();
+  }
+
+  fileSizeLabel(file: File | null | undefined): string {
+    if (!file) return '';
     const b = file.size;
     if (b >= 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)} MB`;
     if (b >= 1024) return `${Math.round(b / 1024)} KB`;

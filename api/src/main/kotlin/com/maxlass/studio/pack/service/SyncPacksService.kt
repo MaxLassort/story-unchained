@@ -1,30 +1,30 @@
 package com.maxlass.studio.pack.service
 
-import com.maxlass.studio.infrastructure.persistence.InvalidPackMoveQueueEntity
-import com.maxlass.studio.infrastructure.persistence.InvalidPackMoveQueueJpaRepository
 import com.maxlass.studio.infrastructure.persistence.PackEntity
 import com.maxlass.studio.infrastructure.persistence.PackJpaRepository
 import com.maxlass.studio.infrastructure.persistence.PackMetadataEntity
 import com.maxlass.studio.infrastructure.persistence.PackMetadataJpaRepository
 import com.maxlass.studio.infrastructure.persistence.PackScanIndexJpaRepository
 import com.maxlass.studio.infrastructure.persistence.PackVariantJpaRepository
-import com.maxlass.studio.infrastructure.persistence.SyncJobEntity
-import com.maxlass.studio.infrastructure.persistence.SyncJobJpaRepository
 import com.maxlass.studio.infrastructure.config.StudioProperties
 import com.maxlass.studio.pack.cache.ThumbnailCache
 import com.maxlass.studio.pack.domain.dto.OfficialMetadataDto
-import com.maxlass.studio.pack.domain.dto.SyncJobStartResponse
-import com.maxlass.studio.pack.domain.dto.SyncJobStatusResponse
+import com.maxlass.studio.pack.domain.model.PackFormat
 import com.maxlass.studio.pack.port.external.ExtractThumbnailFromFsPackPort
 import com.maxlass.studio.pack.port.external.MetaDataReaderPort
 import com.maxlass.studio.pack.port.external.MetadataRefreshPort
+import com.maxlass.studio.pack.domain.dto.SyncStatus
+import com.maxlass.studio.pack.domain.dto.SyncStatusEvent
+import com.maxlass.studio.pack.port.external.SyncEventPublisher
 import com.maxlass.studio.pack.port.persistence.PackRepositoryPort
+import com.maxlass.studio.pack.util.readThumbnailBytes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -38,6 +38,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.util.Base64
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val DEFAULT_BATCH_SIZE = 50
@@ -50,26 +51,29 @@ data class ProcessResult(
     val failedCount: Int = 0
 )
 
+class SyncAlreadyRunningException(message: String) : RuntimeException(message)
+
 @Service
 class SyncPacksService(
     private val packRepository: PackRepositoryPort,
-    metadataReader: MetaDataReaderPort,
+    private val metadataReader: MetaDataReaderPort,
     private val metadataRefresh: MetadataRefreshPort,
     extractThumbnailFromFsPack: ExtractThumbnailFromFsPackPort,
     thumbnailCache: ThumbnailCache,
     private val packJpaRepository: PackJpaRepository,
     private val packMetadataJpaRepository: PackMetadataJpaRepository,
-    private val syncJobRepository: SyncJobJpaRepository,
-    private val invalidQueueRepository: InvalidPackMoveQueueJpaRepository,
     private val packScanIndexRepository: PackScanIndexJpaRepository,
     private val variantRepository: PackVariantJpaRepository,
     private val fingerprinter: PackFingerprinter,
     transactionManager: PlatformTransactionManager,
     private val studioProperties: StudioProperties,
     private val syncUnofficialMetadata: SyncUnofficialMetadataUseCase,
+    private val eventPublisher: SyncEventPublisher,
 ) {
+    fun eventPublisher(): SyncEventPublisher = eventPublisher
+
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val queueProcessing = AtomicBoolean(false)
+    private val syncRunning = AtomicBoolean(false)
     private val tx = TransactionTemplate(transactionManager)
 
     @PreDestroy
@@ -82,51 +86,36 @@ class SyncPacksService(
 
     companion object {
         private val log = LoggerFactory.getLogger(SyncPacksService::class.java)
-        private const val QUEUE_PENDING = "PENDING"
-        private const val QUEUE_DONE = "DONE"
-        private const val QUEUE_FAILED = "FAILED"
-        private const val JOB_PENDING = "PENDING"
-        private const val JOB_RUNNING = "RUNNING"
-        private const val JOB_DONE = "DONE"
-        private const val JOB_FAILED = "FAILED"
         private const val INDEX_VALID = "VALID"
         private const val INDEX_INVALID = "INVALID"
     }
 
-    suspend fun invoke(directoryPath: String): SyncJobStartResponse = startSync(directoryPath)
+    suspend fun invoke(directoryPath: String): Unit = startSync(directoryPath)
 
-    suspend fun startSync(directoryPath: String): SyncJobStartResponse {
-        val now = System.currentTimeMillis()
-        val jobId = tx.execute {
-            syncJobRepository.save(
-                SyncJobEntity(
-                    status = JOB_PENDING,
-                    startedAtEpochMs = now,
-                    finishedAtEpochMs = null,
-                    totalEntries = 0,
-                    processedEntries = 0,
-                    synchronizedCount = 0,
-                    invalidQueuedCount = 0,
-                    failedCount = 0,
-                    message = null,
+    suspend fun startSync(directoryPath: String): Unit {
+        if (!syncRunning.compareAndSet(false, true)) {
+            throw SyncAlreadyRunningException("A pack synchronization is already running.")
+        }
+        try {
+            eventPublisher?.publish(
+                SyncStatusEvent(
+                    status = SyncStatus.PENDING,
                     batchSize = DEFAULT_BATCH_SIZE,
                     parallelism = DEFAULT_PARALLELISM,
+                    startedAtEpochMs = System.currentTimeMillis(),
                 )
-            ).id
-        }!!
-        backgroundScope.launch { runJob(jobId, directoryPath) }
-        return SyncJobStartResponse(jobId = jobId, status = JOB_PENDING)
+            )
+            backgroundScope.launch { runJob(directoryPath) }
+        } finally {
+            // guard release happens in runJob; nothing to release here
+            Unit
+        }
     }
 
-    fun getJobStatus(jobId: Long): SyncJobStatusResponse? =
-        syncJobRepository.findById(jobId).map { it.toSyncJobStatus() }.orElse(null)
-
-    /** Deletes all pack rows from the database (packs + metadata + variants + indexes + jobs). */
+    /** Deletes pack rows from the database (packs + metadata + variants + indexes). */
     fun clearPacks() {
         tx.execute {
             packMetadataJpaRepository.deleteAll()
-            invalidQueueRepository.deleteAll()
-            syncJobRepository.deleteAll()
             packScanIndexRepository.deleteAll()
             variantRepository.deleteAll()
             packJpaRepository.deleteAll()
@@ -134,14 +123,53 @@ class SyncPacksService(
         }
     }
 
-    private suspend fun runJob(jobId: Long, directoryPath: String) {
-        updateJobStatus(jobId, JOB_RUNNING, null)
+    private suspend fun runJob(directoryPath: String) {
+        try {
+            runCatching {
+                doRunJob(directoryPath)
+            }.getOrElse { e ->
+                log.error("Synchronisation échouée: {}", directoryPath, e)
+                eventPublisher?.publish(
+                    SyncStatusEvent(
+                        status = SyncStatus.FAILED,
+                        message = e.message ?: "Synchronisation échouée",
+                        batchSize = DEFAULT_BATCH_SIZE,
+                        parallelism = DEFAULT_PARALLELISM,
+                        finishedAtEpochMs = System.currentTimeMillis(),
+                    )
+                )
+            }
+        } finally {
+            syncRunning.set(false)
+        }
+    }
+
+    private suspend fun doRunJob(directoryPath: String) {
         val directory = File(directoryPath)
         if (!directory.exists() || !directory.isDirectory) {
-            finishJob(jobId, JOB_FAILED, "Dossier de synchronisation introuvable: $directoryPath")
+            eventPublisher?.publish(
+                SyncStatusEvent(
+                    status = SyncStatus.FAILED,
+                    message = "Dossier de synchronisation introuvable: $directoryPath",
+                    batchSize = DEFAULT_BATCH_SIZE,
+                    parallelism = DEFAULT_PARALLELISM,
+                    startedAtEpochMs = System.currentTimeMillis(),
+                    finishedAtEpochMs = System.currentTimeMillis(),
+                )
+            )
             return
         }
-        val invalidPacksDir = studioProperties.defaultLibraryPath.parent.resolve("invalid").toFile()
+
+        eventPublisher?.publish(
+            SyncStatusEvent(
+                status = SyncStatus.RUNNING,
+                batchSize = DEFAULT_BATCH_SIZE,
+                parallelism = DEFAULT_PARALLELISM,
+                startedAtEpochMs = System.currentTimeMillis(),
+            )
+        )
+
+        val invalidPacksDir = directory.toPath().parent.resolve("invalid").toFile()
             .apply { if (!exists()) mkdirs() }
 
         val entries = directory.listFiles()
@@ -149,7 +177,15 @@ class SyncPacksService(
             ?.toList()
             ?: emptyList()
 
-        setJobTotal(jobId, entries.size)
+        eventPublisher?.publish(
+            SyncStatusEvent(
+                status = SyncStatus.RUNNING,
+                totalEntries = entries.size,
+                batchSize = DEFAULT_BATCH_SIZE,
+                parallelism = DEFAULT_PARALLELISM,
+                startedAtEpochMs = System.currentTimeMillis(),
+            )
+        )
 
         var officialCache = metadataRefresh.getOfficialMetadataMap()
         if (officialCache.isEmpty()) {
@@ -184,19 +220,101 @@ class SyncPacksService(
                 invalidQueuedCount += result.invalidQueuedCount
                 failedCount += result.failedCount
             }
-            updateJobProgress(jobId, processed, synchronizedCount, invalidQueuedCount, failedCount)
+            eventPublisher?.publish(
+                SyncStatusEvent(
+                    status = SyncStatus.RUNNING,
+                    totalEntries = entries.size,
+                    processedEntries = processed,
+                    synchronizedCount = synchronizedCount,
+                    invalidQueuedCount = invalidQueuedCount,
+                    failedCount = failedCount,
+                    batchSize = DEFAULT_BATCH_SIZE,
+                    parallelism = DEFAULT_PARALLELISM,
+                    startedAtEpochMs = System.currentTimeMillis(),
+                )
+            )
         }
 
         val finalMessage = buildString {
             append("Synchronisation terminée: $synchronizedCount pack(s) synchronisé(s).")
-            if (invalidQueuedCount > 0) append(" $invalidQueuedCount élément(s) mis en file invalid.")
+            if (invalidQueuedCount > 0) append(" $invalidQueuedCount élément(s) invalide(s) déplacé(s).")
             if (failedCount > 0) append(" $failedCount élément(s) en erreur.")
         }
-        finishJob(jobId, JOB_DONE, finalMessage)
-        triggerBackgroundQueueProcessing()
+        eventPublisher?.publish(
+            SyncStatusEvent(
+                status = SyncStatus.DONE,
+                totalEntries = entries.size,
+                processedEntries = entries.size,
+                synchronizedCount = synchronizedCount,
+                invalidQueuedCount = invalidQueuedCount,
+                failedCount = failedCount,
+                message = finalMessage,
+                batchSize = DEFAULT_BATCH_SIZE,
+                parallelism = DEFAULT_PARALLELISM,
+                startedAtEpochMs = System.currentTimeMillis(),
+                finishedAtEpochMs = System.currentTimeMillis(),
+            )
+        )
+
         runCatching { syncUnofficialMetadata.invoke() }
             .onFailure { log.warn("Sync des métadonnées Studio non officielles échoué: {}", it.message) }
+        runCatching { normalizeArchiveMetadata() }
+            .onFailure { log.warn("Normalisation des métadonnées archive échouée: {}", it.message) }
     }
+
+    /**
+     * Post-sync invariant: whenever a pack has an ARCHIVE (zip) variant, that zip is the
+     * authoritative source for the pack's metadata. Because the sync stores a single metadata row
+     * shared by every variant and each file entry re-saves it, a later-processed variant (typically
+     * an FS folder, which yields mostly null fields) can otherwise clobber the zip's real title,
+     * description, locale, ages, duration, story count and cover. Re-assert all of them from the zip
+     * whatever the processing order.
+     */
+    internal suspend fun normalizeArchiveMetadata() {
+        val packs = packRepository.getAllPacks()
+        for (pack in packs) {
+            if (pack.metadata.official) continue
+            val archiveVariant = pack.variants.firstOrNull { it.format == PackFormat.ARCHIVE } ?: continue
+            val archivePath = Path.of(archiveVariant.storagePath)
+            val archiveMeta = metadataReader.readArchiveMetadata(archivePath) ?: continue
+            val cover = readArchiveCoverDataUri(archivePath)
+            packMetadataJpaRepository.findById(pack.id).ifPresent { meta ->
+                var changed = false
+                archiveMeta.title?.takeIf { it.isNotBlank() }?.let {
+                    if (meta.title != it) { meta.title = it; changed = true } }
+                archiveMeta.description?.takeIf { it.isNotBlank() }?.let {
+                    if (meta.description != it) { meta.description = it; changed = true } }
+                archiveMeta.locale?.takeIf { it.isNotBlank() }?.let {
+                    if (meta.locale != it) { meta.locale = it; changed = true } }
+                archiveMeta.ageMin?.let {
+                    if (meta.ageMin != it) { meta.ageMin = it; changed = true } }
+                archiveMeta.ageMax?.let {
+                    if (meta.ageMax != it) { meta.ageMax = it; changed = true } }
+                archiveMeta.durationMs?.let {
+                    if (meta.durationMs != it) { meta.durationMs = it; changed = true } }
+                archiveMeta.storyCount?.let {
+                    if (meta.storyCount != it) { meta.storyCount = it; changed = true } }
+                if (archiveMeta.version.toInt() != 0 && meta.version.toInt() != archiveMeta.version.toInt()) {
+                    meta.version = archiveMeta.version
+                    changed = true
+                }
+                if (meta.nightModeAvailable != archiveMeta.isNightModeAvailable) {
+                    meta.nightModeAvailable = archiveMeta.isNightModeAvailable
+                    changed = true
+                }
+                if (cover != null && meta.thumbnail != cover) {
+                    meta.thumbnail = cover
+                    changed = true
+                }
+                if (changed) packMetadataJpaRepository.save(meta)
+            }
+        }
+    }
+
+    private fun readArchiveCoverDataUri(zipPath: Path): String? =
+        readThumbnailBytes(zipPath)?.let {
+            "data:image/png;base64,${Base64.getEncoder().encodeToString(it)}"
+        }
 
     private fun insertOfficialCatalogPacks(officialCache: Map<String, OfficialMetadataDto>) {
         if (officialCache.isEmpty()) return
@@ -243,12 +361,20 @@ class SyncPacksService(
 
         val detected = inspector.detectFormatAndMetadata(file)
         val (format, meta) = detected ?: run {
-            val queued = enqueueInvalidEntry(file, invalidPacksDir, "Format de pack non reconnu")
+            val moved = moveInvalidEntry(file, invalidPacksDir, "Format de pack non reconnu")
             fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_INVALID, null, null)
-            return if (queued) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
+            return if (moved) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
         }
 
-        val pack = extractor.buildPack(file, meta, format, officialCache)
+        val pack = extractor.buildPack(
+            file,
+            meta,
+            format,
+            officialCache,
+            existingThumbnail = packMetadataJpaRepository.findById(meta.uuid).orElse(null)?.thumbnail,
+            hasArchiveVariant = variantRepository.findAll()
+                .any { it.id.packId == meta.uuid && it.id.format == PackFormat.ARCHIVE.name },
+        )
         packRepository.savePack(pack)
         fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_VALID, meta.uuid, format.name)
         ProcessResult(synchronizedCount = 1)
@@ -256,143 +382,30 @@ class SyncPacksService(
         log.error("Erreur traitement entrée: {}", file.absolutePath, e)
         val snapshot = fingerprinter.buildSnapshot(file)
         val reason = e.message?.take(500) ?: "Erreur de traitement"
-        val queued = enqueueInvalidEntry(file, invalidPacksDir, reason)
+        val moved = moveInvalidEntry(file, invalidPacksDir, reason)
         fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_INVALID, null, null)
-        if (queued) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
+        if (moved) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
     }
 
-    private fun enqueueInvalidEntry(entry: File, invalidPacksDir: File, reason: String): Boolean {
-        val target = uniqueTargetPath(invalidPacksDir.toPath(), entry.name).toFile()
-        return runCatching {
-            invalidQueueRepository.save(
-                InvalidPackMoveQueueEntity(
-                    sourcePath = entry.absolutePath,
-                    targetPath = target.absolutePath,
-                    reason = reason,
-                    status = QUEUE_PENDING,
-                    error = null,
-                    createdAtEpochMs = System.currentTimeMillis(),
-                    processedAtEpochMs = null,
-                )
-            )
+    internal fun moveInvalidEntry(entry: File, invalidPacksDir: File, reason: String): Boolean {
+        val target = Files.createDirectories(invalidPacksDir.toPath()).resolve(entry.name).toFile()
+        val moved = runCatching {
+            Files.move(entry.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
             true
-        }.getOrDefault(false)
-    }
-
-    private fun uniqueTargetPath(baseDir: Path, originalName: String): Path {
-        var candidate = baseDir.resolve(originalName)
-        if (!Files.exists(candidate)) return candidate
-        val dot = originalName.lastIndexOf('.')
-        val (name, ext) = if (dot > 0) originalName.substring(0, dot) to originalName.substring(dot) else originalName to ""
-        var index = 1
-        while (Files.exists(candidate)) {
-            candidate = baseDir.resolve("${name}_$index$ext")
-            index += 1
-        }
-        return candidate
-    }
-
-    private fun triggerBackgroundQueueProcessing() {
-        if (!queueProcessing.compareAndSet(false, true)) return
-        backgroundScope.launch {
-            try { processQueueBatch() }
-            finally { queueProcessing.set(false) }
-        }
-    }
-
-    private fun processQueueBatch() {
-        val pendingRows = invalidQueueRepository.findAll()
-            .filter { it.status == QUEUE_PENDING }
-            .sortedBy { it.id }
-        pendingRows.forEach { row ->
-            val source = Path.of(row.sourcePath)
-            val target = Path.of(row.targetPath)
-            val result = runCatching {
-                if (Files.isDirectory(source)) {
-                    Files.createDirectories(target)
-                    Files.walk(source).forEach { path ->
-                        val relative = source.relativize(path)
-                        val out = target.resolve(relative)
-                        if (Files.isDirectory(path)) Files.createDirectories(out)
-                        else {
-                            out.parent?.let { Files.createDirectories(it) }
-                            Files.copy(path, out, StandardCopyOption.COPY_ATTRIBUTES)
-                        }
-                    }
-                    File(source.toString()).deleteRecursively()
-                } else {
-                    target.parent?.let { Files.createDirectories(it) }
-                    Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES)
-                    Files.deleteIfExists(source)
-                }
-            }
-            tx.execute {
-                if (result.isSuccess) {
-                    row.status = QUEUE_DONE
-                    row.error = null
-                    row.processedAtEpochMs = System.currentTimeMillis()
-                } else {
-                    row.status = QUEUE_FAILED
-                    row.error = result.exceptionOrNull()?.message ?: "Unknown move error"
-                    row.processedAtEpochMs = System.currentTimeMillis()
-                }
-                invalidQueueRepository.save(row)
-                null
+        }.getOrElse {
+            // fallback: copy + delete
+            runCatching {
+                target.parentFile?.let { Files.createDirectories(it.toPath()) }
+                Files.copy(entry.toPath(), target.toPath(), StandardCopyOption.COPY_ATTRIBUTES)
+                Files.deleteIfExists(entry.toPath())
+                true
+            }.getOrElse {
+                false
             }
         }
-    }
-
-    private fun setJobTotal(jobId: Long, total: Int) = tx.execute {
-        syncJobRepository.findById(jobId).ifPresent { job ->
-            job.totalEntries = total
-            syncJobRepository.save(job)
+        if (!moved) {
+            log.warn("Impossible de déplacer l'entrée invalide {}: {}", entry.absolutePath, reason)
         }
-        null
+        return moved
     }
-
-    private fun updateJobProgress(jobId: Long, processed: Int, sync: Int, invalid: Int, failed: Int) = tx.execute {
-        syncJobRepository.findById(jobId).ifPresent { job ->
-            job.processedEntries = processed
-            job.synchronizedCount = sync
-            job.invalidQueuedCount = invalid
-            job.failedCount = failed
-            syncJobRepository.save(job)
-        }
-        null
-    }
-
-    private fun updateJobStatus(jobId: Long, status: String, message: String?) = tx.execute {
-        syncJobRepository.findById(jobId).ifPresent { job ->
-            job.status = status
-            job.message = message
-            syncJobRepository.save(job)
-        }
-        null
-    }
-
-    private fun finishJob(jobId: Long, status: String, message: String) = tx.execute {
-        syncJobRepository.findById(jobId).ifPresent { job ->
-            job.status = status
-            job.message = message
-            job.finishedAtEpochMs = System.currentTimeMillis()
-            syncJobRepository.save(job)
-        }
-        null
-    }
-
-    private fun SyncJobEntity.toSyncJobStatus(): SyncJobStatusResponse =
-        SyncJobStatusResponse(
-            jobId = id,
-            status = status,
-            totalEntries = totalEntries,
-            processedEntries = processedEntries,
-            synchronizedCount = synchronizedCount,
-            invalidQueuedCount = invalidQueuedCount,
-            failedCount = failedCount,
-            message = message,
-            startedAtEpochMs = startedAtEpochMs,
-            finishedAtEpochMs = finishedAtEpochMs,
-            batchSize = batchSize,
-            parallelism = parallelism
-        )
 }

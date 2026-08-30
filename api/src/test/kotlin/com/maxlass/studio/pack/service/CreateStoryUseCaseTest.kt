@@ -45,10 +45,12 @@ class CreateStoryUseCaseTest : StringSpec({
         store.updateMetadata(draft.id, "Mon histoire", "Une histoire")
         store.setThumbnail(draft.id, tinyPng(), "image/png")
         store.setCover(draft.id, tinyPng(), "image/png")
-        store.setTitleText(draft.id, "Mon histoire")
+        // Title audios are stored as files (TTS is synthesized at step-save time, not here).
+        store.setTitleAudio(draft.id, tinyMp3(), "audio/mpeg")
+        store.setMenuAudio(draft.id, tinyMp3(), "audio/mpeg")
         store.addChapter(draft.id, "Chapitre un")
         val chapter = store.get(draft.id)!!.chapters[0]
-        store.setTitleText(draft.id, chapter.id, "Chapitre un")
+        store.setTitleAudio(draft.id, chapter.id, tinyMp3(), "audio/mpeg")
         store.setNarrationAudio(draft.id, chapter.id, tinyMp3(), "audio/mpeg")
         store.setChapterIcon(draft.id, chapter.id, "star")
         return store.get(draft.id)!!
@@ -57,11 +59,8 @@ class CreateStoryUseCaseTest : StringSpec({
     "finalize writes an archive pack, registers it and purges the draft" {
         val root = Files.createTempDirectory("finalize-test")
         try {
-            val store = StoryDraftStore(StudioProperties(storageDir = root))
+            val store = StoryDraftStore(StudioProperties(storageDir = root), mockk(relaxed = true))
             val library = Files.createTempDirectory("library-test").also { Files.createDirectories(it) }
-
-            val tts = mockk<TtsEngine>()
-            coEvery { tts.synthesize(any(), any(), any()) } returns tinyMp3()
 
             val catalog = mockk<ChapterIconCatalogService>()
             coEvery { catalog.loadIcon("star") } returns """<svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>"""
@@ -73,7 +72,6 @@ class CreateStoryUseCaseTest : StringSpec({
 
             val useCase = CreateStoryUseCase(
                 draftStore = store,
-                ttsEngine = tts,
                 iconCatalog = catalog,
                 updatePackMetadata = mockk<UpdatePackFileMetadataPort>(relaxed = true),
                 settingsService = settings,
@@ -125,7 +123,7 @@ class CreateStoryUseCaseTest : StringSpec({
     "finalize throws DraftIncompleteException for a missing narration" {
         val root = Files.createTempDirectory("finalize-test-2")
         try {
-            val store = StoryDraftStore(StudioProperties(storageDir = root))
+            val store = StoryDraftStore(StudioProperties(storageDir = root), mockk(relaxed = true))
             val draft = store.create()
             store.updateMetadata(draft.id, "T", "D")
             store.setThumbnail(draft.id, tinyPng(), "image/png")
@@ -134,7 +132,6 @@ class CreateStoryUseCaseTest : StringSpec({
 
             val useCase = CreateStoryUseCase(
                 draftStore = store,
-                ttsEngine = mockk(relaxed = true),
                 iconCatalog = mockk(relaxed = true),
                 updatePackMetadata = mockk(relaxed = true),
                 settingsService = mockk(relaxed = true),
@@ -150,10 +147,9 @@ class CreateStoryUseCaseTest : StringSpec({
     "finalize throws NoSuchElementException for an unknown draft" {
         val root = Files.createTempDirectory("finalize-test-3")
         try {
-            val store = StoryDraftStore(StudioProperties(storageDir = root))
+            val store = StoryDraftStore(StudioProperties(storageDir = root), mockk(relaxed = true))
             val useCase = CreateStoryUseCase(
                 draftStore = store,
-                ttsEngine = mockk(relaxed = true),
                 iconCatalog = mockk(relaxed = true),
                 updatePackMetadata = mockk(relaxed = true),
                 settingsService = mockk(relaxed = true),
@@ -168,15 +164,12 @@ class CreateStoryUseCaseTest : StringSpec({
     "stories chain forward: chapter 1 auto/OK advances to chapter 2, last returns to the menu" {
         val root = Files.createTempDirectory("finalize-test-4")
         try {
-            val store = StoryDraftStore(StudioProperties(storageDir = root))
+            val store = StoryDraftStore(StudioProperties(storageDir = root), mockk(relaxed = true))
             val library = Files.createTempDirectory("library-test-4").also { Files.createDirectories(it) }
             val settings = mockk<com.maxlass.studio.settings.service.SettingsService>(relaxed = true)
             coEvery { settings.getLibraryPath() } returns library.toString()
-            val tts = mockk<TtsEngine>(relaxed = true)
-            coEvery { tts.synthesize(any(), any(), any()) } returns tinyMp3()
             val useCase = CreateStoryUseCase(
                 draftStore = store,
-                ttsEngine = tts,
                 iconCatalog = mockk(relaxed = true),
                 updatePackMetadata = mockk(relaxed = true),
                 settingsService = settings,
@@ -187,10 +180,14 @@ class CreateStoryUseCaseTest : StringSpec({
             store.updateMetadata(draft.id, "Titre", "Desc")
             store.setThumbnail(draft.id, tinyPng(), "image/png")
             store.setCover(draft.id, tinyPng(), "image/png")
+            store.setTitleAudio(draft.id, tinyMp3(), "audio/mpeg")
+            store.setMenuAudio(draft.id, tinyMp3(), "audio/mpeg")
             store.addChapter(draft.id, "Premier")
             store.addChapter(draft.id, "Second")
             val chapters = store.get(draft.id)!!.chapters
+            store.setTitleAudio(draft.id, chapters[0].id, tinyMp3(), "audio/mpeg")
             store.setNarrationAudio(draft.id, chapters[0].id, tinyMp3(), "audio/mpeg")
+            store.setTitleAudio(draft.id, chapters[1].id, tinyMp3(), "audio/mpeg")
             store.setNarrationAudio(draft.id, chapters[1].id, tinyMp3(), "audio/mpeg")
 
             val packId = useCase.finalize(draft.id)

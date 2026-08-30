@@ -1,5 +1,6 @@
 package com.maxlass.studio.pack.util
 
+import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
@@ -21,3 +22,16 @@ internal fun findThumbnailEntry(zipFile: ZipFile): ZipEntry? {
     return entries.firstOrNull { findThumbnailInZip(it.name) == "meta/thumbnail.png" }
         ?: entries.firstOrNull { findThumbnailInZip(it.name) != null }
 }
+
+/**
+ * Reads the pack cover bytes from a zip (preferring `meta/thumbnail.png`, then a legacy root
+ * `thumbnail.png`). Returns `null` when the entry is absent or empty, or the zip cannot be read.
+ */
+internal fun readThumbnailBytes(zipPath: Path): ByteArray? =
+    runCatching {
+        ZipFile(zipPath.toFile()).use { zf ->
+            val entry = findThumbnailEntry(zf) ?: return@use null
+            val bytes = zf.getInputStream(entry).use { it.readBytes() }
+            if (bytes.isEmpty()) null else bytes
+        }
+    }.getOrNull()

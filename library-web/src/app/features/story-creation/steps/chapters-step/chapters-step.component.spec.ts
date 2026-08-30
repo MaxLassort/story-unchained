@@ -11,11 +11,8 @@ describe('ChaptersStepComponent', () => {
     addDraftChapter: ReturnType<typeof vi.fn>;
     deleteDraftChapter: ReturnType<typeof vi.fn>;
     getCurrentDraft: ReturnType<typeof vi.fn>;
-    setDraftChapterTitleText: ReturnType<typeof vi.fn>;
-    uploadDraftChapterTitleAudio: ReturnType<typeof vi.fn>;
-    uploadDraftChapterNarration: ReturnType<typeof vi.fn>;
-    setDraftChapterIcon: ReturnType<typeof vi.fn>;
-    uploadDraftChapterImage: ReturnType<typeof vi.fn>;
+    uploadDraftFile: ReturnType<typeof vi.fn>;
+    patchDraftNode: ReturnType<typeof vi.fn>;
     downloadDraftChapterTitleAudio: ReturnType<typeof vi.fn>;
     downloadDraftChapterNarration: ReturnType<typeof vi.fn>;
     downloadDraftChapterImage: ReturnType<typeof vi.fn>;
@@ -28,11 +25,8 @@ describe('ChaptersStepComponent', () => {
       addDraftChapter: vi.fn().mockResolvedValue('chapter-uuid'),
       deleteDraftChapter: vi.fn().mockResolvedValue(undefined),
       getCurrentDraft: vi.fn().mockResolvedValue(null),
-      setDraftChapterTitleText: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      uploadDraftChapterTitleAudio: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      uploadDraftChapterNarration: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      setDraftChapterIcon: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-      uploadDraftChapterImage: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      uploadDraftFile: vi.fn().mockResolvedValue({ id: 'draft-1' }),
+      patchDraftNode: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       downloadDraftChapterTitleAudio: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
       downloadDraftChapterNarration: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
       downloadDraftChapterImage: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
@@ -156,9 +150,13 @@ describe('ChaptersStepComponent', () => {
     const ok = await component.save();
     expect(ok).toBe(true);
     expect(draftsMock.addDraftChapter).toHaveBeenCalledWith('draft-1', 'The Awakening');
-    expect(draftsMock.setDraftChapterTitleText).toHaveBeenCalledWith('draft-1', 'chapter-uuid', 'The Awakening');
-    expect(draftsMock.uploadDraftChapterNarration).toHaveBeenCalledWith('draft-1', 'chapter-uuid', narration);
-    expect(draftsMock.setDraftChapterIcon).toHaveBeenCalledWith('draft-1', 'chapter-uuid', 'star');
+    expect(draftsMock.patchDraftNode).toHaveBeenCalledWith('draft-1', 'chapter-uuid', { titleText: 'The Awakening' });
+    expect(draftsMock.uploadDraftFile).toHaveBeenCalledWith(
+      'draft-1',
+      { scope: 'chapter', chapterId: 'chapter-uuid', field: 'narration' },
+      narration,
+    );
+    expect(draftsMock.patchDraftNode).toHaveBeenCalledWith('draft-1', 'chapter-uuid', { iconId: 'star' });
     expect(component.model().chapters[0].id).toBe('chapter-uuid');
   });
 
@@ -182,8 +180,16 @@ describe('ChaptersStepComponent', () => {
     const ok = await component.save();
     expect(ok).toBe(true);
     expect(draftsMock.addDraftChapter).not.toHaveBeenCalled();
-    expect(draftsMock.uploadDraftChapterNarration).toHaveBeenCalledWith('draft-1', 'existing-id', expect.any(File));
-    expect(draftsMock.uploadDraftChapterImage).toHaveBeenCalledWith('draft-1', 'existing-id', expect.any(File));
+    expect(draftsMock.uploadDraftFile).toHaveBeenCalledWith(
+      'draft-1',
+      { scope: 'chapter', chapterId: 'existing-id', field: 'narration' },
+      expect.any(File),
+    );
+    expect(draftsMock.uploadDraftFile).toHaveBeenCalledWith(
+      'draft-1',
+      { scope: 'chapter', chapterId: 'existing-id', field: 'image' },
+      expect.any(File),
+    );
   });
 
   it('returns false and sets error when save fails', async () => {

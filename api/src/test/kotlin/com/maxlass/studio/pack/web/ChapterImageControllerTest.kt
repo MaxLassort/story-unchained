@@ -6,7 +6,6 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.springframework.mock.web.MockMultipartFile
@@ -17,9 +16,9 @@ class ChapterImageControllerTest : StringSpec({
     val iconCatalog = mockk<ChapterIconCatalogService>()
     val controller = ChapterImageController(iconCatalog)
 
-    "lists bundled icons" {
-        every { iconCatalog.listIcons() } returns listOf(ChapterIconDto("star", "Star"))
-        val response = controller.icons()
+    "lists the default icon set" {
+        coEvery { iconCatalog.defaultIcons() } returns listOf(ChapterIconDto("star", "Star"))
+        val response = runBlocking { controller.icons() }
         response.icons.map { it.id } shouldBe listOf("star")
     }
 

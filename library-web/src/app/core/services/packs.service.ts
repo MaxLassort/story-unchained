@@ -4,8 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   Pack,
   PagedPacksResponse,
-  SyncJobStartResponse,
-  SyncJobStatusResponse,
+  SyncStatusEvent,
   UpdatePackMetadataRequest,
   PackConversionRequest,
   PackConversionResponse,
@@ -53,12 +52,8 @@ export class PacksService {
     return firstValueFrom(this.http.get<Pack[]>(`${this.baseUrl}/all`));
   }
 
-  async sync(): Promise<SyncJobStartResponse> {
-    return firstValueFrom(this.http.post<SyncJobStartResponse>(`${this.baseUrl}/sync`, {}));
-  }
-
-  async getSyncStatus(jobId: number): Promise<SyncJobStatusResponse> {
-    return firstValueFrom(this.http.get<SyncJobStatusResponse>(`${this.baseUrl}/sync/${jobId}`));
+  async sync(): Promise<void> {
+    await firstValueFrom(this.http.post<void>(`${this.baseUrl}/sync`, {}));
   }
 
   async deletePack(id: string): Promise<ApiStatusResponse> {

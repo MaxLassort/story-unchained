@@ -10,6 +10,9 @@
   @if (typeError(); as error) {
     <div class="bulk-audio__error">{{ error }}</div>
   }
+  @if (saveError(); as error) {
+    <div class="bulk-audio__error">{{ error }}</div>
+  }
 
   <!-- Drop zone -->
   <div
@@ -48,12 +51,10 @@
         </div>
 
         <div class="bulk-audio__list">
-          @for (chapter of chapters(); track chapter.narrationFile; let i = $index) {
+          @for (chapter of chapters(); track chapter.id || i; let i = $index) {
             <mat-card class="bulk-card" appearance="outlined">
               <mat-card-content class="bulk-card__content">
-                <div class="bulk-card__status" aria-hidden="true">
-                  <mat-icon class="bulk-card__status-icon">check_circle</mat-icon>
-                </div>
+                <mat-icon class="bulk-card__check-icon">check_circle</mat-icon>
 
                 <div class="bulk-card__main">
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bulk-card__name">
@@ -65,11 +66,13 @@
                       autocomplete="off"
                     />
                   </mat-form-field>
-                  <span class="bulk-card__file">
-                    <mat-icon class="bulk-card__file-icon" aria-hidden="true">audio_file</mat-icon>
-                    {{ chapter.narrationFile?.name }}
-                    <span class="bulk-card__file-size">{{ fileSizeLabel(chapter.narrationFile!) }}</span>
-                  </span>
+                  @if (chapter.narrationFile; as file) {
+                    <span class="bulk-card__file">
+                      <mat-icon class="bulk-card__file-icon" aria-hidden="true">audio_file</mat-icon>
+                      {{ file.name }}
+                      <span class="bulk-card__file-size">{{ fileSizeLabel(file) }}</span>
+                    </span>
+                  }
                 </div>
 
                 <div class="bulk-card__actions">

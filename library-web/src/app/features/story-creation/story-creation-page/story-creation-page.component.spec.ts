@@ -37,8 +37,8 @@ describe('StoryCreationPageComponent', () => {
     page.detailsStep()?.model.set({
       title: 'Mon histoire',
       description: '',
-      titleAudio: null,
-      menuAudio: null,
+      titleAudio: { mode: 'text', text: 'Mon titre', file: null },
+      menuAudio: { mode: 'text', text: 'Menu', file: null },
       thumbnail: new File(['x'], 'thumb.png', { type: 'image/png' }),
       cover: { mode: 'icon', iconId: 'star', file: null },
     });

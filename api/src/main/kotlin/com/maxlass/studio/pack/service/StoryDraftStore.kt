@@ -24,10 +24,13 @@ import java.util.UUID
 @Service
 class StoryDraftStore(
     private val studioProperties: StudioProperties,
+    private val ttsEngine: TtsEngine,
 ) {
 
     companion object {
         private val logger = LoggerFactory.getLogger(StoryDraftStore::class.java)
+        /** Content type of TTS-generated audio (already normalized MP3 by the engine). */
+        private const val TTS_AUDIO_TYPE = "audio/mpeg"
     }
 
     private val lock = Any()
@@ -142,14 +145,24 @@ class StoryDraftStore(
             }
         }
 
-    /** Pack title TTS text (cover audio at finalization). Replaces any uploaded audio. */
-    fun setTitleText(id: String, text: String): StoryDraftState? =
-        synchronized(lock) {
+    /**
+     * Pack title TTS text. The audio is synthesized **immediately** and stored as a draft
+     * file (the finalization never calls TTS). Replaces any uploaded audio.
+     * Throws [TtsApiKeyMissingException] when the configured provider has no API key.
+     */
+    suspend fun setTitleText(id: String, text: String): StoryDraftState? {
+        // Synthesize outside the lock (suspension not allowed inside synchronized).
+        val audio = ttsEngine.synthesize(text)
+        return synchronized(lock) {
             mutateDraft(id) { draft ->
                 deleteBinary(id, draft.titleAudioFile)
-                draft.copy(titleText = text, titleAudioFile = null)
+                draft.copy(
+                    titleText = text,
+                    titleAudioFile = writeDraftBinary(id, "title-audio-tts", audio, TTS_AUDIO_TYPE),
+                )
             }
         }
+    }
 
     /** Uploaded chapter-selection menu audio. Replaces any TTS menu text. */
     fun setMenuAudio(id: String, bytes: ByteArray, contentType: String): StoryDraftState? =
@@ -162,14 +175,24 @@ class StoryDraftStore(
             }
         }
 
-    /** Menu prompt TTS text (chapter-selection node audio at finalization). Replaces any uploaded audio. */
-    fun setMenuText(id: String, text: String): StoryDraftState? =
-        synchronized(lock) {
+    /**
+     * Menu prompt TTS text. The audio is synthesized **immediately** and stored as a draft
+     * file (the finalization never calls TTS). Replaces any uploaded audio.
+     * Throws [TtsApiKeyMissingException] when the configured provider has no API key.
+     */
+    suspend fun setMenuText(id: String, text: String): StoryDraftState? {
+        // Synthesize outside the lock (suspension not allowed inside synchronized).
+        val audio = ttsEngine.synthesize(text)
+        return synchronized(lock) {
             mutateDraft(id) { draft ->
                 deleteBinary(id, draft.menuAudioFile)
-                draft.copy(menuText = text, menuAudioFile = null)
+                draft.copy(
+                    menuText = text,
+                    menuAudioFile = writeDraftBinary(id, "menu-tts", audio, TTS_AUDIO_TYPE),
+                )
             }
         }
+    }
 
     /** Uploaded title audio replaces any TTS text for the chapter title. */
     fun setTitleAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraftState? =
@@ -182,14 +205,24 @@ class StoryDraftStore(
             }
         }
 
-    /** TTS text replaces any uploaded title audio for the chapter (old file removed). */
-    fun setTitleText(id: String, chapterId: String, text: String): StoryDraftState? =
-        synchronized(lock) {
+    /**
+     * Chapter title TTS text. The audio is synthesized **immediately** and stored as a draft
+     * file (the finalization never calls TTS). Replaces any uploaded title audio.
+     * Throws [TtsApiKeyMissingException] when the configured provider has no API key.
+     */
+    suspend fun setTitleText(id: String, chapterId: String, text: String): StoryDraftState? {
+        // Synthesize outside the lock (suspension not allowed inside synchronized).
+        val audio = ttsEngine.synthesize(text)
+        return synchronized(lock) {
             mutateChapter(id, chapterId) { chapter ->
                 deleteBinary(id, chapter.titleAudioFile)
-                chapter.copy(titleText = text, titleAudioFile = null)
+                chapter.copy(
+                    titleText = text,
+                    titleAudioFile = writeChapterBinary(id, chapterId, "title-audio-tts", audio, TTS_AUDIO_TYPE),
+                )
             }
         }
+    }
 
     /** Uploaded chapter narration audio (the story itself, up to hours long). */
     fun setNarrationAudio(id: String, chapterId: String, bytes: ByteArray, contentType: String): StoryDraftState? =
@@ -215,6 +248,103 @@ class StoryDraftStore(
     fun setChapterIcon(id: String, chapterId: String, iconId: String): StoryDraftState? =
         synchronized(lock) {
             mutateChapter(id, chapterId) { it.copy(iconId = iconId) }
+        }
+
+    /** Valid binary fields for [setDraftFile], with their expected content-type family. */
+    val binaryFields: Map<String, String> = mapOf(
+        "titleAudio" to "audio",
+        "menuAudio" to "audio",
+        "narration" to "audio",
+        "thumbnail" to "image",
+        "cover" to "image",
+        "image" to "image",
+    )
+
+    /**
+     * Consolidated binary upload: writes [bytes] to the draft file addressed by
+     * [field] on [scope] (`pack` root or a specific chapter). Returns the updated
+     * draft or null if the draft/chapter/field is unknown.
+     */
+    fun setDraftFile(
+        id: String,
+        scope: String,
+        chapterId: String?,
+        field: String,
+        bytes: ByteArray,
+        contentType: String,
+    ): StoryDraftState? = synchronized(lock) {
+        when (scope.lowercase()) {
+            "pack" -> if (chapterId != null) null else when (field) {
+                "thumbnail" -> setThumbnail(id, bytes, contentType)
+                "cover" -> setCover(id, bytes, contentType)
+                "titleAudio" -> setTitleAudio(id, bytes, contentType)
+                "menuAudio" -> setMenuAudio(id, bytes, contentType)
+                else -> null // image/narration are chapter-only fields
+            }
+            "chapter" -> {
+                if (chapterId == null) return@synchronized null
+                when (field) {
+                    "titleAudio" -> setTitleAudio(id, chapterId, bytes, contentType)
+                    "narration" -> setNarrationAudio(id, chapterId, bytes, contentType)
+                    "image" -> setChapterImage(id, chapterId, bytes, contentType)
+                    else -> null // thumbnail/cover/menuAudio/titleAudio(pack) are pack-only
+                }
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * Consolidated node patch: applies only the provided fields to the pack root
+     * (`nodeId == draftId` or `scope=pack`) or a chapter. Text fields synthesize TTS
+     * immediately. Returns the updated draft or null if the node is unknown.
+     */
+    suspend fun patchNode(
+        id: String,
+        nodeId: String,
+        name: String? = null,
+        titleText: String? = null,
+        menuText: String? = null,
+        iconId: String? = null,
+    ): StoryDraftState? {
+        val draft = get(id) ?: return null
+        return when {
+            // Pack root: match by draft id (nodeId == id) — name maps to pack title.
+            nodeId == id -> {
+                var updated = draft
+                if (!name.isNullOrBlank()) {
+                    updated = updateMetadata(id, name.trim(), updated.description) ?: return null
+                }
+                if (!titleText.isNullOrBlank()) {
+                    updated = setTitleText(id, titleText.trim()) ?: return null
+                }
+                if (!menuText.isNullOrBlank()) {
+                    updated = setMenuText(id, menuText.trim()) ?: return null
+                }
+                updated
+            }
+            // Chapter: match by chapter id — name maps to chapter name.
+            draft.chapters.any { it.id == nodeId } -> {
+                var updated = draft
+                if (!name.isNullOrBlank()) {
+                    updated = renameChapter(id, nodeId, name.trim()) ?: return null
+                }
+                if (!titleText.isNullOrBlank()) {
+                    updated = setTitleText(id, nodeId, titleText.trim()) ?: return null
+                }
+                if (!iconId.isNullOrBlank()) {
+                    updated = setChapterIcon(id, nodeId, iconId.trim()) ?: return null
+                }
+                updated
+            }
+            else -> null
+        }
+    }
+
+    /** Renames a chapter in the draft. */
+    fun renameChapter(id: String, chapterId: String, name: String): StoryDraftState? =
+        synchronized(lock) {
+            mutateChapter(id, chapterId) { it.copy(name = name) }
         }
 
     /** Root folder of the draft (state JSON + binaries). */

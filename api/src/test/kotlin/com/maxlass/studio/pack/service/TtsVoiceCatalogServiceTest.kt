@@ -77,7 +77,7 @@ class TtsVoiceCatalogServiceTest : StringSpec({
             response.provider shouldBe "ELEVENLABS"
             response.fallback shouldBe true
             response.voices shouldContain TtsVoiceDto(id = "21m00Tcm4TlvDq8ikWAM", name = "Rachel")
-            response.voices.size shouldBe 18
+            response.voices.size shouldBe 21
         } finally {
             unmockkStatic(ElevenLabsVoicesApi::class)
         }

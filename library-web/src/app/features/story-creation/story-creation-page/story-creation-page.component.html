@@ -37,7 +37,7 @@
       </div>
     </mat-step>
 
-    <mat-step label="Bulk Upload" [completed]="detailsStep()?.complete() && bulkStep()?.complete() ?? false">
+    <mat-step label="Audio Upload" [completed]="(detailsStep()?.complete() && bulkStep()?.complete()) ?? false">
       <mat-card class="step-card">
         <mat-card-content>
           <app-bulk-audio-step />
@@ -50,16 +50,20 @@
           mat-flat-button
           type="button"
           color="primary"
-          [disabled]="!bulkStep()?.complete()"
+          [disabled]="!bulkStep()?.complete() || (bulkStep()?.saving() ?? false)"
           (click)="confirmBulkAndNext()"
         >
-          Confirm &amp; Add to Story
-          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          @if (bulkStep()?.saving()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            Confirm &amp; Add to Story
+            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+          }
         </button>
       </div>
     </mat-step>
 
-    <mat-step label="Chapters" [completed]="chaptersStep()?.complete() ?? false">
+    <mat-step label="Chapter Details" [completed]="chaptersStep()?.complete() ?? false">
       <mat-card class="step-card">
         <mat-card-content>
           <app-chapters-step />

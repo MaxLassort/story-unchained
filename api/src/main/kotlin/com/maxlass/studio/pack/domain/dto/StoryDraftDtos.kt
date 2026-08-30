@@ -58,14 +58,22 @@ data class CreateChapterRequest(
     val name: String,
 )
 
+/** Scope of a draft node targeted by consolidated endpoints: the pack root or a chapter. */
 @Serializable
-data class SetTitleTextRequest(
-    @field:NotBlank(message = "Title text must not be blank")
-    val text: String,
+data class DraftNodeTarget(
+    /** `pack` targets the pack root; `chapter` targets a chapter (requires [chapterId]). */
+    val scope: String,
+    val chapterId: String? = null,
 )
 
+/** Common patch model for editing any draft node (pack root or chapter). Only provided fields are applied. */
 @Serializable
-data class SetChapterIconRequest(
-    @field:NotBlank(message = "Icon id must not be blank")
-    val iconId: String,
+data class PatchNodeRequest(
+    val name: String? = null,
+    /** Pack root only: title text → TTS synthesized immediately into the draft. */
+    val titleText: String? = null,
+    /** Pack root only: menu prompt text → TTS synthesized immediately into the draft. */
+    val menuText: String? = null,
+    /** Chapter only: Lucide icon slug. */
+    val iconId: String? = null,
 )
