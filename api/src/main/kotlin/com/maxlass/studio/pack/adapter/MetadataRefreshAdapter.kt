@@ -45,6 +45,9 @@ class MetadataRefreshAdapter(
         )
         .build()
 
+    @Volatile
+    private var officialMetadataCache: Pair<Long, Map<String, OfficialMetadataDto>>? = null
+
     override fun refreshOfficialMetadata() {
         val token = fetchGuestToken()
             ?: throw IllegalStateException("Failed to get guest token")
@@ -58,10 +61,14 @@ class MetadataRefreshAdapter(
     }
 
     override fun getOfficialMetadataMap(): Map<String, OfficialMetadataDto> {
+        val file = File(getOfficialDatabasePath())
+        if (!file.exists() || !file.isFile) return emptyMap()
+        officialMetadataCache?.takeIf { it.first == file.lastModified() }?.let { return it.second }
+
         val root = readOfficialDatabase() ?: return emptyMap()
         // Same as MetadataStore: API / legacy files may wrap packs under "response".
         val packsRoot = root["response"]?.jsonObject ?: root
-        return packsRoot.entries.mapNotNull { (_, value) ->
+        val map = packsRoot.entries.mapNotNull { (_, value) ->
             val pack = value as? JsonObject ?: return@mapNotNull null
             val uuid = pack["uuid"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val localizedInfos = pack["localized_infos"]?.jsonObject ?: return@mapNotNull null
@@ -83,6 +90,8 @@ class MetadataRefreshAdapter(
                 storyCount = pack["story_count"]?.jsonPrimitive?.content?.toIntOrNull(),
             )
         }.toMap()
+        officialMetadataCache = file.lastModified() to map
+        return map
     }
 
     private fun fetchGuestToken(): String? {

@@ -2,13 +2,35 @@
   <mat-chip-option [selected]="showOfficial()" (selectionChange)="showOfficial.set($event.selected)">
     Official
   </mat-chip-option>
-  <mat-chip-option [selected]="showUnavailable()" (selectionChange)="showUnavailable.set($event.selected)">
-    Show unavailable
-  </mat-chip-option>
   <mat-chip-option [selected]="showFrFr()" (selectionChange)="showFrFr.set($event.selected)" class="filters__chip--lang">
     French only
   </mat-chip-option>
 </mat-chip-listbox>
+
+<div class="filters__age" role="group" aria-label="Age range filter">
+  <div class="filters__age-slider">
+    <span class="filters__age-label">Min {{ ageMin() ?? '–' }}</span>
+    <mat-slider class="filters__slider" [min]="AGE_MIN" [max]="AGE_MAX" step="1" discrete>
+      <input matSliderThumb [value]="ageMin() ?? AGE_MIN" (valueChange)="setAgeMin($event)" aria-label="Minimum age" />
+    </mat-slider>
+  </div>
+  <div class="filters__age-slider">
+    <span class="filters__age-label">Max {{ ageMax() ?? '–' }}</span>
+    <mat-slider class="filters__slider" [min]="AGE_MIN" [max]="AGE_MAX" step="1" discrete>
+      <input matSliderThumb [value]="ageMax() ?? AGE_MAX" (valueChange)="setAgeMax($event)" aria-label="Maximum age" />
+    </mat-slider>
+  </div>
+  @if (hasAgeFilter()) {
+    <button
+      mat-icon-button
+      matTooltip="Clear age filter"
+      (click)="clearAgeFilter()"
+      aria-label="Clear age filter"
+    >
+      <mat-icon>restart_alt</mat-icon>
+    </button>
+  }
+</div>
 
 <mat-chip
   class="filters__sort"

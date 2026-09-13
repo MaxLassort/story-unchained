@@ -80,7 +80,7 @@ class PackController(
     @Operation(
         summary = "Lister les packs (paginé)",
         description = "Retourne une page de packs avec filtres optionnels (texte, officiel, " +
-            "langue, présence en bibliothèque).",
+            "langue, présence en bibliothèque, plage d'âge).",
     )
     @GetMapping
     suspend fun listPacks(
@@ -88,7 +88,7 @@ class PackController(
         @RequestParam(required = false) page: Int?,
         @Parameter(description = "Taille de page (1-200). Défaut : 50")
         @RequestParam(required = false) size: Int?,
-        @Parameter(description = "Filtre texte sur le titre")
+        @Parameter(description = "Filtre texte sur le titre (au moins un mot présent)")
         @RequestParam(required = false) search: String?,
         @Parameter(description = "Filtrer les packs officiels (true) ou non officiels (false)")
         @RequestParam(required = false) official: Boolean?,
@@ -96,6 +96,10 @@ class PackController(
         @RequestParam(required = false) locale: String?,
         @Parameter(description = "Filtrer par présence dans la bibliothèque")
         @RequestParam(required = false) inLibrary: Boolean?,
+        @Parameter(description = "Âge minimum demandé ; un pack est retenu si sa plage d'âge chevauche")
+        @RequestParam(required = false) ageMin: Int?,
+        @Parameter(description = "Âge maximum demandé ; un pack est retenu si sa plage d'âge chevauche")
+        @RequestParam(required = false) ageMax: Int?,
     ): PagedPacksResponse {
         val safePage = page ?: DEFAULT_PAGE
         val safeSize = (size ?: DEFAULT_PAGE_SIZE).coerceIn(1, MAX_PAGE_SIZE)
@@ -104,6 +108,8 @@ class PackController(
             official = official,
             locale = locale,
             inLibrary = inLibrary,
+            ageMin = ageMin,
+            ageMax = ageMax,
         )
         return getPacksPage.invoke(safePage, safeSize, filter)
     }

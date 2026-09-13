@@ -78,12 +78,17 @@ class PackRepositoryAdapter(
     override suspend fun getFilteredPacksPage(offset: Int, limit: Int, filter: PackFilter): Pair<List<Pack>, Long> {
         val safeOffset = offset.coerceAtLeast(0)
         val safeLimit = limit.coerceAtLeast(1)
-        val hasMetadataFilter = filter.official != null || !filter.search.isNullOrBlank()
+        val searchTokens = filter.searchTokens()
+        val hasMetadataFilter = filter.official != null || searchTokens != null ||
+            filter.ageMin != null || filter.ageMax != null
 
         val matchingIds = if (hasMetadataFilter) {
             metadataRepository.findAll().filter { meta ->
                 (filter.official == null || meta.official == filter.official) &&
-                    (filter.search.isNullOrBlank() || meta.title?.contains(filter.search, ignoreCase = true) == true)
+                    (searchTokens == null || searchTokens.any { token ->
+                        meta.title?.contains(token, ignoreCase = true) == true
+                    }) &&
+                    filter.matchesAge(meta.ageMin, meta.ageMax)
             }.map { it.packId }
         } else {
             packRepository.findAll().map { it.id }

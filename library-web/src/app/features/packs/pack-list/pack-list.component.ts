@@ -53,8 +53,10 @@ export class PackListComponent {
   }
 
   readonly showOfficial = this.packsService.showOfficial;
-  readonly showUnavailable = this.packsService.showUnavailable;
   readonly showFrFr = this.packsService.showFrFr;
+  readonly ageMin = this.packsService.ageMin;
+  readonly ageMax = this.packsService.ageMax;
+  readonly officialMode = this.packsService.officialMode;
   readonly sortOrder = signal<'asc' | 'desc'>('asc');
 
   readonly sortedPacks = computed(() => {
@@ -73,6 +75,11 @@ export class PackListComponent {
 
   setPage(page: number): void {
     this.page.set(page);
+  }
+
+  setOfficialMode(on: boolean): void {
+    this.officialMode.set(on);
+    this.page.set(0);
   }
 
   setPageSize(size: number): void {

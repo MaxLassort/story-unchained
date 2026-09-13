@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -43,7 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private const val DEFAULT_BATCH_SIZE = 50
 private const val DEFAULT_PARALLELISM = 6
-private const val ENTRY_TIMEOUT_MS = 3_000L
+private const val ENTRY_TIMEOUT_MS = 30_000L
 
 data class ProcessResult(
     val synchronizedCount: Int = 0,
@@ -144,7 +145,7 @@ class SyncPacksService(
         }
     }
 
-    private suspend fun doRunJob(directoryPath: String) {
+    private suspend fun doRunJob(directoryPath: String) = coroutineScope {
         val directory = File(directoryPath)
         if (!directory.exists() || !directory.isDirectory) {
             eventPublisher?.publish(
@@ -157,7 +158,7 @@ class SyncPacksService(
                     finishedAtEpochMs = System.currentTimeMillis(),
                 )
             )
-            return
+            return@coroutineScope
         }
 
         eventPublisher?.publish(
@@ -205,7 +206,9 @@ class SyncPacksService(
 
         entries.chunked(DEFAULT_BATCH_SIZE).forEach { batch ->
             val results = batch.map { file ->
-                backgroundScope.async {
+                async {
+                    // Each entry is supervised by the parent sync job so a timeout or
+                    // cancellation cannot leave the sync lock held indefinitely.
                     semaphore.withPermit {
                         withTimeout(ENTRY_TIMEOUT_MS) {
                             processEntry(file, invalidPacksDir, officialCache)

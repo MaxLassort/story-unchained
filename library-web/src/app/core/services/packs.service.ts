@@ -28,19 +28,29 @@ export class PacksService {
   readonly searchTerm = signal('');
   readonly showOfficial = signal(true);
   readonly showFrFr = signal(true);
-  readonly showUnavailable = signal(false);
+  readonly ageMin = signal<number | null>(null);
+  readonly ageMax = signal<number | null>(null);
+  readonly officialMode = signal(false);
 
   private readonly resource = httpResource<PagedPacksResponse>(() => {
+    const official = this.officialMode();
     const params: Record<string, string> = {
       page: String(this.page()),
       size: String(this.pageSize()),
     };
     const s = this.searchTerm();
     if (s) params['search'] = s;
-    if (!this.showOfficial()) params['official'] = 'false';
+    if (!official && !this.showOfficial()) params['official'] = 'false';
     if (this.showFrFr()) params['locale'] = 'fr_FR';
-    if (!this.showUnavailable()) params['inLibrary'] = 'true';
-    return { url: this.baseUrl, params };
+    if (!official) params['inLibrary'] = 'true';
+    const min = this.ageMin();
+    if (min !== null) params['ageMin'] = String(min);
+    const max = this.ageMax();
+    if (max !== null) params['ageMax'] = String(max);
+    return {
+      url: official ? `${environment.apiUrl}/metadata/official` : this.baseUrl,
+      params,
+    };
   });
 
   readonly packs = computed(() => this.resource.value()?.content ?? []);

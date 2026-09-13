@@ -38,6 +38,13 @@
   margin-top: 0.5rem;
 }
 
+.pack__official-toggle--active {
+  --mat-icon-button-container-color: var(--mat-sys-primary);
+  --mat-icon-button-icon-color: var(--mat-sys-on-primary);
+  --mat-icon-button-hover-state-layer-color: var(--mat-sys-on-primary);
+  --mat-icon-button-focus-state-layer-color: var(--mat-sys-on-primary);
+}
+
 .pack__device-toggle {
   position: relative;
   flex-shrink: 0;

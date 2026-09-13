@@ -150,14 +150,32 @@ class DriverDeviceConnector(
     override suspend fun getDeviceInfos(): DeviceInfos = _deviceState.value
 
     override suspend fun copyPackToDevice(pack: Pack): CopyPackToDeviceResult = withContext(ioDispatcher) {
+        logger.info("[Transfert device] copyPackToDevice(packId={}, title={}) demandé", pack.id, pack.metadata.title)
+        val start = System.currentTimeMillis()
         val state = _deviceState.value
-        if (!state.plugged) return@withContext CopyPackToDeviceResult.DeviceNotPlugged
+        if (!state.plugged) {
+            logger.warn("[Transfert device] copyPackToDevice: aucun appareil branché, abandon")
+            return@withContext CopyPackToDeviceResult.DeviceNotPlugged
+        }
         val existingPacks = getDevicePacksFromDriver()
-        if (existingPacks.any { it.uuid == pack.id }) return@withContext CopyPackToDeviceResult.PackAlreadyOnDevice
+        if (existingPacks.any { it.uuid == pack.id }) {
+            logger.info("[Transfert device] copyPackToDevice: pack {} déjà présent sur l'appareil", pack.id)
+            return@withContext CopyPackToDeviceResult.PackAlreadyOnDevice
+        }
         val result = when (state.driver) {
             DRIVER_LABEL_RAW -> copyPackRaw(pack)
             DRIVER_LABEL_FS -> copyPackFs(pack)
-            else -> CopyPackToDeviceResult.Error("Type de device inconnu: ${state.driver}")
+            else -> {
+                logger.warn("[Transfert device] copyPackToDevice: type de device inconnu '{}'", state.driver)
+                CopyPackToDeviceResult.Error("Type de device inconnu: ${state.driver}")
+            }
+        }
+        val durationMs = System.currentTimeMillis() - start
+        when (result) {
+            is CopyPackToDeviceResult.Success -> logger.info("[Transfert device] copyPackToDevice(packId={}, driver={}) terminé en {} ms", pack.id, state.driver, durationMs)
+            is CopyPackToDeviceResult.FormatIncompatible -> logger.warn("[Transfert device] copyPackToDevice(packId={}) incompatible: {}", pack.id, result.message)
+            is CopyPackToDeviceResult.Error -> logger.warn("[Transfert device] copyPackToDevice(packId={}) échec: {}", pack.id, result.message)
+            else -> {}
         }
         if (result is CopyPackToDeviceResult.Success) {
             state.uuid?.let { scanAndUpsertDevicePacks(it) }
@@ -174,6 +192,7 @@ class DriverDeviceConnector(
         if (!file.isFile) return CopyPackToDeviceResult.Error("Fichier pack introuvable: ${variant.storagePath}")
         val sizeBytes = file.length()
         val sectors = ((sizeBytes + UsbMassStorage.SECTOR_SIZE - 1) / UsbMassStorage.SECTOR_SIZE).toInt()
+        logger.info("[Transfert device] copyPackRaw(packId={}): {} ({} octets, {} secteurs)", pack.id, file.absolutePath, sizeBytes, sectors)
         return runCatching {
             FileInputStream(file).use { input -> rawDriver.uploadPack(input, sectors) }
             CopyPackToDeviceResult.Success
@@ -187,6 +206,7 @@ class DriverDeviceConnector(
             )
         val dir = File(variant.storagePath)
         if (!dir.isDirectory) return CopyPackToDeviceResult.Error("Dossier pack introuvable: ${variant.storagePath}")
+        logger.info("[Transfert device] copyPackFs(packId={}): copie du dossier {} vers l'appareil", pack.id, variant.storagePath)
         return runCatching {
             fsDriver.uploadPack(pack.id, variant.storagePath)
             CopyPackToDeviceResult.Success
@@ -200,14 +220,31 @@ class DriverDeviceConnector(
         pack.variants.map { it.format.name }.distinct().ifEmpty { listOf(PackFormat.UNKNOWN.name) }.joinToString(", ")
 
     override suspend fun deletePackFromDevice(packId: String): DeletePackFromDeviceResult = withContext(ioDispatcher) {
+        logger.info("[Transfert device] deletePackFromDevice(packId={}) demandé", packId)
+        val start = System.currentTimeMillis()
         val state = _deviceState.value
-        if (!state.plugged) return@withContext DeletePackFromDeviceResult.DeviceNotPlugged
+        if (!state.plugged) {
+            logger.warn("[Transfert device] deletePackFromDevice: aucun appareil branché, abandon")
+            return@withContext DeletePackFromDeviceResult.DeviceNotPlugged
+        }
         val existingPacks = getDevicePacksFromDriver()
-        if (existingPacks.none { it.uuid == packId }) return@withContext DeletePackFromDeviceResult.PackNotFoundOnDevice
+        if (existingPacks.none { it.uuid == packId }) {
+            logger.warn("[Transfert device] deletePackFromDevice: pack {} introuvable sur l'appareil", packId)
+            return@withContext DeletePackFromDeviceResult.PackNotFoundOnDevice
+        }
         val result = when (state.driver) {
             DRIVER_LABEL_RAW -> deletePackRaw(packId)
             DRIVER_LABEL_FS -> deletePackFs(packId)
-            else -> DeletePackFromDeviceResult.Error("Type de device inconnu: ${state.driver}")
+            else -> {
+                logger.warn("[Transfert device] deletePackFromDevice: type de device inconnu '{}'", state.driver)
+                DeletePackFromDeviceResult.Error("Type de device inconnu: ${state.driver}")
+            }
+        }
+        val durationMs = System.currentTimeMillis() - start
+        when (result) {
+            is DeletePackFromDeviceResult.Success -> logger.info("[Transfert device] deletePackFromDevice(packId={}, driver={}) terminé en {} ms", packId, state.driver, durationMs)
+            is DeletePackFromDeviceResult.Error -> logger.warn("[Transfert device] deletePackFromDevice(packId={}) échec: {}", packId, result.message)
+            else -> {}
         }
         if (result is DeletePackFromDeviceResult.Success) {
             state.uuid?.let { scanAndUpsertDevicePacks(it) }
@@ -293,15 +330,33 @@ class DriverDeviceConnector(
     }
 
     override suspend fun copyFromDeviceToLibrary(packId: String, libraryPath: String): CopyPackFromDeviceToLibraryResult = withContext(ioDispatcher) {
+        logger.info("[Transfert device] copyFromDeviceToLibrary(packId={}) demandé (librairie={})", packId, libraryPath)
+        val start = System.currentTimeMillis()
         val state = _deviceState.value
-        if (!state.plugged) return@withContext CopyPackFromDeviceToLibraryResult.DeviceNotPlugged
+        if (!state.plugged) {
+            logger.warn("[Transfert device] copyFromDeviceToLibrary: aucun appareil branché, abandon")
+            return@withContext CopyPackFromDeviceToLibraryResult.DeviceNotPlugged
+        }
         val existingPacks = getDevicePacksFromDriver()
-        if (existingPacks.none { it.uuid == packId }) return@withContext CopyPackFromDeviceToLibraryResult.PackNotFoundOnDevice
-        when (state.driver) {
+        if (existingPacks.none { it.uuid == packId }) {
+            logger.warn("[Transfert device] copyFromDeviceToLibrary: pack {} introuvable sur l'appareil", packId)
+            return@withContext CopyPackFromDeviceToLibraryResult.PackNotFoundOnDevice
+        }
+        val result = when (state.driver) {
             DRIVER_LABEL_RAW -> downloadPackRawToLibrary(packId, libraryPath)
             DRIVER_LABEL_FS -> downloadPackFsToLibrary(packId, libraryPath)
-            else -> CopyPackFromDeviceToLibraryResult.Error("Type de device inconnu: ${state.driver}")
+            else -> {
+                logger.warn("[Transfert device] copyFromDeviceToLibrary: type de device inconnu '{}'", state.driver)
+                CopyPackFromDeviceToLibraryResult.Error("Type de device inconnu: ${state.driver}")
+            }
         }
+        val durationMs = System.currentTimeMillis() - start
+        when (result) {
+            is CopyPackFromDeviceToLibraryResult.Success -> logger.info("[Transfert device] copyFromDeviceToLibrary(packId={}, driver={}) terminé en {} ms", packId, state.driver, durationMs)
+            is CopyPackFromDeviceToLibraryResult.Error -> logger.warn("[Transfert device] copyFromDeviceToLibrary(packId={}) échec: {}", packId, result.message)
+            else -> {}
+        }
+        result
     }
 
     private suspend fun downloadPackRawToLibrary(packId: String, libraryPath: String): CopyPackFromDeviceToLibraryResult {

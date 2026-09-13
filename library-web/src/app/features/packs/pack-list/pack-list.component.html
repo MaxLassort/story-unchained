@@ -7,12 +7,25 @@
     <div class="pack__header">
       <app-pack-filters
         [(showOfficial)]="showOfficial"
-        [(showUnavailable)]="showUnavailable"
         [(showFrFr)]="showFrFr"
+        [(ageMin)]="ageMin"
+        [(ageMax)]="ageMax"
         [(sortOrder)]="sortOrder"
       />
 
       <div class="pack__actions">
+        <button
+          mat-icon-button
+          class="pack__official-toggle"
+          [class.pack__official-toggle--active]="officialMode()"
+          matTooltip="Display official library"
+          [attr.aria-pressed]="officialMode()"
+          aria-label="Display official library"
+          (click)="setOfficialMode(!officialMode())"
+        >
+          <mat-icon>travel_explore</mat-icon>
+        </button>
+
         <button
           mat-icon-button
           matTooltip="Refresh metadata"
@@ -63,4 +76,4 @@
     />
   </mat-sidenav-content>
 </mat-sidenav-container>
-Ï
+

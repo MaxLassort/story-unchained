@@ -31,6 +31,31 @@
   --mat-chip-selected-focus-state-layer-color: var(--mat-sys-on-tertiary);
 }
 
+.filters__age {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filters__age-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.filters__age-label {
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-surface-variant);
+  white-space: nowrap;
+  min-width: 3.25rem;
+}
+
+.filters__slider {
+  width: 7rem;
+  flex: 0 0 auto;
+}
+
 .filters__sort {
   flex: 0 0 auto;
   cursor: pointer;

@@ -2,6 +2,5 @@
 - remove sync each refresh 
 - add error toaster when bad format
 - add book into library
-- factorisation sync lib 
 - fr language 
 - refactor lib filter 
