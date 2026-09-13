@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { lastValueFrom } from 'rxjs';
 import type { Pack } from '../../../../core/models';
 import { FormatBadgeComponent } from '../format-badge/format-badge.component';
@@ -19,13 +20,15 @@ import { LoadingOverlayComponent } from '../../../../shared/components/loading-o
 
 @Component({
   selector: 'app-pack-card',
-  imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, FormatBadgeComponent, LoadingOverlayComponent],
+  imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, MatTooltipModule, FormatBadgeComponent, LoadingOverlayComponent],
   templateUrl: './pack-card.component.html',
   styleUrl: './pack-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PackCardComponent {
   readonly pack = input.required<Pack>();
+  /** Official catalog display: read-only card, FAB menu replaced by a buy link. */
+  readonly officialMode = input(false);
 
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
@@ -61,6 +64,13 @@ export class PackCardComponent {
   );
 
   protected readonly thumbnailUrl = computed(() => this.pack().metadata.thumbnail ?? '');
+  protected readonly buyUrl = computed(() => {
+    if (!this.officialMode()) return null;
+    const { slug, locale } = this.pack().metadata;
+    if (!slug) return null;
+    const localePrefix = (locale ?? 'fr_FR').toLowerCase().replace('_', '-');
+    return `https://lunii.com/${localePrefix}/products/${slug}`;
+  });
   protected readonly title = computed(() => this.pack().metadata.title ?? 'Untitled');
   protected readonly description = computed(() => this.pack().metadata.description ?? '');
   protected readonly isOfficial = computed(() => this.pack().metadata.official);

@@ -61,7 +61,7 @@
         </div>
       } @else {
         @for (pack of sortedPacks(); track pack.id) {
-          <app-pack-card [pack]="pack" />
+          <app-pack-card [pack]="pack" [officialMode]="officialMode()" />
         }
       }
     </div>

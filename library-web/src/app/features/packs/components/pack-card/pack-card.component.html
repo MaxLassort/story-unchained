@@ -16,29 +16,44 @@
       </div>
 
       <div class="card__fab" (click)="$event.stopPropagation()">
-        <button matMiniFab  [matMenuTriggerFor]="menu">
-          <mat-icon>more_vert</mat-icon>
-        </button>
-        <mat-menu #menu="matMenu">
-          <button mat-menu-item (click)="edit()">
-            <mat-icon>edit</mat-icon> Edit
+        @if (officialMode()) {
+          @if (buyUrl()) {
+            <a
+              matMiniFab
+              [href]="buyUrl()"
+              target="_blank"
+              rel="noopener"
+              matTooltip="Acheter sur lunii.com"
+              aria-label="Acheter ce pack sur lunii.com"
+            >
+              <mat-icon>shopping_cart</mat-icon>
+            </a>
+          }
+        } @else {
+          <button matMiniFab  [matMenuTriggerFor]="menu">
+            <mat-icon>more_vert</mat-icon>
           </button>
-          <button mat-menu-item [matMenuTriggerFor]="convertMenu">
-            <mat-icon>transform</mat-icon> Convert
-          </button>
-          <button mat-menu-item (click)="copyToDevice()">
-            <mat-icon>phone_android</mat-icon> Copy to device
-          </button>
-          <mat-divider />
-          <button mat-menu-item (click)="delete()">
-            <mat-icon color="warn">delete</mat-icon> Delete
-          </button>
-        </mat-menu>
-        <mat-menu #convertMenu="matMenu">
-          <button mat-menu-item (click)="convert()">
-            <mat-icon>compare_arrows</mat-icon> Choose formats...
-          </button>
-        </mat-menu>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item (click)="edit()">
+              <mat-icon>edit</mat-icon> Edit
+            </button>
+            <button mat-menu-item [matMenuTriggerFor]="convertMenu">
+              <mat-icon>transform</mat-icon> Convert
+            </button>
+            <button mat-menu-item (click)="copyToDevice()">
+              <mat-icon>phone_android</mat-icon> Copy to device
+            </button>
+            <mat-divider />
+            <button mat-menu-item (click)="delete()">
+              <mat-icon color="warn">delete</mat-icon> Delete
+            </button>
+          </mat-menu>
+          <mat-menu #convertMenu="matMenu">
+            <button mat-menu-item (click)="convert()">
+              <mat-icon>compare_arrows</mat-icon> Choose formats...
+            </button>
+          </mat-menu>
+        }
       </div>
     </div>
     <p class="card__title">{{ title() }}</p>

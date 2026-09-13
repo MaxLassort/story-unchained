@@ -14,6 +14,7 @@ export interface PackMetadata {
   ageMax: number | null;
   durationMs: number | null;
   storyCount: number | null;
+  slug: string | null;
 }
 
 export interface PackVariant {

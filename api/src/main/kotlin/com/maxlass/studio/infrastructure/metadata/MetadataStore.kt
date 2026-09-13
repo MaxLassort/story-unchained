@@ -49,7 +49,7 @@ class MetadataStore(
             uuid = uuid,
             title = info["title"]?.jsonPrimitive?.contentOrNull,
             description = info["description"]?.jsonPrimitive?.contentOrNull,
-            thumbnail = imageUrl?.let { MetadataDb.THUMBNAILS_STORAGE_ROOT + it },
+            thumbnail = imageUrl?.let { MetadataDb.resolveImageUrl(it) },
             official = true,
         )
     }

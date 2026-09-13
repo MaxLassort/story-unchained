@@ -43,6 +43,7 @@ class ListOfficialPacksUseCase(
                         ageMax = dto.ageMax,
                         durationMs = dto.durationMs,
                         storyCount = dto.storyCount,
+                        slug = dto.slug,
                     ),
                     variants = emptyList(),
                 )

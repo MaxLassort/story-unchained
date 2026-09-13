@@ -4,6 +4,7 @@ data class OfficialMetadataDto(
     val title: String?,
     val description: String?,
     val thumbnailUrl: String?,
+    val slug: String? = null,
     val locale: String? = null,
     val ageMin: Int? = null,
     val ageMax: Int? = null,

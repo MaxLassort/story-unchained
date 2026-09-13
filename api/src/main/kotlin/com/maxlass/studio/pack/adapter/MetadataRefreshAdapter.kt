@@ -6,6 +6,8 @@ import com.maxlass.studio.pack.domain.dto.OfficialMetadataDto
 import com.maxlass.studio.pack.port.external.MetadataRefreshPort
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
@@ -13,6 +15,8 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.web.client.RestClient
 import java.io.File
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URI
 
 private val json = Json { prettyPrint = true }
 
@@ -53,7 +57,7 @@ class MetadataRefreshAdapter(
             ?: throw IllegalStateException("Failed to get guest token")
         val response = fetchPacksDatabase(token)
             ?: throw IllegalStateException("Failed to fetch packs database")
-        writeOfficialDatabase(response)
+        writeOfficialDatabase(rewriteDeadImageUrls(response))
     }
 
     override fun findOfficialMetadataById(uuid: String): OfficialMetadataDto? {
@@ -78,11 +82,12 @@ class MetadataRefreshAdapter(
             val description = info["description"]?.jsonPrimitive?.content
             val imageObj = info["image"]?.jsonObject
             val imageUrl = imageObj?.get("image_url")?.jsonPrimitive?.content
-                ?.let { MetadataDb.THUMBNAILS_STORAGE_ROOT + it }
+                ?.let { MetadataDb.resolveImageUrl(it) }
             uuid to OfficialMetadataDto(
                 title = title,
                 description = description,
                 thumbnailUrl = imageUrl,
+                slug = pack["slug"]?.jsonPrimitive?.content,
                 locale = locale,
                 ageMin = pack["age_min"]?.jsonPrimitive?.content?.toIntOrNull(),
                 ageMax = pack["age_max"]?.jsonPrimitive?.content?.toIntOrNull(),
@@ -92,6 +97,65 @@ class MetadataRefreshAdapter(
         }.toMap()
         officialMetadataCache = file.lastModified() to map
         return map
+    }
+
+    /**
+     * Some GCS cover objects are gone (HTTP 403) while the pack is still sold. Lunii mirrors
+     * the same files on its public Shopify CDN under the identical file name, so probe each
+     * `localized_infos.*.image.image_url`: keep the GCS URL when reachable, otherwise swap it
+     * for the absolute Shopify CDN URL (kept as-is by [getOfficialMetadataMap]). Packs
+     * reachable nowhere keep their original URL and are logged.
+     */
+    private fun rewriteDeadImageUrls(packs: JsonObject): JsonObject {
+        val fixed = packs.entries.associate { (key, value) ->
+            val pack = value as? JsonObject ?: return@associate key to value
+            key to rewritePackImageUrls(pack)
+        }
+        return JsonObject(fixed)
+    }
+
+    /** Rewrites dead GCS image URLs to Shopify CDN for a single pack. */
+    private fun rewritePackImageUrls(pack: JsonObject): JsonObject {
+        val localizedInfos = pack["localized_infos"] as? JsonObject ?: return pack
+        val updatedInfos = localizedInfos.entries.fold(localizedInfos) { currentInfos, (locale, infoValue) ->
+            val info = infoValue as? JsonObject ?: return@fold currentInfos
+            val imageObj = info["image"] as? JsonObject ?: return@fold currentInfos
+            val imageUrl = (imageObj["image_url"] as? JsonPrimitive)?.contentOrNull ?: return@fold currentInfos
+            if (imageUrl.startsWith("http")) return@fold currentInfos // already absolute
+            val gcsUrl = MetadataDb.THUMBNAILS_STORAGE_ROOT + imageUrl
+            if (isUrlReachable(gcsUrl)) return@fold currentInfos
+            val shopifyUrl = MetadataDb.SHOPIFY_IMAGES_ROOT + imageUrl.substringAfterLast('/')
+            if (!isUrlReachable(shopifyUrl)) {
+                log.warn("No reachable cover for pack {} ({}): GCS and Shopify CDN both failed", pack["uuid"], imageUrl)
+                return@fold currentInfos
+            }
+            log.info("Cover unreachable on GCS, using Shopify CDN for pack {}: {}", pack["uuid"], shopifyUrl)
+            val newImage = JsonObject(imageObj + ("image_url" to JsonPrimitive(shopifyUrl)))
+            val newInfo = JsonObject(info + ("image" to newImage))
+            JsonObject(currentInfos + (locale to newInfo))
+        }
+        return if (updatedInfos === localizedInfos) pack
+        else JsonObject(pack + ("localized_infos" to updatedInfos))
+    }
+
+    /** Lightweight HEAD probe used to detect dead cover objects (GCS answers 403). */
+    private fun isUrlReachable(url: String): Boolean {
+        val conn = runCatching {
+            URI.create(url).toURL().openConnection() as HttpURLConnection
+        }.getOrNull() ?: return false
+        return try {
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = HTTP_CONNECT_TIMEOUT_MS
+            conn.readTimeout = HTTP_READ_TIMEOUT_MS
+            conn.setRequestProperty("User-Agent", "StoryUnchained/1.0")
+            conn.responseCode in 200..299
+        } catch (e: IOException) {
+            false
+        } catch (e: RuntimeException) {
+            false
+        } finally {
+            conn.disconnect()
+        }
     }
 
     private fun fetchGuestToken(): String? {
