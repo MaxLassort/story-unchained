@@ -1,9 +1,14 @@
 package com.maxlass.studio.infrastructure.persistence
 
 import com.maxlass.studio.device.domain.model.DevicePack
+import com.maxlass.studio.pack.cache.ThumbnailCache
+import com.maxlass.studio.pack.port.external.ExtractThumbnailFromFsPackPort
+import com.maxlass.studio.pack.util.readThumbnailBytes
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
+import java.nio.file.Path
+import java.util.Base64
 
 /**
  * JPA seam for device persistence: `device_packs` rows (upsert/scan/snapshots) and
@@ -15,6 +20,8 @@ class DevicePackRepository(
     private val packRepository: PackJpaRepository,
     private val variantRepository: PackVariantJpaRepository,
     private val metadataRepository: PackMetadataJpaRepository,
+    private val thumbnailCache: ThumbnailCache,
+    private val extractThumbnailFromFsPack: ExtractThumbnailFromFsPackPort,
     transactionManager: PlatformTransactionManager,
 ) {
     private val tx = TransactionTemplate(transactionManager)
@@ -105,14 +112,19 @@ class DevicePackRepository(
         val metadata = metadataRepository.findAll()
             .filter { it.packId in uuids }
             .associateBy { it.packId }
+        val variants = variantRepository.findAll()
+            .filter { it.id.packId in uuids }
+        val variantsByPack = variants.groupBy { it.id.packId }
         return map { row ->
-            val meta = metadata[row.id.packUuid]
+            val packUuid = row.id.packUuid
+            val meta = metadata[packUuid]
+            val thumbnail = meta?.thumbnail ?: resolveThumbnailFromCacheOrFile(packUuid, variantsByPack[packUuid])
             DevicePack(
-                uuid = row.id.packUuid,
+                uuid = packUuid,
                 version = row.version,
                 sizeInBytes = row.sizeInBytes,
                 title = meta?.title,
-                thumbnail = meta?.thumbnail,
+                thumbnail = thumbnail,
                 locale = meta?.locale,
                 ageMin = meta?.ageMin,
                 ageMax = meta?.ageMax,
@@ -120,5 +132,40 @@ class DevicePackRepository(
                 storyCount = meta?.storyCount,
             )
         }
+    }
+
+    private fun resolveThumbnailFromCacheOrFile(
+        packId: String,
+        variants: List<PackVariantEntity>?,
+    ): String? {
+        // 1. Check in-memory cache
+        val cached = thumbnailCache.get(packId)
+        if (cached != null) {
+            return "data:image/png;base64,${Base64.getEncoder().encodeToString(cached)}"
+        }
+
+        if (variants.isNullOrEmpty()) return null
+
+        // 2. Try archive variant (zip)
+        val archiveVariant = variants.find { it.id.format == "ARCHIVE" }
+        if (archiveVariant != null) {
+            val pngBytes = runCatching { readThumbnailBytes(Path.of(archiveVariant.storagePath)) }.getOrNull()
+            if (pngBytes != null) {
+                thumbnailCache.put(packId, pngBytes)
+                return "data:image/png;base64,${Base64.getEncoder().encodeToString(pngBytes)}"
+            }
+        }
+
+        // 3. Try FS variant
+        val fsVariant = variants.find { it.id.format == "FS" }
+        if (fsVariant != null) {
+            val pngBytes = runCatching { extractThumbnailFromFsPack.extractThumbnail(Path.of(fsVariant.storagePath)) }.getOrNull()
+            if (pngBytes != null) {
+                thumbnailCache.put(packId, pngBytes)
+                return "data:image/png;base64,${Base64.getEncoder().encodeToString(pngBytes)}"
+            }
+        }
+
+        return null
     }
 }

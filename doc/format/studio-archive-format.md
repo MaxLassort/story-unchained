@@ -1,12 +1,14 @@
 # Format ARCHIVE « studio » (zip)
 
-> Le format **archive** : un **zip standard** contenant un `story.json` (le graphe de l'histoire,
-> lisible par un humain) et les assets. C'est le format d'échange reverse-engineered par la
-> communauté STUdio ([marian-m12l/studio](https://github.com/marian-m12l/studio), `studio-core`) —
-> **pas** un format publié officiellement par Lunii. StoryUnchained l'implémente en Kotlin pur.
->
-> Modèle logique (nœuds, transitions) : [`pack-model.md`](pack-model.md) · Format appareil :
-> [`lunii-folder-format.md`](lunii-folder-format.md).
+> Le format **archive** : un **zip standard** contenant un `story.json` et les assets. Format d'échange reverse-engineered par la communauté STUdio.
+
+---
+
+## Métadonnées
+
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [Modèle de nœuds](pack-model.md) · [Format LUNII](lunii-folder-format.md) · [Audio](audio.md) · [Images](images.md)
 
 ---
 

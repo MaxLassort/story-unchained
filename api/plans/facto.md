@@ -1,5 +1,17 @@
 # Plan — Factoriser la synchronisation et supprimer les queues manuelles
 
+> Suppression des jobs persistants et du polling, traitement asynchrone via SSE.
+
+---
+
+## Métadonnées
+
+- **Statut** : Terminé
+- **Dernière mise à jour** : 2026-08-21
+- **Docs associées** : [README format](../../doc/format/README.md) · [Stockage Lunii](../../doc/format/device-storage.md)
+
+---
+
 ## Objectif
 
 Remplacer le système de jobs persistants et le polling de synchronisation par un traitement asynchrone observable via SSE.

@@ -1,8 +1,14 @@
 # L'audio d'une node — formats et compression
 
-> Chaque `stageNode` porte **au plus un fichier audio** (champ `audio`). Ce doc décrit ce fichier
-> selon le format de pack : conteneurs acceptés, compression réellement appliquée, contraintes
-> par format et conversions. Le modèle des nœuds est dans [`pack-model.md`](pack-model.md).
+> Formats, compressions et conversions audio par format de pack.
+
+---
+
+## Métadonnées
+
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [Modèle de nœuds](pack-model.md) · [Format ARCHIVE](studio-archive-format.md) · [Format LUNII](lunii-folder-format.md)
 
 ---
 

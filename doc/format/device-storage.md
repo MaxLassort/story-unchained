@@ -1,9 +1,14 @@
 # Stockage sur la Lunii
 
-> Comment les packs sont réellement **stockés sur l'appareil Lunii** : détection USB, layout du
-> disque pour les deux générations d'appareils (firmware 1.x « RAW » et firmware 2.x/3.x « FS »),
-> index des packs et chiffrement. Le **contenu** d'un pack folder est décrit dans
-> [`lunii-folder-format.md`](lunii-folder-format.md).
+> Détection USB, layout du disque, index des packs et chiffrement pour les deux générations d'appareils.
+
+---
+
+## Métadonnées
+
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [Format LUNII](lunii-folder-format.md) · [Modèle de nœuds](pack-model.md)
 
 ---
 

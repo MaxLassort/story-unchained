@@ -9,7 +9,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DevicesService } from '../../../core/services/devices.service';
 import { SseService } from '../../../core/services/sse.service';
 import type { DevicePack } from '../../../core/models';
-import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-devices-page',
@@ -55,8 +54,7 @@ export class DevicesPageComponent {
   }
 
   protected thumbnailUrl(pack: DevicePack): string {
-    if (pack.thumbnail) return pack.thumbnail;
-    return `${environment.apiUrl}/packs/${pack.uuid}/thumbnail`;
+    return pack.thumbnail ?? '';
   }
 
   protected formatSize(bytes: number): string {

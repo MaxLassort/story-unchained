@@ -1,77 +1,71 @@
 # Images de chapitre (génération)
 
-## Pourquoi
+> Génération automatique d'images de chapitre : chiffres, icônes Lucide, conversion SVG.
 
-Chaque chapitre d'une histoire doit avoir une image (nœud `StageNode.image`). Plutôt que
-d'obliger l'utilisateur à fournir une image pour chaque chapitre, le back peut en produire
-une automatiquement, au format Lunii (PNG 320×240).
+---
 
-## Choix
+## Métadonnées
 
-- **Blanc sur fond noir, 320×240** : le format d'image attendu par la Lunii ; la conversion
-  FS ultérieure (BMP 4-bpp RLE 320×240) réutilise l'existant au moment de `POST /packs/{id}/convert`.
-- **Hiérarchie à la finalisation** : image uploadée par l'utilisateur → sinon icône de la
-  bibliothèque → sinon chiffre du chapitre généré.
-- **Conversion SVG immédiate** : un SVG uploadé est converti dès l'envoi
-  (`POST /stories/images/render` → PNG 320×240), le front reçoit le PNG (retour visuel
-  direct) et le draft ne stocke que du PNG/JPEG. Le SVG brut ne transite jamais vers le draft.
-- **Bibliothèque Lucide : 4 icônes embarquées + fetch à la volée** : un petit fallback
-  offline (`resources/icons/`, licence ISC) ; **tout icône Lucide est fetché à la volée par
-  son slug** (kebab-case, ex. `moon-star`) depuis `cdn.jsdelivr.net/npm/lucide-static/icons/{slug}.svg`,
-  avec cache mémoire (500 entrées max). La recherche couvre le catalogue complet (~2000 icônes)
-  via l'API jsDelivr (liste cachée 24 h), fallback sur la liste embarquée si l'API est injoignable.
-- **Pur Kotlin, zéro dépendance** : parseur SVG minimal (`d` des `<path>` → `Path2D` Java 2D)
-  — pas de Batik ni autre bibliothèque de rendu SVG.
-- **Rendu simple** : l'icône est téléchargée telle quelle (Lucide, tout en traits `stroke`)
-  et dessinée **en blanc sur fond noir** — pas d'inversion de couleurs, pas de gestion des
-  formes/fills.
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [Images (format)](format/images.md) · [Plan étape 4](../plans/story-creation-plan.md)
 
-## Comment ça marche
+---
 
-```
-GET /stories/images/icons                    → liste des icônes embarquées [{id, name}]
-GET /stories/images/icons/search?q=moon      → recherche dans tout le catalogue Lucide
-GET /stories/images/preview?iconId=star      → PNG 320×240 (embarquée, sinon fetchée à la volée)
-GET /stories/images/preview?chapterNumber=1  → PNG 320×240 (chiffre généré)
-POST /stories/images/render (multipart .svg) → PNG 320×240 (conversion immédiate)
-```
+## 1. Contexte
 
-**Identification d'un icône Lucide** : son **slug kebab-case** (ex. `moon-star`, `book-open`),
-identique au nom de fichier dans le package `lucide-static` et à l'URL `lucide.dev/icons/{slug}`.
-Le slug est aussi l'`id` renvoyé par les endpoints ci-dessus.
+Chaque chapitre d'une histoire doit avoir une image (nœud `StageNode.image`). Plutôt que d'obliger l'utilisateur à fournir une image pour chaque chapitre, le back peut en produire une automatiquement, au format Lunii (PNG 320×240).
 
-- `ChapterImageGenerator.generate(chapterNumber)` : chiffre blanc (#FFF) centré, fond noir
-  (#000), typographie adaptative.
-- `SvgIconRenderer.render(svg)` : parse les `<path d="...">` (M/L/H/V/C/S/Q/T/A/Z, absolu et
-  relatif, arcs → segments, flags d'arc `0`/`1` collés aux nombres), scale depuis le
-  `viewBox`, ratio préservé, centrage, **trait blanc (`stroke-width` du SVG, défaut 1)
-  sur fond noir**. Couleurs, fills, formes non-path et texte ignorés. SVG sans path →
-  `IllegalArgumentException` → 400.
-- Rendu vérifié en test : les 4 icônes embarquées passent toutes (dimensions + pixels blancs).
+### Choix de conception
 
-## API
+- **Blanc sur fond noir, 320×240** : le format d'image attendu par la Lunii.
+- **Hiérarchie à la finalisation** : image uploadée → icône Lucide → chiffre généré.
+- **Conversion SVG immédiate** : un SVG uploadé est converti dès l'envoi (`POST /stories/images/render` → PNG 320×240), le front reçoit le PNG et le draft ne stocke que du PNG/JPEG.
+- **Bibliothèque Lucide** : 4 icônes embarquées + fetch à la volée par slug depuis `cdn.jsdelivr.net/npm/lucide-static/icons/{slug}.svg`, avec cache mémoire (500 entrées max).
+- **Pur Kotlin, zéro dépendance** : parseur SVG minimal (`d` des `<path>` → `Path2D` Java 2D).
 
-| Endpoint | Paramètres | Réponse | Erreurs |
-|---|---|---|---|
-| `GET /stories/images/icons` | — | `{icons: [{id, name}]}` | — |
-| `GET /stories/images/icons/search` | `q` (≥ 2 chars) | `{icons: [{id, name}]}` (max 50) | 400 (query trop courte) |
-| `GET /stories/images/preview` | `iconId` **ou** `chapterNumber` | `image/png` | 400 (aucun/les deux), 404 (icône inconnue) |
-| `POST /stories/images/render` | `file` (multipart, `.svg`) | `image/png` | 400 (vide, non-SVG, SVG invalide) |
+## 2. API
 
-## Où
+| Endpoint | Méthode | Paramètres | Réponse | Description |
+|---|---|---|---|---|
+| `/stories/images/icons` | GET | — | `{icons: [{id, name}]}` | Liste des icônes embarquées |
+| `/stories/images/icons/search` | GET | `q` (≥ 2 chars) | `{icons: [{id, name}]}` | Recherche dans tout le catalogue Lucide (max 50) |
+| `/stories/images/preview` | GET | `iconId` **ou** `chapterNumber` | `image/png` | Préview 320×240 |
+| `/stories/images/render` | POST | `file` (multipart, `.svg`) | `image/png` | Conversion SVG → PNG immédiate |
 
-- `pack/format/utils/ChapterImageGenerator.kt` : génération du chiffre
-- `pack/format/utils/SvgIconRenderer.kt` : parseur/rendu SVG → PNG
-- `pack/service/ChapterIconCatalogService.kt` : catalogue embarqué + fetch à la volée + recherche
-- `pack/web/ChapterImageController.kt` : endpoints ci-dessus
-- `resources/icons/*.svg` : 4 icônes Lucide (ISC, fallback offline)
+### Codes d'erreur
 
-## Contraintes
+| Code | Signification |
+|---|---|
+| `400` | Query trop courte, aucun/les deux paramètres, SVG invalide |
+| `404` | Icône inconnue |
 
-- Rendu en **trait blanc** uniquement : `<path>` + formes de base (`<circle>`, `<ellipse>`,
-  `<rect>`, `<line>`, `<polyline>`, `<polygon>`) dessinés en contour ; fills, couleurs,
-  texte, dégradés et filtres ignorés. Un SVG utilisateur avec des formes remplies ne
-  rendra que leurs contours.
-- Le fetch à la volée dépend du CDN jsDelivr : hors-ligne, seules les icônes embarquées
-  sont disponibles (le slug inconnu → 404).
+## 3. Implémentation
+
+### `ChapterImageGenerator`
+
+Génère un chiffre blanc (#FFF) centré sur fond noir (#000), typographie adaptative, en PNG 320×240.
+
+### `SvgIconRenderer`
+
+Parse les `<path d="...">` (M/L/H/V/C/S/Q/T/A/Z, absolu et relatif), scale depuis le `viewBox`, ratio préservé, centrage, **trait blanc sur fond noir**. Couleurs, fills, formes non-path et texte ignorés.
+
+### `ChapterIconCatalogService`
+
+Catalogue embarqué + fetch à la volée depuis jsDelivr + recherche dans le catalogue complet (~2000 icônes) via l'API jsDelivr (liste cachée 24 h).
+
+## 4. Références code
+
+| Rôle | Fichier |
+|---|---|
+| Génération du chiffre | `pack/format/utils/ChapterImageGenerator.kt` |
+| Parseur/rendu SVG | `pack/format/utils/SvgIconRenderer.kt` |
+| Catalogue icônes | `pack/service/ChapterIconCatalogService.kt` |
+| Endpoints | `pack/web/ChapterImageController.kt` |
+| Icônes embarquées | `resources/icons/*.svg` (4 fichiers, licence ISC) |
+
+## 5. Contraintes
+
+- Rendu en **trait blanc** uniquement : `<path>` + formes de base dessinés en contour.
+- Le fetch à la volée dépend du CDN jsDelivr : hors-ligne, seules les icônes embarquées sont disponibles.
 - PNG 320×240 ; la conversion BMP/FS se fait à la finalisation/conversion, pas ici.

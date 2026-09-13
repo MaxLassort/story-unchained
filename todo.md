@@ -1,6 +1,20 @@
-- remove multi call (thumbnails) on devices screen,
-- remove sync each refresh 
-- add error toaster when bad format
-- add book into library
-- fr language 
-- refactor lib filter 
+# Todo — Tâches en cours
+
+> Liste des tâches à faire, sans ordre prioritaire strict.
+
+---
+
+## Métadonnées
+
+- **Statut** : En cours
+- **Dernière mise à jour** : 2026-09-13
+
+---
+
+## Tâches
+
+- [ ] Supprimer le sync à chaque refresh
+- [ ] Ajouter un toaster d'erreur en cas de mauvais format
+- [ ] Ajouter un livre dans la bibliothèque
+- [ ] Support de la langue française
+

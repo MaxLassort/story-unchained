@@ -11,7 +11,6 @@ import { DevicesService } from '../../../core/services/devices.service';
 import { PacksService } from '../../../core/services/packs.service';
 import { SnackbarService } from '../../../core/services/snackbar.service';
 import { LoadingOverlayComponent } from '../../../shared/components/loading-overlay/loading-overlay.component';
-import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-device-panel',
@@ -53,8 +52,7 @@ export class DevicePanelComponent {
   }
 
   protected thumbnailUrl(dp: { uuid: string; thumbnail: string | null }): string {
-    if (dp.thumbnail) return dp.thumbnail;
-    return `${environment.apiUrl}/packs/${dp.uuid}/thumbnail`;
+    return dp.thumbnail ?? '';
   }
 
   protected async deletePack(uuid: string): Promise<void> {

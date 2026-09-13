@@ -1,9 +1,14 @@
 # Les nœuds — types, champs et options
 
-> Référence des **nœuds** composant un livre : chaque type, chaque champ, chaque option et ce
-> qu'ils produisent réellement sur la Lunii. Le modèle décrit ici est le **modèle mémoire**
-> commun aux trois formats de pack (voir [`README.md`](README.md)) — seuls les conteneurs
-> changent ([archive](studio-archive-format.md), [folder](lunii-folder-format.md), RAW).
+> Référence des **nœuds** composant un livre : chaque type, chaque champ, chaque option et ce qu'ils produisent réellement sur la Lunii.
+
+---
+
+## Métadonnées
+
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [README format](README.md) · [Format ARCHIVE](studio-archive-format.md) · [Format LUNII](lunii-folder-format.md)
 
 ---
 

@@ -1,9 +1,14 @@
 # L'image d'une node — formats et compression
 
-> Chaque `stageNode` porte **au plus une image** (champ `image`), affichée sur l'écran 320×240 de
-> la Lunii à l'entrée dans la page. Ce doc décrit le fichier selon le format de pack : conteneurs
-> acceptés, compression réellement appliquée (notamment le BMP 4-bpp RLE4 du format appareil) et
-> conversions. Le modèle des nœuds est dans [`pack-model.md`](pack-model.md).
+> Formats, compressions et conversions images par format de pack.
+
+---
+
+## Métadonnées
+
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [Modèle de nœuds](pack-model.md) · [Format ARCHIVE](studio-archive-format.md) · [Format LUNII](lunii-folder-format.md) · [Images de chapitre](../chapter-image-generator.md)
 
 ---
 

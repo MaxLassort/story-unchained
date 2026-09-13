@@ -1,12 +1,14 @@
 # Format LUNII « folder » (FS)
 
-> Le format **dossier** : la représentation **stockée sur l'appareil Lunii** (firmware ≥ 2) et le
-> format cible de la conversion avant copie. Un pack FS est une arborescence de fichiers avec des
-> index binaires — c'est aussi la forme qu'on trouve **zippée** dans certaines bibliothèques
-> (« FS embarqué dans un zip », détecté avant le format archive à la lecture).
->
-> Modèle logique (nœuds, transitions) : [`pack-model.md`](pack-model.md) · Stockage sur l'appareil
-> (layout disque, chiffrement) : [`device-storage.md`](device-storage.md).
+> Le format **dossier** : la représentation **stockée sur l'appareil Lunii** (firmware ≥ 2) et le format cible de la conversion avant copie.
+
+---
+
+## Métadonnées
+
+- **Statut** : Actif
+- **Dernière mise à jour** : 2026-08-21
+- **Liens** : [Modèle de nœuds](pack-model.md) · [Stockage Lunii](device-storage.md) · [Audio](audio.md) · [Images](images.md)
 
 ---
 
