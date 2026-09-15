@@ -5,6 +5,7 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import type { PackFormat, PackConversionRequest } from '../../../../core/models';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
 const FORMATS: { label: string; value: PackFormat }[] = [
   { label: 'Archive (.zip)', value: 'ARCHIVE' },
@@ -14,13 +15,13 @@ const FORMATS: { label: string; value: PackFormat }[] = [
 
 @Component({
   selector: 'app-pack-convert-dialog',
-  imports: [FormsModule, MatButtonModule, MatDialogModule, MatSelectModule, MatFormFieldModule],
+  imports: [FormsModule, MatButtonModule, MatDialogModule, MatSelectModule, MatFormFieldModule, TranslatePipe],
   template: `
-    <h2 mat-dialog-title>Convert Pack</h2>
+    <h2 mat-dialog-title>{{ 'Convert Pack' | translate }}</h2>
     <mat-dialog-content>
       <p><strong>{{ data.title }}</strong></p>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Source format</mat-label>
+        <mat-label>{{ 'Source format' | translate }}</mat-label>
         <mat-select [(ngModel)]="source">
           @for (fmt of formats; track fmt.value) {
             <mat-option [value]="fmt.value">{{ fmt.label }}</mat-option>
@@ -28,7 +29,7 @@ const FORMATS: { label: string; value: PackFormat }[] = [
         </mat-select>
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Target format</mat-label>
+        <mat-label>{{ 'Target format' | translate }}</mat-label>
         <mat-select [(ngModel)]="target">
           @for (fmt of formats; track fmt.value) {
             <mat-option [value]="fmt.value" [disabled]="fmt.value === source()">{{ fmt.label }}</mat-option>
@@ -37,8 +38,8 @@ const FORMATS: { label: string; value: PackFormat }[] = [
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button color="primary" [disabled]="source() === target()" (click)="confirm()">Convert</button>
+      <button mat-button mat-dialog-close>{{ 'Cancel' | translate }}</button>
+      <button mat-flat-button color="primary" [disabled]="source() === target()" (click)="confirm()">{{ 'Convert' | translate }}</button>
     </mat-dialog-actions>
   `,
   styles: `

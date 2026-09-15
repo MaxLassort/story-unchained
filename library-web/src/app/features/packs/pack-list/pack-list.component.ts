@@ -10,10 +10,12 @@ import { PacksService } from '../../../core/services/packs.service';
 import { SseService } from '../../../core/services/sse.service';
 import { MetadataService } from '../../../core/services/metadata.service';
 import { SnackbarService } from '../../../core/services/snackbar.service';
+import { LanguageService } from '../../../core/services/language.service';
 import { PackFiltersComponent } from '../components/pack-filters/pack-filters.component';
 import { PackCardComponent } from '../components/pack-card/pack-card.component';
 import { PaginationBarComponent } from '../components/pagination-bar/pagination-bar.component';
 import { DevicePanelComponent } from '../../devices/device-panel/device-panel.component';
+import { TranslatePipe, translate } from '../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pack-list',
@@ -27,6 +29,7 @@ import { DevicePanelComponent } from '../../devices/device-panel/device-panel.co
     PackCardComponent,
     PaginationBarComponent,
     DevicePanelComponent,
+    TranslatePipe,
   ],
   templateUrl: './pack-list.component.html',
   styleUrl: './pack-list.component.scss',
@@ -38,6 +41,7 @@ export class PackListComponent {
   private readonly sseService = inject(SseService);
   private readonly metadataService = inject(MetadataService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly lang = inject(LanguageService);
   private readonly sidenav = viewChild(MatSidenav);
 
   readonly packs = this.packsService.packs;
@@ -53,7 +57,7 @@ export class PackListComponent {
   }
 
   readonly showOfficial = this.packsService.showOfficial;
-  readonly showFrFr = this.packsService.showFrFr;
+  readonly showCurrentLocale = this.packsService.showCurrentLocale;
   readonly ageMin = this.packsService.ageMin;
   readonly ageMax = this.packsService.ageMax;
   readonly officialMode = this.packsService.officialMode;
@@ -90,7 +94,7 @@ export class PackListComponent {
   protected async refreshMetadata(): Promise<void> {
     try {
       const res = await this.metadataService.refresh();
-      this.snackbar.success(res.message ?? 'Metadata refreshed');
+      this.snackbar.success(res.message ?? translate('Metadata refreshed', this.lang.currentLang()));
       this.packsService.refresh();
     } catch {
       // snackbar handled by interceptor

@@ -1,15 +1,14 @@
 @if (loading()) {
   <div class="chapters-step__loading">
     <mat-progress-spinner diameter="32" mode="indeterminate" />
-    <span>Loading existing chapters…</span>
+    <span>{{ 'Loading existing chapters...' | translate }}</span>
   </div>
 } @else {
 <div class="chapters-step">
   <div class="chapters-step__header">
-    <h2 class="chapters-step__title">Chapter Configuration</h2>
+    <h2 class="chapters-step__title">{{ 'Chapter Configuration' | translate }}</h2>
     <p class="chapters-step__subtitle">
-      Add chapters to your story. Each chapter has a title, a title audio (TTS or upload), a narration
-      audio, and an image (icon or custom upload).
+      {{ 'Add chapters to your story. Each chapter has a title, a title audio (TTS or upload), a narration audio, and an image (icon or custom upload).' | translate }}
     </p>
   </div>
 
@@ -25,11 +24,11 @@
           <div class="chapter-card__header">
             <div class="chapter-card__name-field">
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="chapter-card__input">
-                <mat-label>Chapter {{ $index + 1 }} — Name</mat-label>
+                <mat-label>{{ 'Chapter' | translate }} {{ $index + 1 }} — {{ 'Name' | translate }}</mat-label>
                 <input
                   matInput
                   [formField]="chaptersForm.chapters[$index].name"
-                  placeholder="e.g. The Awakening"
+                  [placeholder]="'e.g. The Awakening' | translate"
                   autocomplete="off"
                 />
               </mat-form-field>
@@ -38,7 +37,7 @@
               mat-icon-button
               type="button"
               class="chapter-card__delete"
-              aria-label="Delete chapter"
+              [attr.aria-label]="'Delete chapter' | translate"
               (click)="removeChapter($index)"
             >
               <mat-icon>delete</mat-icon>
@@ -48,25 +47,25 @@
           <div class="chapter-card__grid">
             <div class="chapter-card__column">
               <div class="chapter-card__section">
-                <span class="chapter-card__label">Title audio</span>
+                <span class="chapter-card__label">{{ 'Title audio' | translate }}</span>
                 <span class="chapter-card__hint">
-                  Audio played for the chapter title. Upload a file, record, or enter text for TTS.
+                  {{ 'Audio played for the chapter title. Upload a file, record, or enter text for TTS.' | translate }}
                 </span>
                 <app-title-audio-input [formField]="chaptersForm.chapters[$index].titleAudio" />
               </div>
 
               <div class="chapter-card__section">
-                <span class="chapter-card__label">Narration audio</span>
-                <span class="chapter-card__hint">The chapter narration itself (can be hours long).</span>
+                <span class="chapter-card__label">{{ 'Narration audio' | translate }}</span>
+                <span class="chapter-card__hint">{{ 'The chapter narration itself (can be hours long).' | translate }}</span>
                 <app-audio-drop-input [formField]="chaptersForm.chapters[$index].narrationFile" />
               </div>
             </div>
 
             <div class="chapter-card__column">
               <div class="chapter-card__section">
-                <span class="chapter-card__label">Chapter image</span>
+                <span class="chapter-card__label">{{ 'Chapter image' | translate }}</span>
                 <span class="chapter-card__hint">
-                  Icon from the Lucide library or custom upload (320×240 px).
+                  {{ 'Icon from the Lucide library or custom upload (320x240 px).' | translate }}
                 </span>
                 <app-node-image-input
                   [formField]="chaptersForm.chapters[$index].image"
@@ -87,7 +86,7 @@
     (click)="addChapter()"
   >
     <mat-icon aria-hidden="true">add_circle</mat-icon>
-    Add New Chapter
+    {{ 'Add New Chapter' | translate }}
   </button>
 </div>
 }

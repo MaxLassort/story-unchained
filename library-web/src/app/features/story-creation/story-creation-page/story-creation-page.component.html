@@ -1,17 +1,16 @@
 <div class="story-creation">
   <a class="story-creation__back" mat-button routerLink="/packs">
     <mat-icon aria-hidden="true">arrow_back</mat-icon>
-    Library
+    {{ 'Library' | translate }}
   </a>
 
-  <h1 class="story-creation__title">Create a story</h1>
+  <h1 class="story-creation__title">{{ 'Create a story' | translate }}</h1>
   <p class="story-creation__subtitle">
-    Compose your own story: title, covers, chapters, audio and images — the app will build a
-    playable Lunii pack.
+    {{ 'Compose your own story: title, covers, chapters, audio and images — the app will build a playable Lunii pack.' | translate }}
   </p>
 
   <mat-stepper #stepper class="story-creation__stepper" [linear]="true" [disableRipple]="true">
-    <mat-step label="General Info" [completed]="detailsStep()?.complete() ?? false">
+    <mat-step [label]="'General Info' | translate" [completed]="detailsStep()?.complete() ?? false">
       <mat-card class="step-card">
         <mat-card-content>
           <app-story-details-step />
@@ -19,7 +18,7 @@
       </mat-card>
 
       <div class="step-actions">
-        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-button type="button" (click)="cancel()">{{ 'Cancel' | translate }}</button>
         <button
           mat-flat-button
           type="button"
@@ -30,14 +29,14 @@
           @if (detailsStep()?.saving()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" />
           } @else {
-            Next: Bulk Upload
+            {{ 'Next: Bulk Upload' | translate }}
             <mat-icon aria-hidden="true">arrow_forward</mat-icon>
           }
         </button>
       </div>
     </mat-step>
 
-    <mat-step label="Audio Upload" [completed]="(detailsStep()?.complete() && bulkStep()?.complete()) ?? false">
+    <mat-step [label]="'Audio Upload' | translate" [completed]="(detailsStep()?.complete() && bulkStep()?.complete()) ?? false">
       <mat-card class="step-card">
         <mat-card-content>
           <app-bulk-audio-step />
@@ -45,7 +44,7 @@
       </mat-card>
 
       <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>Back</button>
+        <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
         <button
           mat-flat-button
           type="button"
@@ -56,14 +55,14 @@
           @if (bulkStep()?.saving()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" />
           } @else {
-            Confirm &amp; Add to Story
+            {{ 'Confirm & Add to Story' | translate }}
             <mat-icon aria-hidden="true">arrow_forward</mat-icon>
           }
         </button>
       </div>
     </mat-step>
 
-    <mat-step label="Chapter Details" [completed]="chaptersStep()?.complete() ?? false">
+    <mat-step [label]="'Chapter Details' | translate" [completed]="chaptersStep()?.complete() ?? false">
       <mat-card class="step-card">
         <mat-card-content>
           <app-chapters-step />
@@ -71,7 +70,7 @@
       </mat-card>
 
       <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>Back</button>
+        <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
         <button
           mat-flat-button
           type="button"
@@ -82,21 +81,20 @@
           @if (chaptersStep()?.saving()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" />
           } @else {
-            Next: Finalize
+            {{ 'Next: Finalize' | translate }}
             <mat-icon aria-hidden="true">arrow_forward</mat-icon>
           }
         </button>
       </div>
     </mat-step>
 
-    <mat-step label="Finalize">
+    <mat-step [label]="'Finalize' | translate">
       <mat-card class="step-card">
         <mat-card-content class="finalize-content">
           <mat-icon class="finalize-content__icon" aria-hidden="true">auto_stories</mat-icon>
-          <h3 class="finalize-content__title">Ready to create your story pack</h3>
+          <h3 class="finalize-content__title">{{ 'Ready to create your story pack' | translate }}</h3>
           <p class="finalize-content__text">
-            The app will assemble your story into a playable Lunii STUdio archive and add it to
-            your library. This can take a moment for long stories.
+            {{ 'The app will assemble your story into a playable Lunii STUdio archive and add it to your library. This can take a moment for long stories.' | translate }}
           </p>
           @if (finalizeError(); as error) {
             <div class="finalize-content__error">{{ error }}</div>
@@ -105,7 +103,7 @@
       </mat-card>
 
       <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>Back</button>
+        <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
         <button
           mat-flat-button
           type="button"
@@ -116,7 +114,7 @@
           @if (finalizing()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" />
           } @else {
-            Create the pack
+            {{ 'Create the pack' | translate }}
             <mat-icon aria-hidden="true">auto_stories</mat-icon>
           }
         </button>

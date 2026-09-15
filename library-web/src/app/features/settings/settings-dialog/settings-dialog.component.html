@@ -1,7 +1,7 @@
-<h2 mat-dialog-title>Settings</h2>
+<h2 mat-dialog-title>{{ 'Settings' | translate }}</h2>
 <mat-dialog-content class="settings-dialog__content">
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Library path</mat-label>
+    <mat-label>{{ 'Library path' | translate }}</mat-label>
     <input
       matInput
       [formField]="form.libraryPath"
@@ -12,38 +12,38 @@
       matSuffix
       mat-icon-button
       type="button"
-      matTooltip="Browse for folder"
-      aria-label="Browse for library folder"
+      [matTooltip]="'Browse for folder' | translate"
+      [attr.aria-label]="'Browse for library folder' | translate"
       (click)="browseLibraryPath()"
     >
       <mat-icon>folder_open</mat-icon>
     </button>
-    <mat-hint>Absolute path to the folder containing your pack files</mat-hint>
+    <mat-hint>{{ 'Absolute path to the folder containing your pack files' | translate }}</mat-hint>
   </mat-form-field>
 
   <div class="settings-dialog__help">
     <mat-icon>info_outline</mat-icon>
     <div>
-      <strong>How to get the absolute path on macOS:</strong>
+      <strong>{{ 'How to get the absolute path on macOS:' | translate }}</strong>
       <ul>
-        <li>In Finder, hold <kbd>⌥ Option</kbd> and right-click the folder → "Copy &lt;name&gt; as Pathname"</li>
-        <li>Or drag the folder from Finder into a Terminal window</li>
+        <li>{{ 'In Finder, hold Option and right-click the folder -> Copy as Pathname' | translate }}</li>
+        <li>{{ 'Or drag the folder from Finder into a Terminal window' | translate }}</li>
       </ul>
     </div>
   </div>
 
 <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Target device type</mat-label>
+    <mat-label>{{ 'Target device type' | translate }}</mat-label>
     <mat-select [formField]="form.target">
       @for (opt of targetOptions; track opt.value) {
         <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
       }
     </mat-select>
-    <mat-hint>Preferred format when no device is plugged</mat-hint>
+    <mat-hint>{{ 'Preferred format when no device is plugged' | translate }}</mat-hint>
   </mat-form-field>
 
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Studio unofficial DB path</mat-label>
+    <mat-label>{{ 'Studio unofficial DB path' | translate }}</mat-label>
     <input
       matInput
       [formField]="form.unofficialDbPath"
@@ -54,80 +54,80 @@
       matSuffix
       mat-icon-button
       type="button"
-      matTooltip="Browse for file"
-      aria-label="Browse for Studio unofficial DB file"
+      [matTooltip]="'Browse for file' | translate"
+      [attr.aria-label]="'Browse for Studio unofficial DB file' | translate"
       (click)="browseUnofficialDb()"
     >
       <mat-icon>folder_open</mat-icon>
     </button>
     <mat-hint>
-      Leave empty to use the default: <code>{{ defaultUnofficialDbPath }}</code>
+      {{ 'Leave empty to use the default:' | translate }} <code>{{ defaultUnofficialDbPath }}</code>
     </mat-hint>
   </mat-form-field>
 
   <div class="settings-dialog__help">
     <mat-icon>info_outline</mat-icon>
     <div>
-      <strong>Where is the Studio database?</strong>
+      <strong>{{ 'Where is the Studio database?' | translate }}</strong>
       <p>
-        Studio stores its non-official packs database in <code>~/.studio/db/</code> (file
-        <code>unofficial.json</code>), created automatically on first launch. If you moved it,
-        enter the path to the <code>unofficial.json</code> file above.
+        {{ 'Studio stores its non-official packs database in' | translate }} <code>~/.studio/db/</code> {{ '(file' | translate }}
+        <code>unofficial.json</code> {{ '), created automatically on first launch. If you moved it, enter the path to the' | translate }}
+        <code>unofficial.json</code> {{ 'file above.' | translate }}
       </p>
     </div>
   </div>
 
-  <h3 class="settings-dialog__section-title">Text-to-speech</h3>
+  <h3 class="settings-dialog__section-title">{{ 'Text-to-speech' | translate }}</h3>
 
 <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>TTS provider</mat-label>
+      <mat-label>{{ 'TTS provider' | translate }}</mat-label>
       <mat-select [formField]="form.ttsProvider" (selectionChange)="refreshVoices()">
         @for (opt of ttsProviderOptions; track opt.value) {
           <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
         }
       </mat-select>
-      <mat-hint>Provider used to generate story title audio. Free fallback requires no API key.</mat-hint>
+      <mat-hint>{{ 'Provider used to generate story title audio. Free fallback requires no API key.' | translate }}</mat-hint>
     </mat-form-field>
 
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Language</mat-label>
+      <mat-label>{{ 'Language' | translate }}</mat-label>
       <mat-select [formField]="form.ttsLang">
         @for (opt of ttsLangOptions; track opt.value) {
           <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
         }
       </mat-select>
-      <mat-hint>Language of the generated audio (used by the free fallback)</mat-hint>
+      <mat-hint>{{ 'Language of the generated audio (used by the free fallback)' | translate }}</mat-hint>
     </mat-form-field>
 
   @if (model().ttsProvider === 'OPENAI') {
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>OpenAI API key</mat-label>
+      <mat-label>{{ 'OpenAI API key' | translate }}</mat-label>
       <input
         matInput
         [formField]="form.ttsOpenAiApiKey"
-        placeholder="sk-…"
+        placeholder="sk-..."
         autocomplete="off"
         (input)="refreshVoices()"
       />
-      <mat-hint>Your own OpenAI key, stored locally in the settings file</mat-hint>
+      <mat-hint>{{ 'Your own OpenAI key, stored locally in the settings file' | translate }}</mat-hint>
     </mat-form-field>
   } @else if (model().ttsProvider === 'ELEVENLABS') {
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>ElevenLabs API key</mat-label>
+      <mat-label>{{ 'ElevenLabs API key' | translate }}</mat-label>
       <input
         matInput
         [formField]="form.ttsElevenLabsApiKey"
-        placeholder="sk_…"
+        placeholder="sk_..."
         autocomplete="off"
         (input)="refreshVoices()"
       />
-      <mat-hint>Your own ElevenLabs key, stored locally in the settings file</mat-hint>
+      <mat-hint>{{ 'Your own ElevenLabs key, stored locally in the settings file' | translate }}</mat-hint>
     </mat-form-field>
   }
 
     @if (model().ttsProvider !== 'FREE') {
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Voice</mat-label>
+      <mat-label>{{ 'Voice' | translate }}</mat-label>
       <mat-select [formField]="form.ttsVoice">
         @for (voice of voices(); track voice.id) {
           <mat-option [value]="voice.id">{{ voice.name }}</mat-option>
@@ -139,9 +139,9 @@
       @if (voicesError()) {
         <mat-hint>{{ voicesError() }}</mat-hint>
       } @else if (voicesFallback()) {
-        <mat-hint>Default voices (live list unavailable: your API key may lack the voices_read permission)</mat-hint>
+        <mat-hint>{{ 'Default voices (live list unavailable: your API key may lack the voices_read permission)' | translate }}</mat-hint>
       } @else {
-        <mat-hint>Voice used for the generated audio</mat-hint>
+        <mat-hint>{{ 'Voice used for the generated audio' | translate }}</mat-hint>
       }
     </mat-form-field>
   }
@@ -149,7 +149,7 @@
   @if (libraryChanged()) {
     <div class="settings-dialog__warning">
       <mat-icon>warning</mat-icon>
-      <span>Changing the library path will clear the database and trigger a full re-sync.</span>
+      <span>{{ 'Changing the library path will clear the database and trigger a full re-sync.' | translate }}</span>
     </div>
   }
 
@@ -165,14 +165,14 @@
       } @else {
         <mat-icon>sync</mat-icon>
       }
-      Sync library
+      {{ 'Sync library' | translate }}
     </button>
     @if (unofficialDbChanged()) {
-      <span class="settings-dialog__actions-hint">Save to apply the new DB path</span>
+      <span class="settings-dialog__actions-hint">{{ 'Save to apply the new DB path' | translate }}</span>
     }
   </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-button mat-dialog-close>Cancel</button>
-  <button mat-flat-button color="primary" (click)="save()">Save</button>
+  <button mat-button mat-dialog-close>{{ 'Cancel' | translate }}</button>
+  <button mat-flat-button color="primary" (click)="save()">{{ 'Save' | translate }}</button>
 </mat-dialog-actions>

@@ -19,4 +19,5 @@
 - [ ] Support de la langue française
 - changer l'ordre des bulk upload
 - editer audio existant 
+- mauvais affichage des erreurs
 

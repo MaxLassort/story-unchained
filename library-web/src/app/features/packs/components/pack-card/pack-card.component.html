@@ -9,10 +9,10 @@
         @for (format of formats(); track format) {
           <app-format-badge [format]="format" />
         }
-        @if (isOfficial()) { <span class="card__official-badge">Official</span> }
+        @if (isOfficial()) { <span class="card__official-badge">{{ 'Official' | translate }}</span> }
       </div>
       <div class="card__flip-hint">
-        <mat-icon class="card__flip-icon">info</mat-icon> Details
+        <mat-icon class="card__flip-icon">info</mat-icon> {{ 'Details' | translate }}
       </div>
 
       <div class="card__fab" (click)="$event.stopPropagation()">
@@ -23,8 +23,8 @@
               [href]="buyUrl()"
               target="_blank"
               rel="noopener"
-              matTooltip="Acheter sur lunii.com"
-              aria-label="Acheter ce pack sur lunii.com"
+              [matTooltip]="'Acheter sur lunii.com' | translate"
+              [attr.aria-label]="'Acheter ce pack sur lunii.com' | translate"
             >
               <mat-icon>shopping_cart</mat-icon>
             </a>
@@ -35,22 +35,22 @@
           </button>
           <mat-menu #menu="matMenu">
             <button mat-menu-item (click)="edit()">
-              <mat-icon>edit</mat-icon> Edit
+              <mat-icon>edit</mat-icon> {{ 'Edit' | translate }}
             </button>
             <button mat-menu-item [matMenuTriggerFor]="convertMenu">
-              <mat-icon>transform</mat-icon> Convert
+              <mat-icon>transform</mat-icon> {{ 'Convert' | translate }}
             </button>
             <button mat-menu-item (click)="copyToDevice()">
-              <mat-icon>phone_android</mat-icon> Copy to device
+              <mat-icon>phone_android</mat-icon> {{ 'Copy to device' | translate }}
             </button>
             <mat-divider />
             <button mat-menu-item (click)="delete()">
-              <mat-icon color="warn">delete</mat-icon> Delete
+              <mat-icon color="warn">delete</mat-icon> {{ 'Delete' | translate }}
             </button>
           </mat-menu>
           <mat-menu #convertMenu="matMenu">
             <button mat-menu-item (click)="convert()">
-              <mat-icon>compare_arrows</mat-icon> Choose formats...
+              <mat-icon>compare_arrows</mat-icon> {{ 'Choose formats...' | translate }}
             </button>
           </mat-menu>
         }
@@ -74,6 +74,6 @@
     }
   </div>
 
-  <app-loading-overlay [visible]="converting()" label="Converting..." [fullscreen]="false" />
-  <app-loading-overlay [visible]="copyingToDevice() || deleting()" [label]="deleting() ? 'Deleting...' : 'Copying to device...'" />
+  <app-loading-overlay [visible]="converting()" [label]="'Converting...' | translate" [fullscreen]="false" />
+  <app-loading-overlay [visible]="copyingToDevice() || deleting()" [label]="deleting() ? ('Deleting...' | translate) : ('Copying to device...' | translate)" />
 </div>

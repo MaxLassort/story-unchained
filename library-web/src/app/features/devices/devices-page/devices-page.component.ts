@@ -9,6 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DevicesService } from '../../../core/services/devices.service';
 import { SseService } from '../../../core/services/sse.service';
 import type { DevicePack } from '../../../core/models';
+import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-devices-page',
@@ -19,6 +20,7 @@ import type { DevicePack } from '../../../core/models';
     MatProgressSpinnerModule,
     MatTabsModule,
     MatTooltipModule,
+    TranslatePipe,
   ],
   templateUrl: './devices-page.component.html',
   styleUrl: './devices-page.component.scss',

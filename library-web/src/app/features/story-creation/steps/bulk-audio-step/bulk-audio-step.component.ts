@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { loadChapterTitleAudioPool, prefilledChapter } from '../../chapter-templates';
 import { ChaptersEditorState } from '../../chapters-editor-state.service';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
 /** Maximum accepted size per audio file (50 MB), per the Bulk Upload mockup. */
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -27,6 +28,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
     MatIconModule,
     MatInputModule,
     MatTooltipModule,
+    TranslatePipe,
   ],
   templateUrl: './bulk-audio-step.component.html',
   styleUrl: './bulk-audio-step.component.scss',

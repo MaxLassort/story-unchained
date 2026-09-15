@@ -11,6 +11,17 @@ semantique [SemVer](https://semver.org/lang/fr/).
 
 ### Ajoute
 
+- **Internationalisation (i18n)** : support complet du francais et de l'anglais avec switch
+  instantane sans rechargement de page.
+  - `LanguageService` : signal `currentLang` avec persistance `localStorage`.
+  - `TranslatePipe` : pipe impure qui resout les traductions depuis un dictionnaire JSON
+    (`src/locale/translations.fr.json`).
+  - Bouton de switch de langue dans le header (icone `translate` Material).
+  - **18 templates HTML** traduits avec le pipe `translate`.
+  - **3 dialogs inline** traduits (delete, convert, copy).
+  - **7 fichiers TypeScript** avec messages snackbar traduits via la fonction `translate()`.
+  - Configuration `angular.json` avec `i18n.sourceLocale: "fr"` et `locales.en`.
+  - Fichiers XLF vides prets pour extraction future (`messages.fr.xlf`, `messages.en.xlf`).
 - **Wizard de creation de stories** : edition assistee en etapes (etape 1 : structure, etape 2 :
   ajout de chapitres) avec draft en memoire (`StoryDraftStore`).
 - **Synthese TTS au moment de la sauvegarde** : les fichiers audio titre sont generes automatiquement

@@ -16,11 +16,13 @@ import { PacksService } from '../../../../core/services/packs.service';
 import { DevicesService } from '../../../../core/services/devices.service';
 import { SnackbarService } from '../../../../core/services/snackbar.service';
 import { SseService } from '../../../../core/services/sse.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingOverlayComponent } from '../../../../shared/components/loading-overlay/loading-overlay.component';
+import { TranslatePipe, translate } from '../../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pack-card',
-  imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, MatTooltipModule, FormatBadgeComponent, LoadingOverlayComponent],
+  imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, MatTooltipModule, FormatBadgeComponent, LoadingOverlayComponent, TranslatePipe],
   templateUrl: './pack-card.component.html',
   styleUrl: './pack-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +38,7 @@ export class PackCardComponent {
   private readonly devicesService = inject(DevicesService);
   private readonly snackbar = inject(SnackbarService);
   private readonly sseService = inject(SseService);
+  private readonly lang = inject(LanguageService);
 
   protected readonly flipped = signal(false);
   protected readonly imgError = signal(false);
@@ -49,11 +52,11 @@ export class PackCardComponent {
       if (!conv || conv.packId !== this.pack().id || !this.converting()) return;
       if (conv.status === 'DONE') {
         this.packsService.refresh();
-        this.snackbar.success('Pack converted');
+        this.snackbar.success(translate('Pack converted', this.lang.currentLang()));
         this.converting.set(false);
       }
       if (conv.status === 'FAILED') {
-        this.snackbar.error(conv.message ?? 'Conversion failed');
+        this.snackbar.error(conv.message ?? translate('Conversion failed', this.lang.currentLang()));
         this.converting.set(false);
       }
     });
@@ -100,9 +103,9 @@ export class PackCardComponent {
       this.deleting.set(true);
       try {
         await this.packsService.deletePack(this.pack().id);
-        this.snackbar.success('Pack deleted');
+        this.snackbar.success(translate('Pack deleted', this.lang.currentLang()));
       } catch {
-        this.snackbar.error('Failed to delete pack');
+        this.snackbar.error(translate('Failed to delete pack', this.lang.currentLang()));
       } finally {
         this.deleting.set(false);
       }
@@ -119,7 +122,7 @@ export class PackCardComponent {
         this.sseService.connect();
         this.converting.set(true);
         await this.packsService.convert(this.pack().id, result);
-        this.snackbar.success('Conversion started');
+        this.snackbar.success(translate('Conversion started', this.lang.currentLang()));
       }
     });
   }
@@ -137,12 +140,12 @@ export class PackCardComponent {
       this.copyingToDevice.set(true);
       const res = await this.devicesService.copyToDevice(this.pack().id);
       if (res.ok) {
-        this.snackbar.success('Copied to device');
+        this.snackbar.success(translate('Copied to device', this.lang.currentLang()));
       } else {
-        this.snackbar.error(res.error ?? 'Copy failed');
+        this.snackbar.error(res.error ?? translate('Copy failed', this.lang.currentLang()));
       }
     } catch {
-      this.snackbar.error('Device not connected');
+      this.snackbar.error(translate('Device not connected', this.lang.currentLang()));
     } finally {
       this.copyingToDevice.set(false);
     }

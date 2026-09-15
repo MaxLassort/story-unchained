@@ -7,7 +7,7 @@
     <div class="pack__header">
       <app-pack-filters
         [(showOfficial)]="showOfficial"
-        [(showFrFr)]="showFrFr"
+        [(showCurrentLocale)]="showCurrentLocale"
         [(ageMin)]="ageMin"
         [(ageMax)]="ageMax"
         [(sortOrder)]="sortOrder"
@@ -18,9 +18,9 @@
           mat-icon-button
           class="pack__official-toggle"
           [class.pack__official-toggle--active]="officialMode()"
-          matTooltip="Display official library"
+          [matTooltip]="'Display official library' | translate"
           [attr.aria-pressed]="officialMode()"
-          aria-label="Display official library"
+          [attr.aria-label]="'Display official library' | translate"
           (click)="setOfficialMode(!officialMode())"
         >
           <mat-icon>travel_explore</mat-icon>
@@ -28,10 +28,10 @@
 
         <button
           mat-icon-button
-          matTooltip="Refresh metadata"
+          [matTooltip]="'Refresh metadata' | translate"
           [disabled]="metadataRefreshing()"
           (click)="refreshMetadata()"
-          aria-label="Refresh metadata"
+          [attr.aria-label]="'Refresh metadata' | translate"
         >
           @if (metadataRefreshing()) {
             <mat-spinner [diameter]="20" />
@@ -40,7 +40,7 @@
           }
         </button>
 
-        <button mat-icon-button class="pack__device-toggle" (click)="toggleSidenav()" [attr.aria-label]="isPlugged() ? 'Toggle device panel' : 'Toggle device panel'">
+        <button mat-icon-button class="pack__device-toggle" (click)="toggleSidenav()" [attr.aria-label]="'Toggle device panel' | translate">
           <mat-icon>phone_android</mat-icon>
           @if (isPlugged()) {
             <span class="pack__device-dot"></span>
@@ -57,7 +57,7 @@
       } @else if (sortedPacks().length === 0) {
         <div class="pack-grid__empty">
           <mat-icon class="pack-grid__empty-icon">inventory_2</mat-icon>
-          <span>No packs found</span>
+          <span>{{ 'No packs found' | translate }}</span>
         </div>
       } @else {
         @for (pack of sortedPacks(); track pack.id) {
@@ -76,4 +76,3 @@
     />
   </mat-sidenav-content>
 </mat-sidenav-container>
-

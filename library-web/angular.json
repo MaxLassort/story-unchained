@@ -33,12 +33,19 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "src/locale",
+                "output": "locale"
               }
             ],
             "styles": [
               "src/styles.scss"
             ],
-            "localize": ["fr", "en"]
+            "polyfills": [
+              "@angular/localize/init"
+            ],
           },
           "configurations": {
             "production": {
@@ -60,7 +67,6 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true,
-              "localize": ["fr", "en"],
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -70,12 +76,6 @@
             }
           },
           "defaultConfiguration": "production"
-        },
-        "extract-i18n": {
-          "builder": "@angular/build:extract-i18n",
-          "options": {
-            "outputPath": "src/locale"
-          }
         },
         "serve": {
           "builder": "@angular/build:dev-server",

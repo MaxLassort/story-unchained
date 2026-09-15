@@ -1,19 +1,20 @@
 import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pack-delete-dialog',
-  imports: [MatButtonModule, MatDialogModule],
+  imports: [MatButtonModule, MatDialogModule, TranslatePipe],
   template: `
-    <h2 mat-dialog-title>Delete Pack</h2>
+    <h2 mat-dialog-title>{{ 'Delete Pack' | translate }}</h2>
     <mat-dialog-content>
-      <p>Are you sure you want to delete <strong>{{ data.title }}</strong>?</p>
-      <p class="pack-delete-dialog__warning">This action cannot be undone. The pack files will remain on disk.</p>
+      <p>{{ 'Are you sure you want to delete' | translate }} <strong>{{ data.title }}</strong>?</p>
+      <p class="pack-delete-dialog__warning">{{ 'This action cannot be undone. The pack files will remain on disk.' | translate }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button color="warn" [mat-dialog-close]="true">Delete</button>
+      <button mat-button mat-dialog-close>{{ 'Cancel' | translate }}</button>
+      <button mat-flat-button color="warn" [mat-dialog-close]="true">{{ 'Delete' | translate }}</button>
     </mat-dialog-actions>
   `,
   styles: `

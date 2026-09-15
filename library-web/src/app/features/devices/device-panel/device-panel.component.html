@@ -1,21 +1,21 @@
-<h3 class="panel__title">Device</h3>
+<h3 class="panel__title">{{ 'Device' | translate }}</h3>
 
 <div class="panel__info">
   <div class="panel__row">
-    <span class="panel__label">Firmware</span>
+    <span class="panel__label">{{ 'Firmware' | translate }}</span>
     <span>{{ device().firmware ?? '—' }}</span>
   </div>
   <div class="panel__row">
-    <span class="panel__label">Serial</span>
+    <span class="panel__label">{{ 'Serial' | translate }}</span>
     <span>{{ device().serial ?? '—' }}</span>
   </div>
   <div class="panel__row">
-    <span class="panel__label">Driver</span>
+    <span class="panel__label">{{ 'Driver' | translate }}</span>
     <span>{{ driverLabel() }}</span>
   </div>
   <div class="panel__row">
-    <span class="panel__label">UUID</span>
-    <span class="panel__uuid" [cdkCopyToClipboard]="device().uuid ?? ''" title="Click to copy">{{ device().uuid ?? '—' }}</span>
+    <span class="panel__label">{{ 'UUID' | translate }}</span>
+    <span class="panel__uuid" [cdkCopyToClipboard]="device().uuid ?? ''" [title]="'Click to copy' | translate">{{ device().uuid ?? '—' }}</span>
   </div>
 </div>
 
@@ -31,29 +31,29 @@
 
 <mat-divider />
 
-<h3 class="panel__title">Packs on device</h3>
+<h3 class="panel__title">{{ 'Packs on device' | translate }}</h3>
 
 <mat-list class="panel__pack-list">
   @for (dp of packs(); track dp.uuid) {
     <mat-list-item>
       <img matListItemAvatar [src]="thumbnailUrl(dp)" alt="" class="panel__pack-thumb" />
       <span matListItemTitle [matTooltip]="dp.title ?? dp.uuid">{{ dp.title ?? dp.uuid }}</span>
-      <span matListItemLine [cdkCopyToClipboard]="dp.uuid" title="Click to copy UUID">{{ dp.uuid }}</span>
+      <span matListItemLine [cdkCopyToClipboard]="dp.uuid" [title]="'Click to copy UUID' | translate">{{ dp.uuid }}</span>
       <span matListItemMeta>
-        <button mat-icon-button (click)="copyToLibrary(dp.uuid)" title="Copy to library">
+        <button mat-icon-button (click)="copyToLibrary(dp.uuid)" [title]="'Copy to library' | translate">
           <mat-icon>upload</mat-icon>
         </button>
-        <button mat-icon-button (click)="deletePack(dp.uuid)" title="Delete from device">
+        <button mat-icon-button (click)="deletePack(dp.uuid)" [title]="'Delete from device' | translate">
           <mat-icon color="warn">delete</mat-icon>
         </button>
       </span>
     </mat-list-item>
   } @empty {
     <mat-list-item>
-      <span matListItemTitle>No packs</span>
+      <span matListItemTitle>{{ 'No packs' | translate }}</span>
     </mat-list-item>
   }
 </mat-list>
 
-<app-loading-overlay [visible]="copying()" label="Copying to library..." />
-<app-loading-overlay [visible]="deleting()" label="Deleting from device..." />
+<app-loading-overlay [visible]="copying()" [label]="'Copying to library...' | translate" />
+<app-loading-overlay [visible]="deleting()" [label]="'Deleting from device...' | translate" />

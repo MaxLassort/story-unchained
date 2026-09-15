@@ -12,6 +12,7 @@ import { StoryDetailsStepComponent } from '../steps/story-details-step/story-det
 import { BulkAudioStepComponent } from '../steps/bulk-audio-step/bulk-audio-step.component';
 import { ChaptersStepComponent } from '../steps/chapters-step/chapters-step.component';
 import { ChaptersEditorState } from '../chapters-editor-state.service';
+import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-story-creation-page',
@@ -26,6 +27,7 @@ import { ChaptersEditorState } from '../chapters-editor-state.service';
     StoryDetailsStepComponent,
     BulkAudioStepComponent,
     ChaptersStepComponent,
+    TranslatePipe,
   ],
   providers: [ChaptersEditorState],
   changeDetection: ChangeDetectionStrategy.OnPush,

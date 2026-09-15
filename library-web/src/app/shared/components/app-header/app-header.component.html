@@ -3,35 +3,43 @@
     <img class="brand__logo" src="images/favicon.svg" alt="" />
     <span class="brand__copy">
       <span class="brand__name">StoryUnchained</span>
-      <span class="brand__subtitle">PACK MANAGER</span>
+      <span class="brand__subtitle">{{ 'PACK MANAGER' | translate }}</span>
     </span>
   </a>
 
   <nav class="app-nav" aria-label="Main navigation">
     <a routerLink="/packs" routerLinkActive="app-nav__link--active" [routerLinkActiveOptions]="{ exact: true }">
-      Library
+      {{ 'Library' | translate }}
     </a>
-    <a routerLink="/devices" routerLinkActive="app-nav__link--active">Device History</a>
+    <a routerLink="/devices" routerLinkActive="app-nav__link--active">{{ 'Device History' | translate }}</a>
   </nav>
 
   <div class="app-header__tools">
     <label class="search-box">
       <mat-icon class="search-box__icon" aria-hidden="true">search</mat-icon>
-      <span class="sr-only">Search packs</span>
+      <span class="sr-only">{{ 'Search packs' | translate }}</span>
       <input
         type="search"
         [value]="searchTerm()"
         (input)="updateSearch($any($event.target).value)"
-        placeholder="Search packs..."
+        [placeholder]="'Search packs...' | translate"
       />
     </label>
 
     <app-create-story-button />
     <button
       mat-icon-button
-      matTooltip="Settings"
+      [matTooltip]="lang.isEnglish() ? 'Switch to French' : 'Passer en anglais'"
+      (click)="lang.setLang(lang.isEnglish() ? 'fr' : 'en')"
+      [attr.aria-label]="lang.isEnglish() ? 'Switch to French' : 'Passer en anglais'"
+    >
+      <mat-icon>translate</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      [matTooltip]="'Settings' | translate"
       (click)="openSettings()"
-      aria-label="Settings"
+      [attr.aria-label]="'Settings' | translate"
     >
       <mat-icon>settings</mat-icon>
     </button>

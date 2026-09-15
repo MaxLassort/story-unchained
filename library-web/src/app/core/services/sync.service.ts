@@ -2,7 +2,9 @@ import { Injectable, NgZone, inject, signal } from '@angular/core';
 import type { SyncStatusEvent } from '../models';
 import { PacksService } from './packs.service';
 import { SnackbarService } from './snackbar.service';
+import { LanguageService } from './language.service';
 import { environment } from '../../../environments/environment';
+import { translate } from '../pipes/translate.pipe';
 
 export interface StartSyncOptions {
   silent?: boolean;
@@ -15,6 +17,7 @@ export class SyncService {
   private readonly zone = inject(NgZone);
   private readonly packsService = inject(PacksService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly lang = inject(LanguageService);
 
   readonly syncing = signal(false);
 
@@ -46,7 +49,7 @@ export class SyncService {
     } catch {
       this.closeSyncStream();
       if (!options.silent) {
-        this.snackbar.error('Failed to start synchronization');
+        this.snackbar.error(translate('Failed to start synchronization', this.lang.currentLang()));
       }
       this.syncing.set(false);
       return;
@@ -75,7 +78,7 @@ export class SyncService {
   private notifyResult(event: SyncStatusEvent, options: StartSyncOptions): void {
     if (event.status === 'FAILED') {
       if (!options.silent) {
-        this.snackbar.error(event.message ?? 'Synchronization failed');
+        this.snackbar.error(event.message ?? translate('Synchronization failed', this.lang.currentLang()));
       }
       return;
     }
@@ -84,11 +87,11 @@ export class SyncService {
     const invalidQueuedCount = event.invalidQueuedCount ?? 0;
     const failedCount = event.failedCount ?? 0;
     const summary = [
-      `${synchronizedCount} synchronized`,
-      `${invalidQueuedCount} invalid`,
-      `${failedCount} failed`,
+      `${synchronizedCount} ${translate('synchronized', this.lang.currentLang())}`,
+      `${invalidQueuedCount} ${translate('invalid', this.lang.currentLang())}`,
+      `${failedCount} ${translate('failed', this.lang.currentLang())}`,
     ].join(', ');
-    this.snackbar.success(`Sync complete: ${summary}`);
+    this.snackbar.success(`${translate('Sync complete:', this.lang.currentLang())} ${summary}`);
   }
 
   private closeSyncStream(): void {

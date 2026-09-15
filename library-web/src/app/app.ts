@@ -3,10 +3,11 @@ import { RouterOutlet } from '@angular/router';
 import { HealthService } from './core/services/health.service';
 import { SyncService } from './core/services/sync.service';
 import { AppHeaderComponent } from './shared/components/app-header/app-header.component';
+import { TranslatePipe } from './core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, AppHeaderComponent],
+  imports: [RouterOutlet, AppHeaderComponent, TranslatePipe],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

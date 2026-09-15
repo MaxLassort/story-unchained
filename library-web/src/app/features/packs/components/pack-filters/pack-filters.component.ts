@@ -4,16 +4,17 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pack-filters',
-  imports: [MatButtonModule, MatChipsModule, MatIconModule, MatSliderModule, MatTooltipModule],
+  imports: [MatButtonModule, MatChipsModule, MatIconModule, MatSliderModule, MatTooltipModule, TranslatePipe],
   templateUrl: './pack-filters.component.html',
   styleUrl: './pack-filters.component.scss',
 })
 export class PackFiltersComponent {
   readonly showOfficial = model(true);
-  readonly showFrFr = model(true);
+  readonly showCurrentLocale = model(true);
   readonly sortOrder = model<'asc' | 'desc'>('asc');
   readonly ageMin = model<number | null>(null);
   readonly ageMax = model<number | null>(null);

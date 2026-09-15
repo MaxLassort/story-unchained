@@ -1,67 +1,64 @@
 @if (loading()) {
   <div class="story-details__loading">
     <mat-progress-spinner diameter="32" mode="indeterminate" />
-    <span>Loading existing draft…</span>
+    <span>{{ 'Loading existing draft...' | translate }}</span>
   </div>
 } @else {
 <div class="story-details">
   <div class="story-details__header">
-    <h2 class="story-details__title">Story Details</h2>
-    <p class="story-details__subtitle">Provide the foundational metadata for your new story pack.</p>
+    <h2 class="story-details__title">{{ 'Story Details' | translate }}</h2>
+    <p class="story-details__subtitle">{{ 'Provide the foundational metadata for your new story pack.' | translate }}</p>
   </div>
 
   <div class="story-details__fields">
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Title *</mat-label>
+      <mat-label>{{ 'Title *' | translate }}</mat-label>
       <input
         matInput
         [formField]="detailsForm.title"
-        placeholder="Enter a captivating title..."
+        [placeholder]="'Enter a captivating title...' | translate"
         autocomplete="off"
       />
     </mat-form-field>
 
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Description</mat-label>
+      <mat-label>{{ 'Description' | translate }}</mat-label>
       <textarea
         matInput
         [formField]="detailsForm.description"
-        placeholder="What is this story about? (Optional)"
+        [placeholder]="'What is this story about? (Optional)' | translate"
         rows="4"
       ></textarea>
     </mat-form-field>
 
     <div class="story-details__title-audio">
-      <span class="story-details__label">Pack title audio *</span>
+      <span class="story-details__label">{{ 'Pack title audio *' | translate }}</span>
       <span class="story-details__hint">
-        Audio played on the story cover. Upload a file, or enter the text to be read aloud by
-        the TTS engine at finalization.
+        {{ 'Audio played on the story cover. Upload a file, or enter the text to be read aloud by the TTS engine at finalization.' | translate }}
       </span>
       <app-title-audio-input [formField]="detailsForm.titleAudio" />
     </div>
 
     <div class="story-details__menu-audio">
-      <span class="story-details__label">Chapter selection audio *</span>
+      <span class="story-details__label">{{ 'Chapter selection audio *' | translate }}</span>
       <span class="story-details__hint">
-        Audio played on the chapter selection node. Upload a file, or enter the text to be read
-        aloud by the TTS engine at finalization. Required to continue.
+        {{ 'Audio played on the chapter selection node. Upload a file, or enter the text to be read aloud by the TTS engine at finalization. Required to continue.' | translate }}
       </span>
       <app-title-audio-input [formField]="detailsForm.menuAudio" />
     </div>
 
     <div class="story-details__thumbnail">
-      <span class="story-details__label">Pack thumbnail *</span>
+      <span class="story-details__label">{{ 'Pack thumbnail *' | translate }}</span>
       <span class="story-details__hint">
-        Shown in the Lunii launcher.
+        {{ 'Shown in the Lunii launcher.' | translate }}
       </span>
       <app-image-drop-input [formField]="detailsForm.thumbnail" />
     </div>
 
     <div class="story-details__cover">
-      <span class="story-details__label">Cover image *</span>
+      <span class="story-details__label">{{ 'Cover image *' | translate }}</span>
       <span class="story-details__hint">
-        First image visible on the Lunii when the story starts. Pick an icon from the library
-        or upload a 320×240 image.
+        {{ 'First image visible on the Lunii when the story starts. Pick an icon from the library or upload a 320x240 image.' | translate }}
       </span>
       <app-node-image-input [formField]="detailsForm.cover" />
     </div>

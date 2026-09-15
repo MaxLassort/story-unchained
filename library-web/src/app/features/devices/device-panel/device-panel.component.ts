@@ -10,11 +10,13 @@ import { SseService } from '../../../core/services/sse.service';
 import { DevicesService } from '../../../core/services/devices.service';
 import { PacksService } from '../../../core/services/packs.service';
 import { SnackbarService } from '../../../core/services/snackbar.service';
+import { LanguageService } from '../../../core/services/language.service';
 import { LoadingOverlayComponent } from '../../../shared/components/loading-overlay/loading-overlay.component';
+import { TranslatePipe, translate } from '../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-device-panel',
-  imports: [CdkCopyToClipboard, MatButtonModule, MatDividerModule, MatIconModule, MatListModule, MatProgressBarModule, MatTooltipModule, LoadingOverlayComponent],
+  imports: [CdkCopyToClipboard, MatButtonModule, MatDividerModule, MatIconModule, MatListModule, MatProgressBarModule, MatTooltipModule, LoadingOverlayComponent, TranslatePipe],
   templateUrl: './device-panel.component.html',
   styleUrl: './device-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,6 +26,7 @@ export class DevicePanelComponent {
   private readonly devicesService = inject(DevicesService);
   private readonly packsService = inject(PacksService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly lang = inject(LanguageService);
 
   protected readonly device = computed(() => this.sseService.deviceEvent().device);
   protected readonly packs = computed(() => this.sseService.deviceEvent().packs);
@@ -61,9 +64,9 @@ export class DevicePanelComponent {
     try {
       await this.devicesService.deleteFromDevice(uuid);
       this.sseService.connect();
-      this.snackbar.success('Removed from device');
+      this.snackbar.success(translate('Removed from device', this.lang.currentLang()));
     } catch {
-      this.snackbar.error('Failed to remove from device');
+      this.snackbar.error(translate('Failed to remove from device', this.lang.currentLang()));
     } finally {
       this.deleting.set(false);
     }
@@ -74,9 +77,9 @@ export class DevicePanelComponent {
     try {
       await this.devicesService.copyToLibrary(uuid);
       this.packsService.refresh();
-      this.snackbar.success('Copied to library');
+      this.snackbar.success(translate('Copied to library', this.lang.currentLang()));
     } catch {
-      this.snackbar.error('Failed to copy to library');
+      this.snackbar.error(translate('Failed to copy to library', this.lang.currentLang()));
     } finally {
       this.copying.set(false);
     }

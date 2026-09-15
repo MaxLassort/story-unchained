@@ -1,21 +1,21 @@
 <mat-chip-listbox class="filters__chips" multiple aria-label="Pack filters">
   <mat-chip-option [selected]="showOfficial()" (selectionChange)="showOfficial.set($event.selected)">
-    Official
+    {{ 'Official' | translate }}
   </mat-chip-option>
-  <mat-chip-option [selected]="showFrFr()" (selectionChange)="showFrFr.set($event.selected)" class="filters__chip--lang">
-    French only
+  <mat-chip-option [selected]="showCurrentLocale()" (selectionChange)="showCurrentLocale.set($event.selected)" class="filters__chip--lang">
+    {{ 'Language only' | translate }}
   </mat-chip-option>
 </mat-chip-listbox>
 
 <div class="filters__age" role="group" aria-label="Age range filter">
   <div class="filters__age-slider">
-    <span class="filters__age-label">Min {{ ageMin() ?? '–' }}</span>
+    <span class="filters__age-label">{{ 'Min' | translate }} {{ ageMin() ?? '–' }}</span>
     <mat-slider class="filters__slider" [min]="AGE_MIN" [max]="AGE_MAX" step="1" discrete>
       <input matSliderThumb [value]="ageMin() ?? AGE_MIN" (valueChange)="setAgeMin($event)" aria-label="Minimum age" />
     </mat-slider>
   </div>
   <div class="filters__age-slider">
-    <span class="filters__age-label">Max {{ ageMax() ?? '–' }}</span>
+    <span class="filters__age-label">{{ 'Max' | translate }} {{ ageMax() ?? '–' }}</span>
     <mat-slider class="filters__slider" [min]="AGE_MIN" [max]="AGE_MAX" step="1" discrete>
       <input matSliderThumb [value]="ageMax() ?? AGE_MAX" (valueChange)="setAgeMax($event)" aria-label="Maximum age" />
     </mat-slider>
@@ -23,9 +23,9 @@
   @if (hasAgeFilter()) {
     <button
       mat-icon-button
-      matTooltip="Clear age filter"
+      [matTooltip]="'Clear age filter' | translate"
       (click)="clearAgeFilter()"
-      aria-label="Clear age filter"
+      [attr.aria-label]="'Clear age filter' | translate"
     >
       <mat-icon>restart_alt</mat-icon>
     </button>
@@ -39,8 +39,8 @@
   (click)="toggleSort()"
   (keydown.enter)="toggleSort()"
   (keydown.space)="toggleSort()"
-  [attr.aria-label]="sortOrder() === 'asc' ? 'Sort ascending' : 'Sort descending'"
+  [attr.aria-label]="sortOrder() === 'asc' ? ('Sort ascending' | translate) : ('Sort descending' | translate)"
 >
   <mat-icon>sort</mat-icon>
-  Sort by: {{ sortOrder() === 'asc' ? 'Title A-Z' : 'Title Z-A' }}
+  {{ 'Sort by:' | translate }} {{ sortOrder() === 'asc' ? ('Title A-Z' | translate) : ('Title Z-A' | translate) }}
 </mat-chip>

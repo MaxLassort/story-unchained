@@ -10,8 +10,14 @@ import type {
   PackConversionResponse,
 } from '../models';
 import { ApiStatusResponse } from '../models';
+import { LanguageService } from './language.service';
 
 import { environment } from '../../../environments/environment';
+
+const LOCALE_MAP: Record<'fr' | 'en', string> = {
+  fr: 'fr_FR',
+  en: 'en_US',
+};
 
 /**
  * Pack library: paginated listing with reactive filters, synchronization,
@@ -21,13 +27,14 @@ import { environment } from '../../../environments/environment';
 @Injectable({ providedIn: 'root' })
 export class PacksService {
   private readonly http = inject(HttpClient);
+  private readonly lang = inject(LanguageService);
   private readonly baseUrl = `${environment.apiUrl}/packs`;
 
   readonly page = signal(0);
   readonly pageSize = signal(24);
   readonly searchTerm = signal('');
   readonly showOfficial = signal(true);
-  readonly showFrFr = signal(true);
+  readonly showCurrentLocale = signal(true);
   readonly ageMin = signal<number | null>(null);
   readonly ageMax = signal<number | null>(null);
   readonly officialMode = signal(false);
@@ -41,7 +48,9 @@ export class PacksService {
     const s = this.searchTerm();
     if (s) params['search'] = s;
     if (!official && !this.showOfficial()) params['official'] = 'false';
-    if (this.showFrFr()) params['locale'] = 'fr_FR';
+    if (this.showCurrentLocale()) {
+      params['locale'] = LOCALE_MAP[this.lang.currentLang()];
+    }
     if (!official) params['inLibrary'] = 'true';
     const min = this.ageMin();
     if (min !== null) params['ageMin'] = String(min);

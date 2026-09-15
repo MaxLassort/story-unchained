@@ -12,6 +12,7 @@ import type { Settings, TtsVoice } from '../../../core/models';
 import { DesktopService } from '../../../core/services/desktop.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { SyncService } from '../../../core/services/sync.service';
+import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 
 type TargetType = 'AUTO' | 'RAW' | 'FS';
 
@@ -99,6 +100,7 @@ function settingsToModel(s: Settings): SettingsFormModel {
     MatIconModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
+    TranslatePipe,
   ],
   templateUrl: './settings-dialog.component.html',
   styleUrl: './settings-dialog.component.scss',

@@ -21,6 +21,7 @@ import {
   prefilledChapter,
 } from '../../chapter-templates';
 import { ChaptersEditorState } from '../../chapters-editor-state.service';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-chapters-step',
@@ -35,6 +36,7 @@ import { ChaptersEditorState } from '../../chapters-editor-state.service';
     MatProgressSpinnerModule,
     NodeImageInputComponent,
     TitleAudioInputComponent,
+    TranslatePipe,
   ],
   templateUrl: './chapters-step.component.html',
   styleUrl: './chapters-step.component.scss',

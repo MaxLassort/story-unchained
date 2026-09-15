@@ -11,8 +11,10 @@ import { MatSelectModule } from '@angular/material/select';
 import type { Pack } from '../../../core/models';
 import { PacksService } from '../../../core/services/packs.service';
 import { SnackbarService } from '../../../core/services/snackbar.service';
+import { LanguageService } from '../../../core/services/language.service';
 import { FormatBadgeComponent } from '../components/format-badge/format-badge.component';
 import { LoadingOverlayComponent } from '../../../shared/components/loading-overlay/loading-overlay.component';
+import { TranslatePipe, translate } from '../../../core/pipes/translate.pipe';
 
 const LOCALES = [
   { value: 'fr_FR', label: 'Français (FR)' },
@@ -30,7 +32,7 @@ const LOCALES = [
 
 @Component({
   selector: 'app-pack-detail',
-  imports: [CdkCopyToClipboard, FormField, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatOptionModule, MatSelectModule, RouterModule, FormatBadgeComponent, LoadingOverlayComponent],
+  imports: [CdkCopyToClipboard, FormField, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatOptionModule, MatSelectModule, RouterModule, FormatBadgeComponent, LoadingOverlayComponent, TranslatePipe],
   templateUrl: './pack-detail.component.html',
   styleUrl: './pack-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +42,7 @@ export class PackDetailComponent {
   private readonly router = inject(Router);
   private readonly packsService = inject(PacksService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly lang = inject(LanguageService);
 
   protected readonly pack = signal<Pack | null>(null);
   protected readonly loading = signal(true);
@@ -103,9 +106,9 @@ export class PackDetailComponent {
         this.busy.set(true);
         await this.packsService.uploadThumbnail(this.pack()!.id, file);
         await this.loadPack();
-        this.snackbar.success('Thumbnail updated');
+        this.snackbar.success(translate('Thumbnail updated', this.lang.currentLang()));
       } catch {
-        this.snackbar.error('Failed to upload thumbnail');
+        this.snackbar.error(translate('Failed to upload thumbnail', this.lang.currentLang()));
       } finally {
         this.busy.set(false);
       }
@@ -130,10 +133,10 @@ export class PackDetailComponent {
           durationMs: m.durationMs ? m.durationMs * 60000 : null,
           storyCount: m.storyCount || null,
         });
-        this.snackbar.success('Metadata updated');
+        this.snackbar.success(translate('Metadata updated', this.lang.currentLang()));
         void this.router.navigate(['/packs']);
       } catch {
-        this.snackbar.error('Failed to update');
+        this.snackbar.error(translate('Failed to update', this.lang.currentLang()));
       } finally {
         this.busy.set(false);
       }

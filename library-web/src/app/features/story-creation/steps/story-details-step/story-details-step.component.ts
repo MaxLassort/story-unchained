@@ -10,6 +10,7 @@ import type { NodeImageSelection } from '../../../../core/models';
 import { ImageDropInputComponent } from '../../components/image-drop-input/image-drop-input.component';
 import { NodeImageInputComponent } from '../../components/node-image-input/node-image-input.component';
 import { TitleAudioInputComponent, TitleAudioSelection } from '../../components/title-audio-input/title-audio-input.component';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
 export interface StoryDetailsModel {
   title: string;
@@ -22,7 +23,7 @@ export interface StoryDetailsModel {
 
 @Component({
   selector: 'app-story-details-step',
-  imports: [FormField, ImageDropInputComponent, NodeImageInputComponent, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, TitleAudioInputComponent],
+  imports: [FormField, ImageDropInputComponent, NodeImageInputComponent, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, TitleAudioInputComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './story-details-step.component.html',
   styleUrl: './story-details-step.component.scss',

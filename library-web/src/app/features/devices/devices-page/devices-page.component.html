@@ -1,9 +1,9 @@
 <div class="devices-page">
   <div class="devices-page__header">
-    <button mat-icon-button (click)="goBack()" aria-label="Back to packs">
+    <button mat-icon-button (click)="goBack()" [attr.aria-label]="'Back to packs' | translate">
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <h1 class="devices-page__title">Devices</h1>
+    <h1 class="devices-page__title">{{ 'Devices' | translate }}</h1>
   </div>
 
   @if (loading()) {
@@ -13,8 +13,8 @@
   } @else if (snapshots().length === 0) {
     <div class="devices-page__empty">
       <mat-icon class="devices-page__empty-icon">usb_off</mat-icon>
-      <h2>No devices seen yet</h2>
-      <p>Plug in a Lunii and its pack list will be saved here automatically.</p>
+      <h2>{{ 'No devices seen yet' | translate }}</h2>
+      <p>{{ 'Plug in a Lunii and its pack list will be saved here automatically.' | translate }}</p>
     </div>
   } @else {
     <mat-tab-group
@@ -30,7 +30,7 @@
               <mat-icon class="devices-tab__icon">phone_android</mat-icon>
               <span class="devices-tab__uuid">{{ shortUuid(snap.uuid) }}</span>
               @if (isPluggedUuid(snap.uuid)) {
-                <span class="devices-tab__dot" matTooltip="Currently plugged"></span>
+                <span class="devices-tab__dot" [matTooltip]="'Currently plugged' | translate"></span>
               }
               <span class="devices-tab__count">{{ snap.packCount }}</span>
             </span>
@@ -39,13 +39,13 @@
           <div class="devices-tab__content">
             <div class="devices-tab__meta">
               <span><strong>UUID:</strong> <code>{{ snap.uuid }}</code></span>
-              <span><strong>Last seen:</strong> {{ formatDate(snap.lastSeenAtEpochMs) }}</span>
+              <span><strong>{{ 'Last seen:' | translate }}</strong> {{ formatDate(snap.lastSeenAtEpochMs) }}</span>
             </div>
 
             @if (snap.packs.length === 0) {
               <div class="devices-tab__no-packs">
                 <mat-icon>inventory_2</mat-icon>
-                <span>No packs recorded on this device.</span>
+                <span>{{ 'No packs recorded on this device.' | translate }}</span>
               </div>
             } @else {
               <mat-list class="devices-tab__list">
