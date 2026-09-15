@@ -1,0 +1,23 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-changelog
+    authors:
+      - dependabot
+  categories:
+    - title: Nouveautes
+      labels:
+        - feature
+        - enhancement
+    - title: Corrections de bug
+      labels:
+        - bug
+        - fix
+    - title: Ameliorations
+      labels:
+        - refactor
+        - improvement
+        - chore
+    - title: Autres changements
+      labels:
+        - '*'

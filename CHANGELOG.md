@@ -3,56 +3,51 @@
 Toutes les modifications notables de **StoryUnchained**.
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le versionnage
-sémantique [SemVer](https://semver.org/lang/fr/).
+semantique [SemVer](https://semver.org/lang/fr/).
 
-## [0.1.1] — 2026-08-15
+> Les releases precedentes sont dans [CHANGELOG-archive.md](CHANGELOG-archive.md).
 
-### Ajouté
+## [0.2.0] — 2026-09-14
 
-- Sélecteur de dossier/fichier natif dans les réglages (Electron `dialog.showOpenDialog` exposé via
-  IPC `dialog:openPath`), pour choisir le chemin de la bibliothèque et le fichier de base.
-- Sync de la bibliothèque automatique au démarrage de l'application (en arrière-plan).
-- Toast de résultat de sync affichant le nombre de packs synchronisés, invalides et en échec.
+### Ajoute
 
-### Modifié
+- **Wizard de creation de stories** : edition assistee en etapes (etape 1 : structure, etape 2 :
+  ajout de chapitres) avec draft en memoire (`StoryDraftStore`).
+- **Synthese TTS au moment de la sauvegarde** : les fichiers audio titre sont generes automatiquement
+  a l'enregistrement de chaque etape du draft.
+- **Moteur TTS multi-fournisseurs** : OpenAI, ElevenLabs et fallback gratuit, configurable dans les
+  reglages.
+- **Generation d'images de chapitres** depuis des icones Lucide (SVG) ou un numero de chapitre.
+- **Endpoint `POST /story-draft`** pour la creation de draft et `PUT /story-draft/{id}/step` pour
+  l'avancement par etapes.
+- **Filtre de recherche officielle** avec use case dedie (`ListOfficialPacksUseCase`) et tests
+  unitaires.
+- **Reponse des snapshots device enrichie** : les thumbnails sont desormais incluses dans la reponse.
+- **Televersement audio titre** : import de fichier audio titre pour les chapters via le frontend.
+- **Audio de choix chapitre** : fichier `chapter-choice.mp3` integre a l'application.
+- Tests unitaires sur `PackRepositoryAdapterFilter`, `SyncPacksServiceNormalizeThumbnail`,
+  `SyncPacksServiceSyncFlow`, `ElevenLabsTtsAdapter`, `StoryDraftStore` et plus.
 
-- Dialogue de réglages réécrit avec les **Signal Forms** (`@angular/forms/signals`).
-- Le bouton « Sync library » des réglages déclenche le **sync classique** : la synchronisation des
-  métadonnées non-officielles est désormais incluse dans le sync classique.
-- Le répertoire des packs invalides est basé sur `defaultLibraryPath` (fini le chemin codé en dur
-  `~/Documents/StudioKMP`).
+### Modifie
 
-### Supprimé
+- **Refactor best-practices transversal** front/back :
+  - Cancellation des `CoroutineScope` non geres via `@PreDestroy` (`DeviceController`,
+    `PackController`, `SyncPacksService`).
+  - Tous les endpoints `StoryDraftController` sont desormais `suspend`.
+  - Gestion d'erreurs centralisee via `GlobalExceptionHandler` (exceptions typees :
+    `DraftIncompleteException` → 409, `NoSuchElementException` → 404).
+  - Ajout du DTO `FinalizedPackResponse`.
+- **Refactor du sync** : `SyncPacksService` reecrit avec SSE (`SseFlowEmitter`), suppression des
+  entites `SyncJob`/`InvalidPackMoveQueue` en base.
+- **StoryDraftController allege** : la logique de creation est deplacee dans les use cases
+  (`CreateStoryUseCase`, `StoryDraftStore`).
+- **Frontend** : `StoryDraftService` simplifie, theme mis a jour, erreurs UI pour le TTS
+  indisponible.
+- Nettoyage des fichiers de plans (`plans/`) et des documents redondants.
 
-- Endpoint `POST /metadata/refresh-unofficial` et use case/adaptateurs dédiés
-  (`SyncUnofficialMetadataUseCase`, ports et adaptateurs `UpdateUnofficialMetadata`,
-  `LoadUnofficialMetadataFromFile`, `UnofficialJsonEntry`).
-- Gestion du fichier `unofficial.json` (`Settings.unofficialDbPath`, lecture/écriture/nettoyage dans
-  `MetadataStore`).
-- Modale de progression de sync (`SyncProgressDialogComponent`).
-- Bouton « Sync library » de la page de bibliothèque (remplacé par le sync automatique + réglages).
+### Corrige
 
-## [0.1.0] — 2026-08-15
-
-### Ajouté
-
-- **Backend Spring Boot (Kotlin)** (`api/`) :
-  - Scan de la bibliothèque (formats Archive, RAW, FS) et indexation en base de données (H2).
-  - Catalogue officiel Lunii (`official.json`).
-  - Recherche, filtres, pagination, vignettes locales, édition de métadonnées, forks.
-  - Détection Lunii (hotplug USB), transferts device ↔ bibliothèque, SSE `/devices/events`.
-  - Conversion de formats Archive / RAW / FS.
-  - Sortie complète des dépendances `studio-*` (readers/writers/chiffrement portés en Kotlin pur).
-- **Frontend Angular** (`library-web/`) : bibliothèque, filtres, vignettes, panneau device, édition.
-- **App desktop Electron** (`desktop/`) : backend + frontend packagés, JRE jlink embarqué,
-  icône native, mac (arm64) + win (nsis) — natif **arm64** Apple Silicon (natif usb4java compilé).
-- **Structure communautaire** : `CONTRIBUTING.md`, templates de PR/Issues, `CHANGELOG.md`, `ROADMAP.md`.
-
-### Modifié
-
-- Dépendances `studio-core` / `studio-metadata` / `studio-driver` supprimées (Kotlin pur + usb4java).
-- Modules `server` et `shared` (Ktor/KMP legacy) supprimés.
-
-### Licence
-
-- Ajout de la **Non-Commercial Source-Available License** (voir `LICENSE`).
+- Recherche de packs officiels corrigee (filtrage et pagination).
+- Conversion audio des enregistrements.
+- Erreurs multiples sur les devices Lunii.
+- Thumbnails manquantes dans la reponse des snapshots device.

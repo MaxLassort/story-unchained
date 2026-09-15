@@ -166,16 +166,32 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+
       - uses: actions/download-artifact@v5
         with:
           path: artifacts
+
+      - name: Extract changelog entry
+        id: changelog
+        run: |
+          VERSION="${{ github.ref_name }}"
+          # Extract section between this version header and the next ## [ header
+          NOTES=$(awk '/^## \['"$VERSION"'\]/{found=1; next} /^## \[/{if(found) exit} found{print}' CHANGELOG.md)
+          # Write to output (preserve newlines)
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "$NOTES"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
+          name: v${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/mac-arm64/*.dmg
             artifacts/mac-arm64/*.zip
             artifacts/windows-x64/*.exe
-          generate_release_notes: true
