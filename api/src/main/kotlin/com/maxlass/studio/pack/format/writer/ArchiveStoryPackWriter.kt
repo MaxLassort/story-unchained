@@ -25,7 +25,7 @@ class ArchiveStoryPackWriter {
 
     private val json = Json { prettyPrint = true }
 
-    fun write(pack: StoryPack, outputStream: OutputStream) {
+    fun write(pack: StoryPack, outputStream: OutputStream, unchained: Boolean = false) {
         val assets = sortedMapOf<String, ByteArray>()
         val actionNodeToId = mutableMapOf<ActionNode, String>()
 
@@ -37,6 +37,9 @@ class ArchiveStoryPackWriter {
             }
             put("version", pack.version)
             put("nightModeAvailable", pack.nightModeAvailable)
+            if (unchained) {
+                put("unchained", true)
+            }
             put("stageNodes", buildJsonArray {
                 pack.stageNodes.orEmpty().forEachIndexed { index, node ->
                     add(buildJsonObject {

@@ -18,6 +18,8 @@ import com.maxlass.studio.pack.format.writer.BlankMp3
 import com.maxlass.studio.pack.format.writer.FsStoryPackWriter
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -126,6 +128,28 @@ class StoryPackWritersTest : StringSpec({
         s1.okTransition!!.actionNode!!.options!!.size shouldBe 1
         s1.okTransition!!.actionNode!!.options!![0].uuid shouldBe "22222222-2222-2222-2222-222222222222"
         s1.controlSettings!!.homeEnabled shouldBe false
+    }
+
+    "archive: unchained flag is written into story.json when requested" {
+        val pack = samplePack(
+            image = ImageAsset("image/png", bmpImage(), "img.png"),
+            audio = AudioAsset("audio/x-wav", sineWaveMono8000(), "a.wav"),
+        )
+
+        val bytes = ByteArrayOutputStream()
+        archiveWriter.write(pack, bytes, unchained = true)
+
+        val zis = java.util.zip.ZipInputStream(ByteArrayInputStream(bytes.toByteArray()))
+        var storyJson: String? = null
+        while (true) {
+            val entry = zis.nextEntry ?: break
+            if (entry.name.equals("story.json", ignoreCase = true)) {
+                storyJson = zis.readBytes().decodeToString()
+                break
+            }
+        }
+        storyJson shouldNotBe null
+        storyJson!! shouldContain "\"unchained\": true"
     }
 
     "binary: writer output round-trips through the reader" {

@@ -15,6 +15,7 @@ package com.maxlass.studio.pack.domain.dto
  * @property ageMax Optional maximum age (archive story.json only).
  * @property durationMs Optional duration in milliseconds (archive story.json only).
  * @property storyCount Optional story count (archive story.json only).
+ * @property unchained True when story.json / sidecar marks StoryUnchained provenance.
  */
 data class RawPackMeta(
     val uuid: String,
@@ -27,4 +28,5 @@ data class RawPackMeta(
     val ageMax: Int? = null,
     val durationMs: Int? = null,
     val storyCount: Int? = null,
+    val unchained: Boolean = false,
 )

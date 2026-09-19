@@ -231,7 +231,7 @@ class CreateStoryUseCase(
         }
         try {
             withContext(Dispatchers.IO) {
-                FileOutputStream(tmp.toFile()).use { archiveWriter.write(pack, it) }
+                FileOutputStream(tmp.toFile()).use { archiveWriter.write(pack, it, unchained = true) }
             }
             if (thumbnailPng != null) {
                 updatePackMetadata.updateArchiveMetadata(tmp, PackFileMetadata(thumbnailPngBytes = thumbnailPng))
@@ -257,6 +257,8 @@ class CreateStoryUseCase(
                     factoryDisabled = false,
                     nightModeAvailable = true,
                     official = false,
+                    storyCount = draft.chapters.size,
+                    unchained = true,
                 ),
                 variants = listOf(PackVariant(format = PackFormat.ARCHIVE, storagePath = destination.toString())),
             )

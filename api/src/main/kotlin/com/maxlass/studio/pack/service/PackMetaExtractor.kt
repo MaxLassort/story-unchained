@@ -44,6 +44,7 @@ class PackMetaExtractor(
             ageMax = fromOfficial?.ageMax ?: meta.ageMax,
             durationMs = fromOfficial?.durationMs ?: meta.durationMs,
             storyCount = fromOfficial?.storyCount ?: meta.storyCount,
+            unchained = meta.unchained,
         )
         return Pack(
             id = meta.uuid,

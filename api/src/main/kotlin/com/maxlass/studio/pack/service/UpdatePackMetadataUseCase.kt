@@ -45,6 +45,7 @@ class UpdatePackMetadataUseCase(
             ageMax = command.ageMax ?: pack.metadata.ageMax,
             durationMs = command.durationMs ?: pack.metadata.durationMs,
             storyCount = command.storyCount ?: pack.metadata.storyCount,
+            unchained = pack.metadata.unchained,
         )
         val updatedPack = pack.copy(metadata = updatedMetadata)
         packRepository.savePack(updatedPack)

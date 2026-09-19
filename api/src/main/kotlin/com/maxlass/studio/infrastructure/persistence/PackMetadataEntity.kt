@@ -53,4 +53,8 @@ class PackMetadataEntity(
 
     @Column(name = "storyCount")
     var storyCount: Int? = null,
+
+    /** True when created via the StoryUnchained wizard (see story.json / studio-meta.json). */
+    @Column(name = "unchained", nullable = false)
+    var unchained: Boolean = false,
 )

@@ -40,6 +40,7 @@ data class PackVariant(
  * @property official True if the pack is in the official Lunii catalog (official.json).
  * @property linkedOfficialPackId If set, this pack is a fork of the official pack with this UUID. Must be null when official is true.
  * @property slug Official shop slug (e.g. `asterix-le-combat-des-chefs`), used to build the buy URL. Only set for official catalog packs.
+ * @property unchained True when the pack was created via the StoryUnchained story wizard (provenance in story.json / sidecar).
  */
 @Serializable
 data class PackMetadata(
@@ -57,6 +58,7 @@ data class PackMetadata(
     val durationMs: Int? = null,
     val storyCount: Int? = null,
     val slug: String? = null,
+    val unchained: Boolean = false,
 )
 
 /**

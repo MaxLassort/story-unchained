@@ -82,7 +82,7 @@ class ChapterImageController(
         @Parameter(description = "Numéro de chapitre (ex. 1 pour afficher \"1\")")
         @RequestParam(required = false) chapterNumber: Int?,
         @Parameter(description = "Multiplicateur d'épaisseur des traits (défaut 1.0)")
-        @RequestParam(defaultValue = "1.0") strokeMultiplier: Double,
+        @RequestParam(defaultValue = "1.0") strokeMultiplier: Double = 1.0,
     ): ResponseEntity<ByteArray> {
         val png = when {
             iconId != null -> {
@@ -117,7 +117,7 @@ class ChapterImageController(
         )
         @RequestPart("file") file: MultipartFile,
         @Parameter(description = "Multiplicateur d'épaisseur des traits (défaut 1.0)")
-        @RequestParam(defaultValue = "1.0") strokeMultiplier: Double,
+        @RequestParam(defaultValue = "1.0") strokeMultiplier: Double = 1.0,
     ): ResponseEntity<ByteArray> {
         if (file.isEmpty) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "SVG file is empty")

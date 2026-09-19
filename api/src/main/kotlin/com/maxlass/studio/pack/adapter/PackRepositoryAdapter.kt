@@ -48,6 +48,7 @@ class PackRepositoryAdapter(
                     ageMax = pack.metadata.ageMax,
                     durationMs = pack.metadata.durationMs,
                     storyCount = pack.metadata.storyCount,
+                    unchained = pack.metadata.unchained,
                 )
             )
             pack.variants.forEach { variant ->
@@ -153,6 +154,7 @@ class PackRepositoryAdapter(
                     ageMax = meta.ageMax,
                     durationMs = meta.durationMs,
                     storyCount = meta.storyCount,
+                    unchained = meta.unchained,
                 ),
                 variants = variants[id].orEmpty().mapNotNull { v ->
                     val format = runCatching { PackFormat.valueOf(v.id.format) }.getOrDefault(PackFormat.UNKNOWN)

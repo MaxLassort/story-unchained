@@ -15,6 +15,8 @@ export interface PackMetadata {
   durationMs: number | null;
   storyCount: number | null;
   slug: string | null;
+  /** True when created via the StoryUnchained story wizard. */
+  unchained?: boolean;
 }
 
 export interface PackVariant {

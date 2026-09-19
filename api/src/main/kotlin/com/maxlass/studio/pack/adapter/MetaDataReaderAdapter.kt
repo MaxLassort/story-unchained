@@ -7,6 +7,7 @@ import com.maxlass.studio.pack.format.reader.BinaryStoryPackReader
 import com.maxlass.studio.pack.format.reader.FsStoryPackReader
 import com.maxlass.studio.pack.port.external.MetaDataReaderPort
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -37,6 +38,7 @@ class MetaDataReaderAdapter : MetaDataReaderPort {
                 ageMax = extra.ageMax,
                 durationMs = extra.durationMs,
                 storyCount = extra.storyCount,
+                unchained = extra.unchained,
             )
         } catch (e: IOException) {
             null
@@ -81,6 +83,7 @@ class MetaDataReaderAdapter : MetaDataReaderPort {
         val ageMax: Int?,
         val durationMs: Int?,
         val storyCount: Int?,
+        val unchained: Boolean,
     )
 
     private fun readExtendedArchiveMetadata(path: Path): ExtendedArchiveMetadata =
@@ -88,7 +91,7 @@ class MetaDataReaderAdapter : MetaDataReaderPort {
             ZipFile(path.toFile()).use { zf ->
                 val entry = zf.entries().asSequence().firstOrNull {
                     !it.isDirectory && it.name.equals("story.json", ignoreCase = true)
-                } ?: return@use ExtendedArchiveMetadata(null, null, null, null, null)
+                } ?: return@use ExtendedArchiveMetadata(null, null, null, null, null, false)
                 val root = zf.getInputStream(entry).use {
                     Json.parseToJsonElement(it.readBytes().decodeToString()).jsonObject
                 }
@@ -98,7 +101,8 @@ class MetaDataReaderAdapter : MetaDataReaderPort {
                     ageMax = root["ageMax"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(),
                     durationMs = root["durationMs"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(),
                     storyCount = root["storyCount"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(),
+                    unchained = root["unchained"]?.jsonPrimitive?.booleanOrNull == true,
                 )
             }
-        }.getOrElse { ExtendedArchiveMetadata(null, null, null, null, null) }
+        }.getOrElse { ExtendedArchiveMetadata(null, null, null, null, null, false) }
 }

@@ -15,6 +15,8 @@ data class PackFileMetadata(
     val durationMs: Int? = null,
     val storyCount: Int? = null,
     val thumbnailPngBytes: ByteArray? = null,
+    /** When non-null, written into story.json (StoryUnchained provenance). */
+    val unchained: Boolean? = null,
 )
 
 fun interface UpdatePackFileMetadataPort {

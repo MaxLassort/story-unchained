@@ -28,7 +28,7 @@ class UpdateZipMetadataAdapter : UpdatePackFileMetadataPort {
     override fun updateArchiveMetadata(zipPath: Path, metadata: PackFileMetadata): Path {
         val hasStoryJsonChanges = metadata.title != null || metadata.description != null ||
             metadata.locale != null || metadata.ageMin != null || metadata.ageMax != null ||
-            metadata.durationMs != null || metadata.storyCount != null
+            metadata.durationMs != null || metadata.storyCount != null || metadata.unchained != null
 
         val tmp = Files.createTempFile("studio_kmp_metadata_", ".zip")
         try {
@@ -83,6 +83,7 @@ class UpdateZipMetadataAdapter : UpdatePackFileMetadataPort {
         metadata.ageMax?.let { mutated["ageMax"] = JsonPrimitive(it) }
         metadata.durationMs?.let { mutated["durationMs"] = JsonPrimitive(it) }
         metadata.storyCount?.let { mutated["storyCount"] = JsonPrimitive(it) }
+        metadata.unchained?.let { mutated["unchained"] = JsonPrimitive(it) }
         return json.encodeToString(JsonObject.serializer(), JsonObject(mutated)).toByteArray(Charsets.UTF_8)
     }
 
