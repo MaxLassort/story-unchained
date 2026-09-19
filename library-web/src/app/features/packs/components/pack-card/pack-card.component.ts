@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -142,10 +143,13 @@ export class PackCardComponent {
       if (res.ok) {
         this.snackbar.success(translate('Copied to device', this.lang.currentLang()));
       } else {
-        this.snackbar.error(res.error ?? translate('Copy failed', this.lang.currentLang()));
+        this.snackbar.error(res.message ?? res.error ?? translate('Copy failed', this.lang.currentLang()));
       }
-    } catch {
-      this.snackbar.error(translate('Device not connected', this.lang.currentLang()));
+    } catch (err) {
+      const message = err instanceof HttpErrorResponse
+        ? (err.error?.message ?? err.error?.error ?? err.message)
+        : translate('Device not connected', this.lang.currentLang());
+      this.snackbar.error(message);
     } finally {
       this.copyingToDevice.set(false);
     }

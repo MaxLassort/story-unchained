@@ -81,12 +81,14 @@ class ChapterImageController(
         @RequestParam(required = false) iconId: String?,
         @Parameter(description = "Numéro de chapitre (ex. 1 pour afficher \"1\")")
         @RequestParam(required = false) chapterNumber: Int?,
+        @Parameter(description = "Multiplicateur d'épaisseur des traits (défaut 1.0)")
+        @RequestParam(defaultValue = "1.0") strokeMultiplier: Double,
     ): ResponseEntity<ByteArray> {
         val png = when {
             iconId != null -> {
                 val svg = iconCatalog.loadIcon(iconId)
                     ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown icon: $iconId")
-                SvgIconRenderer.render(svg)
+                SvgIconRenderer.render(svg, strokeMultiplier = strokeMultiplier)
             }
             chapterNumber != null -> ChapterImageGenerator.generate(chapterNumber)
             else -> throw ResponseStatusException(
@@ -114,6 +116,8 @@ class ChapterImageController(
             schema = Schema(type = "string", format = "binary"),
         )
         @RequestPart("file") file: MultipartFile,
+        @Parameter(description = "Multiplicateur d'épaisseur des traits (défaut 1.0)")
+        @RequestParam(defaultValue = "1.0") strokeMultiplier: Double,
     ): ResponseEntity<ByteArray> {
         if (file.isEmpty) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "SVG file is empty")
@@ -125,7 +129,7 @@ class ChapterImageController(
         }
         val svg = String(file.bytes, Charsets.UTF_8)
         val png = try {
-            SvgIconRenderer.render(svg)
+            SvgIconRenderer.render(svg, strokeMultiplier = strokeMultiplier)
         } catch (e: IllegalArgumentException) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid SVG: ${e.message}")
         }

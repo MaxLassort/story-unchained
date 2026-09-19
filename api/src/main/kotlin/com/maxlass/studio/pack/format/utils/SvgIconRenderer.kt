@@ -33,10 +33,15 @@ object SvgIconRenderer {
     const val DEFAULT_HEIGHT = 240
 
     /** Renders the `<path d="...">` elements of [svg] as white strokes on black, [width]x[height]. */
-    fun render(svg: String, width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT): ByteArray {
+    fun render(
+        svg: String,
+        width: Int = DEFAULT_WIDTH,
+        height: Int = DEFAULT_HEIGHT,
+        strokeMultiplier: Double = 2.0,
+    ): ByteArray {
         val path = parsePaths(svg)
         val viewBox = parseViewBox(svg)
-        val strokeWidth = parseStrokeWidth(svg).coerceAtLeast(1.0)
+        val strokeWidth = (parseStrokeWidth(svg).coerceAtLeast(1.0)) * strokeMultiplier
 
         val bounds = viewBox ?: path.bounds2D
         if (bounds.width <= 0.0 || bounds.height <= 0.0) {

@@ -224,3 +224,19 @@
   color: var(--mat-sys-error);
   font-size: 0.85rem;
 }
+
+.node-image__stroke {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-image__stroke-label {
+  font-size: 0.8125rem;
+  color: var(--mat-sys-on-surface-variant);
+  white-space: nowrap;
+}
+
+.node-image__stroke mat-slider {
+  flex: 1;
+}

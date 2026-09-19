@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSliderModule } from '@angular/material/slider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '../../../../../environments/environment';
 import { StoryImageService } from '../../../../core/services/story-image.service';
@@ -28,6 +29,7 @@ import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '..
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatSliderModule,
     MatTooltipModule,
   ],
   templateUrl: './node-image-input.component.html',
@@ -47,6 +49,8 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
    * that renders the given number as a white-on-black image.
    */
   readonly chapterNumber = input<number | null>(null);
+
+  readonly strokeMultiplier = model(1.0);
 
 
   readonly imageSpecTooltip = computed(() =>
@@ -246,7 +250,7 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     this.converting.set(true);
     this.convertError.set(null);
     try {
-      const blob = await this.images.renderSvg(file);
+      const blob = await this.images.renderSvg(file, this.strokeMultiplier());
       // Strip any trailing extension (case-insensitive) so an SVG detected only by
       // mime ("photo.svg") or a case variant ("cat.SVG") yields one clean "*.png".
       const base = file.name.replace(/\.[^.]+$/, '');

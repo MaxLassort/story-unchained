@@ -55,14 +55,14 @@ export class DevicesService {
 
   async copyToDevice(packId: string): Promise<CopyPackResponse> {
     const body: CopyPackRequest = { packId };
-    return firstValueFrom(this.http.post<CopyPackResponse>(`${this.baseUrl}/packs`, body));
+    return firstValueFrom(this.http.post<CopyPackResponse>(`${this.baseUrl}/packs`, body, { context: this.silentContext }));
   }
 
   async deleteFromDevice(packId: string): Promise<CopyPackResponse> {
-    return firstValueFrom(this.http.delete<CopyPackResponse>(`${this.baseUrl}/packs/${packId}`));
+    return firstValueFrom(this.http.delete<CopyPackResponse>(`${this.baseUrl}/packs/${packId}`, { context: this.silentContext }));
   }
 
   async copyToLibrary(packId: string): Promise<CopyPackResponse> {
-    return firstValueFrom(this.http.post<CopyPackResponse>(`${this.baseUrl}/packs/${packId}/copy-to-library`, {}));
+    return firstValueFrom(this.http.post<CopyPackResponse>(`${this.baseUrl}/packs/${packId}/copy-to-library`, {}, { context: this.silentContext }));
   }
 }

@@ -17,39 +17,39 @@ export class StoryImageService {
   private readonly http = inject(HttpClient);
   private readonly imagesUrl = `${environment.apiUrl}/stories/images`;
 
-  iconPreviewUrl(iconId: string): string {
-    return `${this.imagesUrl}/preview?iconId=${encodeURIComponent(iconId)}`;
+  iconPreviewUrl(iconId: string, strokeMultiplier = 1.0): string {
+    return `${this.imagesUrl}/preview?iconId=${encodeURIComponent(iconId)}&strokeMultiplier=${strokeMultiplier}`;
   }
 
-  chapterNumberPreviewUrl(chapterNumber: number): string {
-    return `${this.imagesUrl}/preview?chapterNumber=${chapterNumber}`;
+  chapterNumberPreviewUrl(chapterNumber: number, strokeMultiplier = 1.0): string {
+    return `${this.imagesUrl}/preview?chapterNumber=${chapterNumber}&strokeMultiplier=${strokeMultiplier}`;
   }
 
-  async fetchIconPng(iconId: string): Promise<Blob> {
+  async fetchIconPng(iconId: string, strokeMultiplier = 1.0): Promise<Blob> {
     return firstValueFrom(
       this.http.get(`${this.imagesUrl}/preview`, {
-        params: { iconId },
+        params: { iconId, strokeMultiplier: strokeMultiplier.toString() },
         responseType: 'blob',
         context: silentHttpContext(),
       }),
     );
   }
 
-  async fetchChapterNumberPng(chapterNumber: number): Promise<Blob> {
+  async fetchChapterNumberPng(chapterNumber: number, strokeMultiplier = 1.0): Promise<Blob> {
     return firstValueFrom(
       this.http.get(`${this.imagesUrl}/preview`, {
-        params: { chapterNumber },
+        params: { chapterNumber: chapterNumber.toString(), strokeMultiplier: strokeMultiplier.toString() },
         responseType: 'blob',
         context: silentHttpContext(),
       }),
     );
   }
 
-  async renderSvg(svg: File): Promise<Blob> {
+  async renderSvg(svg: File, strokeMultiplier = 1.0): Promise<Blob> {
     const form = new FormData();
     form.append('file', svg);
     return firstValueFrom(
-      this.http.post(`${this.imagesUrl}/render`, form, {
+      this.http.post(`${this.imagesUrl}/render?strokeMultiplier=${strokeMultiplier}`, form, {
         responseType: 'blob',
         context: silentHttpContext(),
       }),
