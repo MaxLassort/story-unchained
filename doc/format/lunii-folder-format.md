@@ -21,7 +21,7 @@
 | Images | BMP **320×240 · 4-bpp · RLE4** ([`images.md`](images.md)) |
 | Audio | MP3 **mono 44,1 kHz · sans ID3** ([`audio.md`](audio.md)) |
 | UUID du pack | Dérivé du **nom du dossier** (8 derniers chiffres hex de l'UUID, majuscules) |
-| Métadonnées enrichies | ⛔ Non stockées (`name`, `type`, `position`… perdues) |
+| Métadonnées enrichies | Via sidecar StoryUnchained `studio-meta.json` (+ `studio-thumbnail.png`) **uniquement** pour les packs créés dans le wizard Unchained (`unchained: true`). Sinon ⛔ (format STUdio nu). |
 
 Code : `FsStoryPackReader` / `FsStoryPackWriter` (`pack/format/`).
 
@@ -41,11 +41,15 @@ Code : `FsStoryPackReader` / `FsStoryPackWriter` (`pack/format/`).
 │   └── 000/00000000, 000/00000001, …
 ├── nm                        ← marqueur vide : mode nuit disponible (si présent)
 ├── .cleartext                ← marqueur : fichiers en clair (pas chiffrés)
-└── bt                        ← boot file (généré par le driver à la copie, cf. device-storage)
+├── bt                        ← boot file (généré par le driver à la copie, cf. device-storage)
+├── studio-meta.json          ← (Unchained only) title, description, ages, `unchained: true`, …
+└── studio-thumbnail.png      ← (Unchained only) cover PNG ; référencé par studio-meta.json
 ```
 
 - Les noms `ni`/`li`/`ri`/`si`/`rf/`/`sf/` sont des constantes du format
   (`FsStoryPackWriter.Companion`).
+- `studio-meta.json` / `studio-thumbnail.png` : ajout StoryUnchained ; ignorés par le firmware ;
+  copiés en clair sur l’appareil (`FsCipher.CLEAR_FILES`). Voir `StudioFsMeta`.
 - Les chemins d'assets utilisent le séparateur **antislash** `\` dans les index (`000\00000000`),
   converti en `/` pour accéder au fichier réel.
 

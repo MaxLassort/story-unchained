@@ -1,5 +1,6 @@
 package com.maxlass.studio.device.driver
 
+import com.maxlass.studio.pack.format.StudioFsMeta
 import com.maxlass.studio.pack.format.utils.BytesUtils
 import com.maxlass.studio.pack.format.utils.XxteaCipher
 import java.io.File
@@ -20,7 +21,13 @@ object FsCipher {
 
     private const val BOOT_FILENAME = "bt"
 
-    private val CLEAR_FILES = setOf("ni", "nm", ".cleartext")
+    private val CLEAR_FILES = setOf(
+        "ni",
+        "nm",
+        ".cleartext",
+        StudioFsMeta.META_FILENAME,
+        StudioFsMeta.THUMBNAIL_FILENAME,
+    )
     private val NO_COPY_FILES = setOf(".cleartext")
 
     fun shouldBeCopied(path: Path): Boolean = path.fileName.toString() !in NO_COPY_FILES

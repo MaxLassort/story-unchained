@@ -2,6 +2,7 @@ package com.maxlass.studio.pack.adapter
 
 import com.maxlass.studio.pack.port.external.PackFileMetadata
 import com.maxlass.studio.pack.port.external.UpdatePackFileMetadataPort
+import com.maxlass.studio.pack.format.StudioFsMeta
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -24,6 +25,11 @@ class UpdateZipMetadataAdapter : UpdatePackFileMetadataPort {
     }
 
     private val json = Json { prettyPrint = true }
+
+    override fun updateFsMetadata(packFolder: Path, metadata: PackFileMetadata): Path {
+        StudioFsMeta.update(packFolder, metadata, unchained = true)
+        return packFolder
+    }
 
     override fun updateArchiveMetadata(zipPath: Path, metadata: PackFileMetadata): Path {
         val hasStoryJsonChanges = metadata.title != null || metadata.description != null ||

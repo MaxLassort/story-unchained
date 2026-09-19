@@ -1,6 +1,7 @@
 package com.maxlass.studio.pack.adapter
 
 import com.maxlass.studio.pack.domain.dto.RawPackMeta
+import com.maxlass.studio.pack.format.StudioFsMeta
 import com.maxlass.studio.pack.format.model.StoryPackMetadata
 import com.maxlass.studio.pack.format.reader.ArchiveStoryPackReader
 import com.maxlass.studio.pack.format.reader.BinaryStoryPackReader
@@ -59,7 +60,18 @@ class MetaDataReaderAdapter : MetaDataReaderPort {
 
     override fun readFsMetadata(path: Path): RawPackMeta? {
         return try {
-            fsReader.readMetadata(path).toRawPackMeta()
+            val base = fsReader.readMetadata(path).toRawPackMeta()
+            val side = StudioFsMeta.read(path) ?: return base
+            base.copy(
+                title = side.title ?: base.title,
+                description = side.description ?: base.description,
+                locale = side.locale ?: base.locale,
+                ageMin = side.ageMin ?: base.ageMin,
+                ageMax = side.ageMax ?: base.ageMax,
+                durationMs = side.durationMs ?: base.durationMs,
+                storyCount = side.storyCount ?: base.storyCount,
+                unchained = side.unchained,
+            )
         } catch (e: IOException) {
             null
         } catch (e: RuntimeException) {

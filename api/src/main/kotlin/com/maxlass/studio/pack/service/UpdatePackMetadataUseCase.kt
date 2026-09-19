@@ -59,14 +59,23 @@ class UpdatePackMetadataUseCase(
             durationMs = command.durationMs,
             storyCount = command.storyCount,
             thumbnailPngBytes = command.thumbnailPngBytes,
+            unchained = if (pack.metadata.unchained) true else null,
         )
-        if (fileMetadata.title != null || fileMetadata.description != null ||
+        val hasFileChanges = fileMetadata.title != null || fileMetadata.description != null ||
             fileMetadata.locale != null || fileMetadata.ageMin != null || fileMetadata.ageMax != null ||
-            fileMetadata.durationMs != null || fileMetadata.storyCount != null || fileMetadata.thumbnailPngBytes != null
-        ) {
+            fileMetadata.durationMs != null || fileMetadata.storyCount != null ||
+            fileMetadata.thumbnailPngBytes != null || fileMetadata.unchained != null
+
+        if (hasFileChanges) {
             val archiveVariants = pack.variants.filter { it.format == PackFormat.ARCHIVE }
             for (variant in archiveVariants) {
                 updatePackFileMetadataPort.updateArchiveMetadata(Path.of(variant.storagePath), fileMetadata)
+            }
+            // FS sidecar only for Unchained-created packs
+            if (updatedPack.metadata.unchained) {
+                for (variant in pack.variants.filter { it.format == PackFormat.FS }) {
+                    updatePackFileMetadataPort.updateFsMetadata(Path.of(variant.storagePath), fileMetadata)
+                }
             }
         }
 

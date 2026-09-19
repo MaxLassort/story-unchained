@@ -7,6 +7,7 @@ import com.maxlass.studio.pack.domain.model.Pack
 import com.maxlass.studio.pack.domain.model.PackFormat
 import com.maxlass.studio.pack.domain.model.PackMetadata
 import com.maxlass.studio.pack.domain.model.PackVariant
+import com.maxlass.studio.pack.format.StudioFsMeta
 import com.maxlass.studio.pack.port.external.ExtractThumbnailFromFsPackPort
 import com.maxlass.studio.pack.port.external.MetaDataReaderPort
 import com.maxlass.studio.pack.util.readThumbnailBytes
@@ -69,10 +70,17 @@ class PackMetaExtractor(
             // `meta/thumbnail.png`. Reuse that cover instead of overwriting it with the raw first
             // FS image (which is a placeholder-quality "default"), otherwise a 2-format pack ends
             // up showing the wrong thumbnail.
-            PackFormat.FS -> if (hasArchiveVariant) {
-                resolveCachedThumbnail(packId) ?: existingThumbnail
-            } else {
-                resolveFsThumbnail(file)
+            PackFormat.FS -> {
+                val sidecarPng = StudioFsMeta.readThumbnailBytes(file.toPath())
+                if (sidecarPng != null) {
+                    thumbnailCache.put(packId, sidecarPng)
+                    return "data:image/png;base64,${Base64.getEncoder().encodeToString(sidecarPng)}"
+                }
+                if (hasArchiveVariant) {
+                    resolveCachedThumbnail(packId) ?: existingThumbnail
+                } else {
+                    resolveFsThumbnail(file)
+                }
             }
             else -> null
         }
