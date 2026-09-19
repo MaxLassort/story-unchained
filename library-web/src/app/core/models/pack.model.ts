@@ -17,6 +17,8 @@ export interface PackMetadata {
   slug: string | null;
   /** True when created via the StoryUnchained story wizard. */
   unchained?: boolean;
+  /** True when this card represents an in-progress story draft (not yet finalized). */
+  draft?: boolean;
 }
 
 export interface PackVariant {
@@ -28,6 +30,8 @@ export interface Pack {
   id: string;
   metadata: PackMetadata;
   variants: PackVariant[];
+  /** When this is a draft card editing an existing pack, the source pack id. */
+  sourcePackId?: string | null;
 }
 
 export interface PagedPacksResponse {
@@ -100,6 +104,7 @@ export interface StoryDraftSummary {
   id: string;
   title: string | null;
   description: string | null;
+  sourcePackId?: string | null;
   hasThumbnail: boolean;
   thumbnailBytes: number;
   hasCover: boolean;
@@ -111,6 +116,7 @@ export interface StoryDraftSummary {
   menuAudioBytes: number;
   menuText: string | null;
   chapters: StoryChapterDraftSummary[];
+  createdAtEpochMs?: number;
 }
 
 export interface UpdateDraftRequest {

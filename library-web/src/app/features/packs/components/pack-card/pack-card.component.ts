@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,6 +14,7 @@ import { PackDeleteDialogComponent } from '../pack-delete-dialog/pack-delete-dia
 import { PackConvertDialogComponent } from '../pack-convert-dialog/pack-convert-dialog.component';
 import { CopyPackDialogComponent } from '../copy-pack-dialog/copy-pack-dialog.component';
 import { PacksService } from '../../../../core/services/packs.service';
+import { StoryDraftService } from '../../../../core/services/story-draft.service';
 import { DevicesService } from '../../../../core/services/devices.service';
 import { SnackbarService } from '../../../../core/services/snackbar.service';
 import { SseService } from '../../../../core/services/sse.service';
@@ -32,10 +33,12 @@ export class PackCardComponent {
   readonly pack = input.required<Pack>();
   /** Official catalog display: read-only card, FAB menu replaced by a buy link. */
   readonly officialMode = input(false);
+  readonly draftDeleted = output<string>();
 
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly packsService = inject(PacksService);
+  private readonly draftsService = inject(StoryDraftService);
   private readonly devicesService = inject(DevicesService);
   private readonly snackbar = inject(SnackbarService);
   private readonly sseService = inject(SseService);
@@ -79,11 +82,12 @@ export class PackCardComponent {
   protected readonly description = computed(() => this.pack().metadata.description ?? '');
   protected readonly isOfficial = computed(() => this.pack().metadata.official);
   protected readonly isUnchained = computed(() => this.pack().metadata.unchained === true);
+  protected readonly isDraft = computed(() => this.pack().metadata.draft === true);
   protected readonly ageRange = computed(() => {
     const { ageMin, ageMax } = this.pack().metadata;
     if (ageMin != null && ageMax != null) return `${ageMin}${ageMax} ans`;
     if (ageMin != null) return `Dès ${ageMin} ans`;
-    if (ageMax != null) return `Jusqu’à ${ageMax} ans`;
+    if (ageMax != null) return `Jusqu'à ${ageMax} ans`;
     return 'Âge non renseigné';
   });
 
@@ -92,6 +96,10 @@ export class PackCardComponent {
   }
 
   protected edit(): void {
+    if (this.isDraft()) {
+      void this.router.navigate(['/stories/drafts', this.pack().id]);
+      return;
+    }
     if (this.pack().metadata.unchained) {
       void this.router.navigate(['/stories', this.pack().id, 'edit']);
     } else {
@@ -105,16 +113,24 @@ export class PackCardComponent {
       width: '400px',
     });
     const confirmed = await lastValueFrom(ref.afterClosed());
-    if (confirmed) {
-      this.deleting.set(true);
-      try {
+    if (!confirmed) return;
+
+    this.deleting.set(true);
+    try {
+      if (this.isDraft()) {
+        await this.draftsService.deleteDraft(this.pack().id);
+        this.draftDeleted.emit(this.pack().id);
+        this.snackbar.success(translate('Draft deleted', this.lang.currentLang()));
+      } else {
         await this.packsService.deletePack(this.pack().id);
         this.snackbar.success(translate('Pack deleted', this.lang.currentLang()));
-      } catch {
-        this.snackbar.error(translate('Failed to delete pack', this.lang.currentLang()));
-      } finally {
-        this.deleting.set(false);
       }
+    } catch {
+      this.snackbar.error(
+        translate(this.isDraft() ? 'Failed to delete draft' : 'Failed to delete pack', this.lang.currentLang()),
+      );
+    } finally {
+      this.deleting.set(false);
     }
   }
 

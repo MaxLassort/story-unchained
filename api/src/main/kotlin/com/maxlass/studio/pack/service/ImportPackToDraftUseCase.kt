@@ -16,8 +16,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Rehydrates an Unchained ARCHIVE pack into the single active story draft so the wizard
- * can edit it. Walks the classic menu graph produced by [CreateStoryUseCase].
+ * Rehydrates an Unchained ARCHIVE pack into a **new** story draft (siblings are kept)
+ * so the wizard can edit it. Walks the classic menu graph produced by [CreateStoryUseCase].
  */
 @Service
 class ImportPackToDraftUseCase(
@@ -58,7 +58,7 @@ class ImportPackToDraftUseCase(
         val options = followToOptions(menuQuestion)
             ?: throw IllegalStateException("Unchained pack $packId has no chapter options")
 
-        val draft = draftStore.create()
+        val draft = draftStore.create(sourcePackId = packId)
         val draftId = draft.id
         val title = pack.metadata.title ?: storyPack.enriched?.title
         val description = pack.metadata.description ?: storyPack.enriched?.description

@@ -148,8 +148,9 @@ export class StoryDetailsStepComponent {
 
   private async loadExistingDraft(): Promise<void> {
     try {
-      const draft = await this.drafts.getCurrentDraft();
-      if (!draft) return;
+      const draftId = this.drafts.draftId();
+      if (!draftId) return;
+      const draft = await this.drafts.getDraft(draftId);
 
       let thumbnail: File | null = null;
       if (draft.hasThumbnail) {

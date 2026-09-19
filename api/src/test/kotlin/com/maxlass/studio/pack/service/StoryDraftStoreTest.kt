@@ -36,14 +36,21 @@ class StoryDraftStoreTest : StringSpec({
         props.draftsDir.toFile().exists() shouldBe false
     }
 
-    "creating a draft replaces the previous one (single draft at a time)" {
+    "creating a draft keeps previous drafts (multiple drafts allowed)" {
         val store = newStore()
         val first = store.create()
         val second = store.create()
 
         second.id shouldNotBe first.id
-        store.get(first.id).shouldBeNull()
+        store.get(first.id).shouldNotBeNull()
         store.get(second.id).shouldNotBeNull()
+        store.listAll().size shouldBe 2
+    }
+
+    "create with sourcePackId stores the edit link" {
+        val store = newStore()
+        val draft = store.create(sourcePackId = "pack-123")
+        store.get(draft.id)!!.sourcePackId shouldBe "pack-123"
     }
 
     "get returns null for an unknown draft" {
@@ -152,7 +159,7 @@ class StoryDraftStoreTest : StringSpec({
         store.get(draft.id)!!.chapters.single().iconId shouldBe "star"
     }
 
-    "replacing a draft deletes the previous draft directory" {
+    "creating a second draft keeps the previous draft directory" {
         val store = newStore()
         val first = store.create()
         store.setThumbnail(first.id, byteArrayOf(9), "image/png")
@@ -160,7 +167,8 @@ class StoryDraftStoreTest : StringSpec({
         val dir = store.draftDir(first.id)
         store.create()
 
-        dir.toFile().exists() shouldBe false
+        dir.toFile().exists() shouldBe true
+        store.get(first.id).shouldNotBeNull()
     }
 
     "operations on an unknown draft or chapter return null" {

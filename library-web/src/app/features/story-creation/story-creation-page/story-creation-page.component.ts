@@ -39,6 +39,7 @@ export class StoryCreationPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly drafts = inject(StoryDraftService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly chaptersState = inject(ChaptersEditorState);
 
   readonly detailsStep = viewChild(StoryDetailsStepComponent);
   readonly bulkStep = viewChild(BulkAudioStepComponent);
@@ -47,7 +48,7 @@ export class StoryCreationPageComponent implements OnInit {
 
   /** When set, finalize rewrites this Unchained pack instead of creating a new one. */
   readonly editPackId = signal<string | null>(null);
-  readonly booting = signal(false);
+  readonly booting = signal(true);
   readonly bootError = signal<string | null>(null);
   readonly finalizing = signal(false);
   readonly finalizeError = signal<string | null>(null);
@@ -59,15 +60,28 @@ export class StoryCreationPageComponent implements OnInit {
   );
 
   async ngOnInit(): Promise<void> {
-    const packId = this.route.snapshot.paramMap.get('packId');
-    if (!packId) {
-      return;
-    }
-    this.editPackId.set(packId);
     this.booting.set(true);
-    this.drafts.draftId.set(null);
+    this.bootError.set(null);
     try {
-      await this.drafts.createDraftFromPack(packId);
+      const resumeDraftId = this.route.snapshot.paramMap.get('draftId');
+      const packId = this.route.snapshot.paramMap.get('packId');
+
+      if (resumeDraftId) {
+        const draft = await this.drafts.getDraft(resumeDraftId);
+        this.drafts.selectDraft(resumeDraftId);
+        if (draft.sourcePackId) this.editPackId.set(draft.sourcePackId);
+      } else if (packId) {
+        this.editPackId.set(packId);
+        this.drafts.draftId.set(null);
+        await this.drafts.createDraftFromPack(packId);
+      } else {
+        // Create Story: always a fresh empty draft (never reopen another draft).
+        this.editPackId.set(null);
+        this.drafts.draftId.set(null);
+        await this.drafts.ensureDraft();
+      }
+
+      await this.chaptersState.loadExistingDraft();
     } catch (err) {
       const msg =
         err instanceof HttpErrorResponse

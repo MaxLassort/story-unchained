@@ -9,6 +9,7 @@
         [(showOfficial)]="showOfficial"
         [(showUnchainedOnly)]="showUnchainedOnly"
         [(showCurrentLocale)]="showCurrentLocale"
+        [(showDrafts)]="showDrafts"
         [(ageMin)]="ageMin"
         [(ageMax)]="ageMax"
         [(sortOrder)]="sortOrder"
@@ -62,7 +63,11 @@
         </div>
       } @else {
         @for (pack of sortedPacks(); track pack.id) {
-          <app-pack-card [pack]="pack" [officialMode]="officialMode()" />
+          <app-pack-card
+            [pack]="pack"
+            [officialMode]="officialMode()"
+            (draftDeleted)="onDraftDeleted($event)"
+          />
         }
       }
     </div>

@@ -1,8 +1,8 @@
-<div class="card" [class.card--flipped]="flipped()" (click)="toggleFlip()">
+<div class="card" [class.card--flipped]="flipped()" [class.card--draft]="isDraft()" (click)="toggleFlip()">
   <div class="card__face">
     <div class="card__thumbnail">
-      <img class="card__thumbnail-img" [src]="thumbnailUrl()" alt="" (error)="imgError.set(true)" [hidden]="imgError()" />
-      @if (imgError()) {
+      <img class="card__thumbnail-img" [src]="thumbnailUrl()" alt="" (error)="imgError.set(true)" [hidden]="imgError() || !thumbnailUrl()" />
+      @if (imgError() || !thumbnailUrl()) {
         <mat-icon class="card__placeholder-icon">image</mat-icon>
       }
       <div class="card__badges">
@@ -10,9 +10,10 @@
           <app-format-badge [format]="format" />
         }
         @if (isOfficial()) { <span class="card__official-badge">{{ 'Official' | translate }}</span> }
+        @if (isDraft()) { <span class="card__draft-badge">{{ 'Draft' | translate }}</span> }
       </div>
       <div class="card__bottom-left">
-        @if (isUnchained()) {
+        @if (isUnchained() && !isDraft()) {
           <span class="card__unchained-badge">{{ 'Unchained' | translate }}</span>
         }
         <div class="card__flip-hint">
@@ -40,17 +41,19 @@
           </button>
           <mat-menu #menu="matMenu">
             <button mat-menu-item (click)="edit()">
-              <mat-icon>edit</mat-icon> {{ 'Edit' | translate }}
+              <mat-icon>edit</mat-icon> {{ (isDraft() ? 'Continue editing' : 'Edit') | translate }}
             </button>
-            <button mat-menu-item [matMenuTriggerFor]="convertMenu">
-              <mat-icon>transform</mat-icon> {{ 'Convert' | translate }}
-            </button>
-            <button mat-menu-item (click)="copyToDevice()">
-              <mat-icon>phone_android</mat-icon> {{ 'Copy to device' | translate }}
-            </button>
+            @if (!isDraft()) {
+              <button mat-menu-item [matMenuTriggerFor]="convertMenu">
+                <mat-icon>transform</mat-icon> {{ 'Convert' | translate }}
+              </button>
+              <button mat-menu-item (click)="copyToDevice()">
+                <mat-icon>phone_android</mat-icon> {{ 'Copy to device' | translate }}
+              </button>
+            }
             <mat-divider />
             <button mat-menu-item (click)="delete()">
-              <mat-icon color="warn">delete</mat-icon> {{ 'Delete' | translate }}
+              <mat-icon color="warn">delete</mat-icon> {{ (isDraft() ? 'Delete draft' : 'Delete') | translate }}
             </button>
           </mat-menu>
           <mat-menu #convertMenu="matMenu">
@@ -66,7 +69,11 @@
 
   <div class="card__face card__back">
     <p class="card__title">{{ title() }}</p>
-    <span class="card__age">{{ ageRange() }}</span>
+    @if (isDraft()) {
+      <span class="card__age">{{ 'Draft' | translate }}</span>
+    } @else {
+      <span class="card__age">{{ ageRange() }}</span>
+    }
     @if (description()) {
       @if (isOfficial()) {
         <p

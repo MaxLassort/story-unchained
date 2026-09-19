@@ -12,9 +12,10 @@ import { silentHttpContext } from './http-context';
 import { environment } from '../../../environments/environment';
 
 /**
- * Story draft lifecycle: a single in-progress story draft (chapters, audio or
+ * Story draft lifecycle: one or more in-progress story drafts (chapters, audio or
  * TTS text, images) held on disk in the temp folder until finalization. Owns the
- * shared `draftId` signal consumed by the story-creation stepper.
+ * shared `draftId` signal consumed by the story-creation stepper for the draft
+ * currently being edited in the wizard.
  *
  * All requests use {@link silentHttpContext}: errors are handled inline by the
  * story-creation flow (saveError/finalizeError) or silently tolerated (missing
@@ -29,6 +30,7 @@ export class StoryDraftService {
   readonly draftId = signal<string | null>(null);
   private draftPromise: Promise<string> | null = null;
 
+  /** Creates a new empty draft (does not replace siblings) and selects it. */
   async ensureDraft(): Promise<string> {
     const existing = this.draftId();
     if (existing) return existing;
@@ -44,6 +46,18 @@ export class StoryDraftService {
         this.draftPromise = null;
       });
     return this.draftPromise;
+  }
+
+  /** Lists all drafts on disk (newest first). */
+  async listDrafts(): Promise<StoryDraftSummary[]> {
+    return firstValueFrom(
+      this.http.get<StoryDraftSummary[]>(this.draftsUrl, { context: silentHttpContext() }),
+    );
+  }
+
+  /** Selects an existing draft by id (e.g. resume from pack list). */
+  selectDraft(id: string): void {
+    this.draftId.set(id);
   }
 
   async getCurrentDraft(): Promise<StoryDraftSummary | null> {
@@ -69,7 +83,7 @@ export class StoryDraftService {
     );
   }
 
-  /** Rehydrates an Unchained pack into the current draft (replaces any existing draft). */
+  /** Rehydrates an Unchained pack into a new draft (siblings are kept). */
   async createDraftFromPack(packId: string): Promise<string> {
     const res = await firstValueFrom(
       this.http.post<DraftCreatedResponse>(`${environment.apiUrl}/packs/${packId}/draft`, {}, {
@@ -86,6 +100,13 @@ export class StoryDraftService {
     );
   }
 
+  async deleteDraft(id: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete(`${this.draftsUrl}/${id}`, { context: silentHttpContext() }),
+    );
+    if (this.draftId() === id) this.draftId.set(null);
+  }
+
   async updateDraftMetadata(id: string, request: UpdateDraftRequest): Promise<StoryDraftSummary> {
     return firstValueFrom(
       this.http.patch<StoryDraftSummary>(`${this.draftsUrl}/${id}`, request, { context: silentHttpContext() }),
@@ -99,6 +120,11 @@ export class StoryDraftService {
         context: silentHttpContext(),
       }),
     );
+  }
+
+  /** Absolute URL for a draft thumbnail (usable as `<img src>`). */
+  draftThumbnailUrl(id: string): string {
+    return `${this.draftsUrl}/${id}/thumbnail/file`;
   }
 
   async downloadDraftCover(id: string): Promise<Blob> {
@@ -171,12 +197,6 @@ export class StoryDraftService {
       }),
     );
   }
-
-  // ------------------------------------------------------------------
-  // Consolidated endpoints (preferred): one PUT for binaries, one PATCH
-  // for node edits. The per-field methods above are kept only until the
-  // migration of all steps is verified, then removed.
-  // ------------------------------------------------------------------
 
   /** Consolidated binary upload: one PUT for every draft file (pack or chapter). */
   async uploadDraftFile(id: string, target: DraftFileTarget, file: File): Promise<StoryDraftSummary> {

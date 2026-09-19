@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { StoryDetailsStepComponent } from './story-details-step.component';
 import { StoryDraftService } from '../../../../core/services/story-draft.service';
 import { StoryImageService } from '../../../../core/services/story-image.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 describe('StoryDetailsStepComponent', () => {
   let draftsMock: {
@@ -11,9 +13,12 @@ describe('StoryDetailsStepComponent', () => {
     uploadDraftFile: ReturnType<typeof vi.fn>;
     patchDraftNode: ReturnType<typeof vi.fn>;
     getCurrentDraft: ReturnType<typeof vi.fn>;
+    getDraft: ReturnType<typeof vi.fn>;
+    draftId: ReturnType<typeof vi.fn>;
     downloadDraftThumbnail: ReturnType<typeof vi.fn>;
     downloadDraftCover: ReturnType<typeof vi.fn>;
     downloadDraftTitleAudio: ReturnType<typeof vi.fn>;
+    downloadDraftMenuAudio: ReturnType<typeof vi.fn>;
     updateDraftMetadata: ReturnType<typeof vi.fn>;
   };
   let imagesMock: {
@@ -26,11 +31,13 @@ describe('StoryDetailsStepComponent', () => {
       uploadDraftFile: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       patchDraftNode: vi.fn().mockResolvedValue({ id: 'draft-1' }),
       getCurrentDraft: vi.fn().mockResolvedValue(null),
+      getDraft: vi.fn().mockResolvedValue(null),
+      draftId: vi.fn().mockReturnValue(null),
       downloadDraftThumbnail: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
       downloadDraftCover: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
       downloadDraftTitleAudio: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
+      downloadDraftMenuAudio: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'audio/mpeg' })),
       updateDraftMetadata: vi.fn().mockResolvedValue({ id: 'draft-1' }),
-
     };
     imagesMock = {
       fetchIconPng: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
@@ -44,6 +51,14 @@ describe('StoryDetailsStepComponent', () => {
         provideHttpClient(),
         { provide: StoryDraftService, useValue: draftsMock },
         { provide: StoryImageService, useValue: imagesMock },
+        {
+          provide: LanguageService,
+          useValue: {
+            currentLang: signal<'fr' | 'en'>('en'),
+            isEnglish: signal(true),
+            setLang: vi.fn(),
+          },
+        },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(StoryDetailsStepComponent);

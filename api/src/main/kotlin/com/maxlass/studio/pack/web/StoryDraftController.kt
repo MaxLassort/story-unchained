@@ -37,18 +37,16 @@ import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 
 /**
- * Story draft API: single draft at a time, persisted entirely on disk in the temp folder
+ * Story draft API: multiple drafts on disk in the temp folder
  * (`storageDir/drafts/{id}/draft.json` + binary files) until finalization (zip creation).
  * Binary payloads (chapter audio, chapter image) are uploaded with multipart; a chapter
- * title can alternatively be provided as text, synthesized by the TTS engine at finalization.
+ * title can alternatively be provided as text, synthesized by the TTS engine at step-save.
  */
 @RestController
 @RequestMapping("/stories/drafts")
-@Tag(name = "Stories - Draft", description = "Brouillon d'histoire sur disque dans le dossier " +
-    "temp (une seule à la fois) : création → remplissage (chapitres, audio ou texte TTS, " +
-    "image) → finalisation en zip. Rien n'est gardé en mémoire ni persisté : le draft " +
-    "disparaît à la fermeture de l'appli et est remplacé à la création d'une nouvelle " +
-    "histoire.")
+@Tag(name = "Stories - Draft", description = "Brouillons d'histoire sur disque dans le dossier " +
+    "temp (plusieurs à la fois) : création → remplissage (chapitres, audio ou texte TTS, " +
+    "image) → finalisation en zip. Les drafts disparaissent au redémarrage de l'appli.")
 class StoryDraftController(
     private val store: StoryDraftStore,
     private val createStory: CreateStoryUseCase,
@@ -56,8 +54,8 @@ class StoryDraftController(
 
     @Operation(
         summary = "Créer un nouveau brouillon",
-        description = "Crée un nouveau brouillon vide. S'il existait déjà un brouillon, il est " +
-            "**remplacé** (une seule histoire à la fois). Retourne l'id du draft.",
+        description = "Crée un nouveau brouillon vide **sans** supprimer les brouillons existants. " +
+            "Retourne l'id du draft.",
     )
     @ApiResponse(responseCode = "201", description = "Brouillon créé", content = [
         Content(examples = [
@@ -72,8 +70,18 @@ class StoryDraftController(
     }
 
     @Operation(
-        summary = "Brouillon actuel",
-        description = "Retourne l'état du brouillon actuellement sur disque (s'il existe), " +
+        summary = "Lister les brouillons",
+        description = "Retourne tous les brouillons sur disque (du plus récent au plus ancien), " +
+            "sans les bytes binaires.",
+    )
+    @ApiResponse(responseCode = "200", description = "Liste des brouillons")
+    @GetMapping
+    suspend fun listDrafts(): List<StoryDraftSummary> =
+        store.listAll().map { toSummary(it) }
+
+    @Operation(
+        summary = "Brouillon le plus récent",
+        description = "Retourne l'état du brouillon le plus récemment créé (s'il existe), " +
             "sans les bytes. 404 si aucun brouillon n'existe.",
     )
     @ApiResponse(responseCode = "200", description = "État du brouillon actuel")
@@ -382,6 +390,7 @@ class StoryDraftController(
         id = draft.id,
         title = draft.title,
         description = draft.description,
+        sourcePackId = draft.sourcePackId,
         hasThumbnail = draft.thumbnailFile != null,
         thumbnailBytes = sizeOf(draft.id, draft.thumbnailFile),
         hasCover = draft.coverFile != null,
@@ -406,6 +415,7 @@ class StoryDraftController(
                 iconId = chapter.iconId,
             )
         },
+        createdAtEpochMs = draft.createdAtEpochMs,
     )
 
     private fun sizeOf(draftId: String, relativeFile: String?): Long =

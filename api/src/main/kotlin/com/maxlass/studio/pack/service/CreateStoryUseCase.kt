@@ -119,7 +119,8 @@ class CreateStoryUseCase(
             ?: throw NoSuchElementException("Draft not found: $draftId")
         validate(draft)
 
-        val existing = replacePackId?.let { id ->
+        val effectiveReplaceId = replacePackId ?: draft.sourcePackId
+        val existing = effectiveReplaceId?.let { id ->
             packRepository.getAllPacks().find { it.id == id }
                 ?: throw NoSuchElementException("Pack not found: $id")
         }

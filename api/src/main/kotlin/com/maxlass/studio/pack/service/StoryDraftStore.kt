@@ -12,14 +12,14 @@ import java.nio.file.Path
 import java.util.UUID
 
 /**
- * Single story draft store backed entirely by the temp folder (one story at a time).
+ * Story draft store backed entirely by the temp folder. Multiple drafts may coexist
+ * (one directory per draft under `drafts/{id}/`).
  *
  * Nothing is kept in memory: the structured state lives in `drafts/{id}/draft.json` and
  * every binary payload (audio, images) is a plain file under `drafts/{id}/`. Every
  * mutation reads the JSON, applies the change and rewrites it, so a multi-hour story never
- * saturates the JVM heap and survives nothing but the current run — the whole drafts
- * directory is **cleaned at every startup** (crash leftovers), and the draft directory is
- * removed when the draft is replaced or cleared.
+ * saturates the JVM heap. The whole drafts directory is **cleaned at every startup**
+ * (crash leftovers); individual drafts are removed on delete or successful finalization.
  */
 @Service
 class StoryDraftStore(
@@ -44,41 +44,50 @@ class StoryDraftStore(
         studioProperties.draftsDir.toFile().deleteRecursively()
     }
 
-    /** Replaces any existing draft (its temp dir is removed) with a new empty one. */
-    fun create(): StoryDraftState = synchronized(lock) {
-        studioProperties.draftsDir.toFile().deleteRecursively()
+    /**
+     * Creates a new empty draft without removing siblings.
+     * @param sourcePackId when set, marks this draft as an edit of that Unchained pack.
+     */
+    fun create(sourcePackId: String? = null): StoryDraftState = synchronized(lock) {
+        Files.createDirectories(studioProperties.draftsDir)
         val draft = StoryDraftState(
             id = UUID.randomUUID().toString(),
+            sourcePackId = sourcePackId,
             createdAtEpochMs = System.currentTimeMillis(),
         )
-        logger.info("Creating story draft {} (replacing any previous one)", draft.id)
+        logger.info(
+            "Creating story draft {}{}",
+            draft.id,
+            sourcePackId?.let { " (editing pack $it)" } ?: "",
+        )
         writeState(draft)
         draft
     }
 
-    /** The draft with the given id, or null (unknown or already replaced/cleared). */
+    /** The draft with the given id, or null (unknown or already cleared). */
     fun get(id: String): StoryDraftState? = synchronized(lock) {
         readState(id)
     }
 
-    /** Finds the current draft on disk (first draft.json found), or null if none. */
-    fun findCurrent(): StoryDraftState? = synchronized(lock) {
+    /** All drafts on disk, newest first. */
+    fun listAll(): List<StoryDraftState> = synchronized(lock) {
         val dir = studioProperties.draftsDir
-        if (!Files.exists(dir)) return@synchronized null
+        if (!Files.exists(dir)) return@synchronized emptyList()
         try {
             Files.list(dir).use { stream ->
-                stream
+                stream.toList()
                     .filter { Files.isDirectory(it) }
-                    .map { path -> readState(path.fileName.toString()) }
-                    .filter { it != null }
-                    .findFirst()
-                    .orElse(null)
+                    .mapNotNull { readState(it.fileName.toString()) }
+                    .sortedByDescending { it.createdAtEpochMs }
             }
         } catch (e: Exception) {
             logger.warn("Could not scan drafts dir: {}", e.message)
-            null
+            emptyList()
         }
     }
+
+    /** Most recently created draft on disk, or null if none. */
+    fun findCurrent(): StoryDraftState? = listAll().firstOrNull()
 
     /** Reads and returns the raw bytes of a binary file stored in the draft dir. */
     fun readBinary(id: String, relativePath: String): ByteArray? = synchronized(lock) {
@@ -87,7 +96,7 @@ class StoryDraftStore(
         Files.readAllBytes(file)
     }
 
-    /** Removes the current draft and its temp dir. */
+    /** Removes one draft and its temp dir. */
     fun clear(id: String): Boolean = synchronized(lock) {
         if (readState(id) == null) {
             false

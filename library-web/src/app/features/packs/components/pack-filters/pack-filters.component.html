@@ -8,6 +8,9 @@
   <mat-chip-option [selected]="showCurrentLocale()" (selectionChange)="showCurrentLocale.set($event.selected)" class="filters__chip--lang">
     {{ 'Language only' | translate }}
   </mat-chip-option>
+  <mat-chip-option [selected]="showDrafts()" (selectionChange)="showDrafts.set($event.selected)">
+    {{ 'Drafts' | translate }}
+  </mat-chip-option>
 </mat-chip-listbox>
 
 <div class="filters__age" role="group" aria-label="Age range filter">

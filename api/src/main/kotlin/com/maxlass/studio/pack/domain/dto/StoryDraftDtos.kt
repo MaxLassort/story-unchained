@@ -9,6 +9,8 @@ data class StoryDraftSummary(
     val id: String,
     val title: String? = null,
     val description: String? = null,
+    /** When set, this draft edits an existing Unchained pack (finalize will replace it). */
+    val sourcePackId: String? = null,
     val hasThumbnail: Boolean = false,
     val thumbnailBytes: Long = 0,
     val hasCover: Boolean = false,
@@ -20,6 +22,7 @@ data class StoryDraftSummary(
     val menuAudioBytes: Long = 0,
     val menuText: String? = null,
     val chapters: List<StoryChapterDraftSummary> = emptyList(),
+    val createdAtEpochMs: Long = 0,
 )
 
 /** State of one draft chapter, without the binary payloads. */

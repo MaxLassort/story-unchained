@@ -22,21 +22,20 @@ export class ChaptersEditorState {
   readonly saveError = signal<string | null>(null);
 
   private loadPromise: Promise<void> | null = null;
+  private loadedDraftId: string | null = null;
 
-  constructor() {
-    void this.loadExistingDraft();
-  }
-
+  /** Loads chapters for the currently selected draft (call after the page has set draftId). */
   async loadExistingDraft(): Promise<void> {
+    const draftId = this.drafts.draftId();
+    if (!draftId) return;
+    if (this.loadedDraftId === draftId && this.model().chapters.length > 0) return;
     if (this.loadPromise) return this.loadPromise;
-    if (this.model().chapters.length > 0) return;
 
     this.loading.set(true);
     this.loadPromise = (async () => {
       try {
-        const draft = await this.drafts.getCurrentDraft();
-        if (!draft) return;
-        if (this.model().chapters.length > 0) return;
+        const draft = await this.drafts.getDraft(draftId);
+        if (this.drafts.draftId() !== draftId) return;
 
         const chapters = await Promise.all(
           draft.chapters.map(async (c) => {
@@ -87,6 +86,7 @@ export class ChaptersEditorState {
         );
 
         this.model.set({ chapters });
+        this.loadedDraftId = draftId;
       } finally {
         this.loading.set(false);
         this.loadPromise = null;

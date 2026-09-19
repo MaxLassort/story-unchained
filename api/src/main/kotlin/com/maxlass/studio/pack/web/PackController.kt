@@ -193,8 +193,8 @@ class PackController(
 
     @Operation(
         summary = "Ouvrir un pack Unchained en brouillon",
-        description = "Rehydrate un pack créé via le wizard Unchained dans le brouillon courant " +
-            "(remplace tout brouillon existant) pour édition. 400 si le pack n'est pas Unchained " +
+        description = "Rehydrate un pack créé via le wizard Unchained dans un **nouveau** brouillon " +
+            "(les autres brouillons sont conservés) pour édition. 400 si le pack n'est pas Unchained " +
             "ou n'a pas de variante ARCHIVE.",
     )
     @ApiResponse(responseCode = "201", description = "Brouillon créé depuis le pack")

@@ -9,11 +9,19 @@ export class LanguageService {
 
   setLang(lang: 'fr' | 'en'): void {
     this.currentLang.set(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
+    try {
+      globalThis.localStorage?.setItem(STORAGE_KEY, lang);
+    } catch {
+      /* storage unavailable (SSR / locked-down test runners) */
+    }
   }
 
   private loadLang(): 'fr' | 'en' {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'en' ? 'en' : 'fr';
+    try {
+      const stored = globalThis.localStorage?.getItem(STORAGE_KEY);
+      return stored === 'en' ? 'en' : 'fr';
+    } catch {
+      return 'fr';
+    }
   }
 }
