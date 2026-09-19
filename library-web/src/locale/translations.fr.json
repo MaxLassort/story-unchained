@@ -24,8 +24,8 @@
   "Title Z-A": "Titre Z-A",
 
   "Details": "Détails",
-  "Acheter sur lunii.com": "Acheter sur lunii.com",
-  "Acheter ce pack sur lunii.com": "Acheter ce pack sur lunii.com",
+  "Buy on lunii.com": "Acheter sur lunii.com",
+  "Buy this pack on lunii.com": "Acheter ce pack sur lunii.com",
   "Edit": "Modifier",
   "Convert": "Convertir",
   "Copy to device": "Copier sur l'appareil",
@@ -74,6 +74,7 @@
   "Back to packs": "Retour aux packs",
 
   "Create a story": "Créer une histoire",
+  "Create Story": "Créer une histoire",
   "Compose your own story: title, covers, chapters, audio and images — the app will build a playable Lunii pack.": "Composez votre propre histoire : titre, couvertures, chapitres, audio et images — l'application construira un pack Lunii jouable.",
   "General Info": "Informations générales",
   "Audio Upload": "Import audio",

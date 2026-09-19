@@ -45,7 +45,7 @@ class SettingsController(
         Content(schema = Schema(implementation = Settings::class), examples = [
             ExampleObject(name = "Exemple", value = """
                 {
-                  "libraryPath": "/Users/me/Documents/luniiUnchained/Packs",
+                  "libraryPath": "/Users/me/luniiUnchained/Packs",
                   "unofficialDbPath": null,
                   "targetDeviceType": null,
                   "ttsProvider": "OPENAI",

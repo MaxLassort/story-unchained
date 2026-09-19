@@ -35,7 +35,7 @@ Le fichier `settings.json` est écrit par `SettingsRepositoryImpl` (`api/src/mai
 
 ```json
 {
-  "libraryPath": "/Users/me/Documents/luniiUnchained/Packs",
+  "libraryPath": "/Users/me/luniiUnchained/Packs",
   "unofficialDbPath": null,
   "targetDeviceType": null,
   "ttsProvider": "OPENAI",

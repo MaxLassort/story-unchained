@@ -40,7 +40,7 @@ data class StudioProperties(
     val configFile: Path
         get() = Path.of("config.json")
 
-    /** Default library path for packs (Documents/luniiUnchained/Packs). */
+    /** Default library path for packs (~/luniiUnchained/Packs — not under Documents, to avoid iCloud sync on macOS). */
     val defaultLibraryPath: Path
-        get() = Path.of(System.getProperty("user.home"), "Documents", "luniiUnchained", "Packs")
+        get() = Path.of(System.getProperty("user.home"), "luniiUnchained", "Packs")
 }

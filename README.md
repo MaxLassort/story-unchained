@@ -42,7 +42,7 @@ filtrer et gérer vos packs beaucoup plus facilement qu'en parcourant des fichie
 
 ### Au premier lancement / sync, l'application :
 
-1. **Scanne votre bibliothèque** (par défaut `~/Documents/luniiUnchained/Packs`) : elle inspecte
+1. **Scanne votre bibliothèque** (par défaut `~/luniiUnchained/Packs`) : elle inspecte
    chaque fichier ou dossier et reconnaît les formats de packs Lunii (Archive `.zip`, RAW `.pack`,
    dossier FS).
 2. **Crée une base de données** locale (H2, dans `~/.luniiUnchained/db/`) qui indexe tous vos packs :
@@ -54,8 +54,9 @@ filtrer et gérer vos packs beaucoup plus facilement qu'en parcourant des fichie
 
 ### Les dossiers créés
 
-- **`~/Documents/luniiUnchained/Packs`** — votre bibliothèque de packs (le dossier par défaut).
-- **`~/Documents/luniiUnchained/invalid`** — le **dossier "erreur"** : les fichiers/dossiers qui ne
+- **`~/luniiUnchained/Packs`** — votre bibliothèque de packs (le dossier par défaut, directement
+  sous le dossier utilisateur pour éviter la synchro iCloud de `Documents` sur macOS).
+- **`~/luniiUnchained/invalid`** — le **dossier "erreur"** : les fichiers/dossiers qui ne
   sont pas des packs valides y sont déplacés automatiquement au sync, pour garder votre
   bibliothèque propre.
 - **`~/.luniiUnchained/db/`** — la base de données (H2) + le catalogue officiel (`official.json`).
@@ -143,6 +144,27 @@ elle build le backend, le frontend, le desktop (macOS arm64 + Windows x64), et p
 git tag 0.1.0
 git push origin 0.1.0
 ```
+
+### Installation macOS (après téléchargement de la release)
+
+macOS marque les apps téléchargées hors de l’App Store avec l’attribut de quarantaine
+`com.apple.quarantine` (Gatekeeper). Comme StoryUnchained n’est pas notarisé par Apple, au
+premier lancement macOS peut bloquer l’app (« endommagée », « impossible à ouvrir », etc.).
+Il faut retirer cet attribut une fois l’app installée dans `/Applications`.
+
+1. Vérifier où se trouve l’app :
+
+```shell
+find /Applications -name "StoryUnchained.app"
+```
+
+2. Lever la quarantaine (adaptez le chemin si besoin) :
+
+```shell
+sudo xattr -rd com.apple.quarantine "/Applications/StoryUnchained.app"
+```
+
+Ensuite, ouvrez l’app normalement depuis le Launchpad ou le Finder.
 
 ## Tests
 
