@@ -280,9 +280,9 @@ class StoryDraftControllerTest : StringSpec({
     "finalizeDraft returns the pack id from the use case" {
         runBlocking {
             val draftId = controller.createDraft().body!!.draftId
-            coEvery { createStory.finalize(draftId) } returns "pack-123"
+            coEvery { createStory.finalize(draftId, null) } returns "pack-123"
 
-            val response = controller.finalizeDraft(draftId)
+            val response = controller.finalizeDraft(draftId, packId = null)
             response.statusCode shouldBe HttpStatus.OK
             response.body!!.packId shouldBe "pack-123"
         }
@@ -291,17 +291,28 @@ class StoryDraftControllerTest : StringSpec({
     "finalizeDraft throws DraftIncompleteException when the draft is incomplete" {
         runBlocking {
             val draftId = controller.createDraft().body!!.draftId
-            coEvery { createStory.finalize(draftId) } throws DraftIncompleteException("Draft is incomplete")
+            coEvery { createStory.finalize(draftId, null) } throws DraftIncompleteException("Draft is incomplete")
 
-            shouldThrow<DraftIncompleteException> { controller.finalizeDraft(draftId) }
+            shouldThrow<DraftIncompleteException> { controller.finalizeDraft(draftId, packId = null) }
         }
     }
 
     "finalizeDraft throws NoSuchElementException for an unknown draft" {
         runBlocking {
-            coEvery { createStory.finalize("nope") } throws NoSuchElementException("Draft not found: nope")
+            coEvery { createStory.finalize("nope", null) } throws NoSuchElementException("Draft not found: nope")
 
-            shouldThrow<NoSuchElementException> { controller.finalizeDraft("nope") }
+            shouldThrow<NoSuchElementException> { controller.finalizeDraft("nope", packId = null) }
+        }
+    }
+
+    "finalizeDraft passes replace packId to the use case" {
+        runBlocking {
+            val draftId = controller.createDraft().body!!.draftId
+            coEvery { createStory.finalize(draftId, "pack-existing") } returns "pack-existing"
+
+            val response = controller.finalizeDraft(draftId, packId = "pack-existing")
+            response.statusCode shouldBe HttpStatus.OK
+            response.body!!.packId shouldBe "pack-existing"
         }
     }
 })

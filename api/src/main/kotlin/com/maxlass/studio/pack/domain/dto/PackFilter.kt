@@ -3,6 +3,7 @@ package com.maxlass.studio.pack.domain.dto
 data class PackFilter(
     val search: String? = null,
     val official: Boolean? = null,
+    val unchained: Boolean? = null,
     val locale: String? = null,
     val inLibrary: Boolean? = null,
     val ageMin: Int? = null,

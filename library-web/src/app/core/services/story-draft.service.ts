@@ -58,10 +58,26 @@ export class StoryDraftService {
     }
   }
 
-  async finalizeDraft(id: string): Promise<{ packId: string }> {
+  async finalizeDraft(id: string, replacePackId?: string): Promise<{ packId: string }> {
+    const params: Record<string, string> = {};
+    if (replacePackId) params['packId'] = replacePackId;
     return firstValueFrom(
-      this.http.post<{ packId: string }>(`${this.draftsUrl}/${id}/finalize`, {}, { context: silentHttpContext() }),
+      this.http.post<{ packId: string }>(`${this.draftsUrl}/${id}/finalize`, {}, {
+        params,
+        context: silentHttpContext(),
+      }),
     );
+  }
+
+  /** Rehydrates an Unchained pack into the current draft (replaces any existing draft). */
+  async createDraftFromPack(packId: string): Promise<string> {
+    const res = await firstValueFrom(
+      this.http.post<DraftCreatedResponse>(`${environment.apiUrl}/packs/${packId}/draft`, {}, {
+        context: silentHttpContext(),
+      }),
+    );
+    this.draftId.set(res.draftId);
+    return res.draftId;
   }
 
   async getDraft(id: string): Promise<StoryDraftSummary> {

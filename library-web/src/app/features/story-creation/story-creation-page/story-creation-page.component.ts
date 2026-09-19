@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -34,8 +34,9 @@ import { TranslatePipe } from '../../../core/pipes/translate.pipe';
   templateUrl: './story-creation-page.component.html',
   styleUrl: './story-creation-page.component.scss',
 })
-export class StoryCreationPageComponent {
+export class StoryCreationPageComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly drafts = inject(StoryDraftService);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -44,12 +45,39 @@ export class StoryCreationPageComponent {
   readonly chaptersStep = viewChild(ChaptersStepComponent);
   readonly stepper = viewChild(MatStepper);
 
+  /** When set, finalize rewrites this Unchained pack instead of creating a new one. */
+  readonly editPackId = signal<string | null>(null);
+  readonly booting = signal(false);
+  readonly bootError = signal<string | null>(null);
   readonly finalizing = signal(false);
   readonly finalizeError = signal<string | null>(null);
 
+  readonly isEditMode = computed(() => this.editPackId() !== null);
+
   protected readonly canFinalize = computed(
-    () => !!this.drafts.draftId() && !this.finalizing(),
+    () => !!this.drafts.draftId() && !this.finalizing() && !this.booting(),
   );
+
+  async ngOnInit(): Promise<void> {
+    const packId = this.route.snapshot.paramMap.get('packId');
+    if (!packId) {
+      return;
+    }
+    this.editPackId.set(packId);
+    this.booting.set(true);
+    this.drafts.draftId.set(null);
+    try {
+      await this.drafts.createDraftFromPack(packId);
+    } catch (err) {
+      const msg =
+        err instanceof HttpErrorResponse
+          ? (err.error?.error ?? err.error?.message ?? err.message)
+          : null;
+      this.bootError.set(msg ?? 'Could not open this story for editing.');
+    } finally {
+      this.booting.set(false);
+    }
+  }
 
   protected cancel(): void {
     void this.router.navigate(['/packs']);
@@ -89,12 +117,17 @@ export class StoryCreationPageComponent {
     this.finalizing.set(true);
     this.finalizeError.set(null);
     try {
-      const { packId } = await this.drafts.finalizeDraft(draftId);
+      const replacePackId = this.editPackId() ?? undefined;
+      const { packId } = await this.drafts.finalizeDraft(draftId, replacePackId);
       this.drafts.draftId.set(null);
-      this.snackBar.open('Story created successfully!', 'Close', {
-        duration: 4000,
-        panelClass: 'snackbar-success',
-      });
+      this.snackBar.open(
+        replacePackId ? 'Story updated successfully!' : 'Story created successfully!',
+        'Close',
+        {
+          duration: 4000,
+          panelClass: 'snackbar-success',
+        },
+      );
       void this.router.navigate(['/packs', packId]);
     } catch (err) {
       const msg =

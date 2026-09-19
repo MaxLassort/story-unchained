@@ -14,6 +14,7 @@ import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 })
 export class PackFiltersComponent {
   readonly showOfficial = model(true);
+  readonly showUnchainedOnly = model(false);
   readonly showCurrentLocale = model(true);
   readonly sortOrder = model<'asc' | 'desc'>('asc');
   readonly ageMin = model<number | null>(null);

@@ -3,6 +3,7 @@ package com.maxlass.studio.pack.web
 import com.maxlass.studio.core.api.ApiStatusResponse
 import com.maxlass.studio.device.adapter.DriverDeviceConnector
 import com.maxlass.studio.pack.cache.ThumbnailCache
+import com.maxlass.studio.pack.domain.dto.DraftCreatedResponse
 import com.maxlass.studio.pack.domain.dto.PackConversionRequest
 import com.maxlass.studio.pack.domain.dto.PackConversionResponse
 import com.maxlass.studio.pack.domain.dto.PackFilter
@@ -15,6 +16,7 @@ import com.maxlass.studio.pack.service.ConvertPackFormatUseCase
 import com.maxlass.studio.pack.service.DeletePackFromLibraryUseCase
 import com.maxlass.studio.pack.service.GetAllPacksUseCase
 import com.maxlass.studio.pack.service.GetPacksPageUseCase
+import com.maxlass.studio.pack.service.ImportPackToDraftUseCase
 import com.maxlass.studio.pack.service.SyncAlreadyRunningException
 import com.maxlass.studio.pack.service.SyncPacksService
 import com.maxlass.studio.pack.service.UpdatePackMetadataUseCase
@@ -63,6 +65,7 @@ class PackController(
     private val updatePackMetadata: UpdatePackMetadataUseCase,
     private val deletePackFromLibrary: DeletePackFromLibraryUseCase,
     private val convertPackFormat: ConvertPackFormatUseCase,
+    private val importPackToDraft: ImportPackToDraftUseCase,
     private val settings: SettingsService,
     private val thumbnailCache: ThumbnailCache,
     private val extractThumbnailFromFsPack: ExtractThumbnailFromFsPackPort,
@@ -92,6 +95,8 @@ class PackController(
         @RequestParam(required = false) search: String?,
         @Parameter(description = "Filtrer les packs officiels (true) ou non officiels (false)")
         @RequestParam(required = false) official: Boolean?,
+        @Parameter(description = "Filtrer les packs Unchained (true) ou non Unchained (false)")
+        @RequestParam(required = false) unchained: Boolean?,
         @Parameter(description = "Filtrer par langue (ex. \"fr\", \"en\")")
         @RequestParam(required = false) locale: String?,
         @Parameter(description = "Filtrer par présence dans la bibliothèque")
@@ -106,6 +111,7 @@ class PackController(
         val filter = PackFilter(
             search = search,
             official = official,
+            unchained = unchained,
             locale = locale,
             inLibrary = inLibrary,
             ageMin = ageMin,
@@ -184,6 +190,22 @@ class PackController(
                     }
                 }
             )
+
+    @Operation(
+        summary = "Ouvrir un pack Unchained en brouillon",
+        description = "Rehydrate un pack créé via le wizard Unchained dans le brouillon courant " +
+            "(remplace tout brouillon existant) pour édition. 400 si le pack n'est pas Unchained " +
+            "ou n'a pas de variante ARCHIVE.",
+    )
+    @ApiResponse(responseCode = "201", description = "Brouillon créé depuis le pack")
+    @ApiResponse(responseCode = "400", description = "Pack non éditable via le wizard")
+    @ApiResponse(responseCode = "404", description = "Pack inconnu")
+    @PostMapping("/{id}/draft")
+    suspend fun createDraftFromPack(@PathVariable id: String): ResponseEntity<DraftCreatedResponse> {
+        val draft = importPackToDraft.invoke(id)
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(DraftCreatedResponse(draftId = draft.id))
+    }
 
     @Operation(
         summary = "Modifier les métadonnées d'un pack",

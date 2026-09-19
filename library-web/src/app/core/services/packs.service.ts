@@ -34,6 +34,7 @@ export class PacksService {
   readonly pageSize = signal(24);
   readonly searchTerm = signal('');
   readonly showOfficial = signal(true);
+  readonly showUnchainedOnly = signal(false);
   readonly showCurrentLocale = signal(true);
   readonly ageMin = signal<number | null>(null);
   readonly ageMax = signal<number | null>(null);
@@ -48,6 +49,7 @@ export class PacksService {
     const s = this.searchTerm();
     if (s) params['search'] = s;
     if (!official && !this.showOfficial()) params['official'] = 'false';
+    if (!official && this.showUnchainedOnly()) params['unchained'] = 'true';
     if (this.showCurrentLocale()) {
       params['locale'] = LOCALE_MAP[this.lang.currentLang()];
     }

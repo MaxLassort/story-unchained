@@ -6,5 +6,6 @@ export const routes: Routes = [
   { path: 'packs', component: PackListComponent },
   { path: 'packs/:id', loadComponent: () => import('./features/packs/pack-detail/pack-detail.component').then((m) => m.PackDetailComponent) },
   { path: 'stories/new', loadComponent: () => import('./features/story-creation/story-creation-page/story-creation-page.component').then((m) => m.StoryCreationPageComponent) },
+  { path: 'stories/:packId/edit', loadComponent: () => import('./features/story-creation/story-creation-page/story-creation-page.component').then((m) => m.StoryCreationPageComponent) },
   { path: 'devices', loadComponent: () => import('./features/devices/devices-page/devices-page.component').then((m) => m.DevicesPageComponent) },
 ];

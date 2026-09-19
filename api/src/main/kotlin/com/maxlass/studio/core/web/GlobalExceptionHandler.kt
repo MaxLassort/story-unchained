@@ -71,6 +71,11 @@ class GlobalExceptionHandler {
         ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(ApiStatusResponse(ok = false, error = e.message ?: "Not found"))
 
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleBadRequest(e: IllegalArgumentException): ResponseEntity<ApiStatusResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ApiStatusResponse(ok = false, error = e.message ?: "Bad request"))
+
     @ExceptionHandler(Exception::class)
     fun handleException(e: Exception, response: HttpServletResponse): ResponseEntity<ApiStatusResponse>? {
         // For streamed responses (SSE), the response is already committed and its

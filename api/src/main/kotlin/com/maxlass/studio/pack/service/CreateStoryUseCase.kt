@@ -108,15 +108,28 @@ class CreateStoryUseCase(
 
     private val archiveWriter = ArchiveStoryPackWriter()
 
-    /** Validates the draft and builds the pack, then writes + indexes it. Returns the pack UUID. */
-    suspend fun finalize(draftId: String): String {
+    /**
+     * Validates the draft and builds the pack, then writes + indexes it. Returns the pack UUID.
+     *
+     * @param replacePackId When set, rewrites that existing Unchained pack in place
+     * (same UUID / ARCHIVE path) instead of creating a new pack.
+     */
+    suspend fun finalize(draftId: String, replacePackId: String? = null): String {
         val draft = draftStore.get(draftId)
             ?: throw NoSuchElementException("Draft not found: $draftId")
         validate(draft)
 
-        val packUuid = UUID.randomUUID().toString()
+        val existing = replacePackId?.let { id ->
+            packRepository.getAllPacks().find { it.id == id }
+                ?: throw NoSuchElementException("Pack not found: $id")
+        }
+        if (existing != null && !existing.metadata.unchained) {
+            throw IllegalArgumentException("Pack ${existing.id} is not an Unchained story")
+        }
+
+        val packUuid = existing?.id ?: UUID.randomUUID().toString()
         val title = draft.title!!.trim()
-        val description = draft.description
+        val description = draft.description ?: existing?.metadata?.description
 
         val coverImage = readImageBytes(draftId, draft.coverFile!!)
         // All audio must already be stored in the draft (uploaded or TTS-synthesized at
@@ -224,7 +237,27 @@ class CreateStoryUseCase(
             ?.let(::toPng)
 
         val libraryDir = Path.of(settingsService.getLibraryPath()).also { Files.createDirectories(it) }
-        val destination = libraryDir.resolve("$packUuid.$PACK_EXT_ZIP")
+        val existingArchivePath = existing?.variants
+            ?.firstOrNull { it.format == PackFormat.ARCHIVE }
+            ?.storagePath
+            ?.let(Path::of)
+        val destination = existingArchivePath
+            ?: libraryDir.resolve("$packUuid.$PACK_EXT_ZIP")
+
+        // Stale converted formats (RAW/FS) no longer match the rewritten ARCHIVE content.
+        if (existing != null) {
+            val stale = existing.variants.filter { it.format != PackFormat.ARCHIVE }
+            withContext(Dispatchers.IO) {
+                stale.forEach { variant ->
+                    val path = Path.of(variant.storagePath)
+                    runCatching {
+                        if (Files.isDirectory(path)) path.toFile().deleteRecursively()
+                        else Files.deleteIfExists(path)
+                    }
+                }
+            }
+            packRepository.deleteVariants(existing.id, stale.map { it.format })
+        }
 
         val tmp = withContext(Dispatchers.IO) {
             Files.createTempFile("studio_kmp_finalize_", ".$PACK_EXT_ZIP")
@@ -252,11 +285,17 @@ class CreateStoryUseCase(
                 metadata = PackMetadata(
                     title = title,
                     description = description,
-                    thumbnail = thumbnailPng?.let { "data:image/png;base64,${Base64.getEncoder().encodeToString(it)}" },
-                    version = 1,
-                    factoryDisabled = false,
-                    nightModeAvailable = true,
+                    thumbnail = thumbnailPng?.let { "data:image/png;base64,${Base64.getEncoder().encodeToString(it)}" }
+                        ?: existing?.metadata?.thumbnail,
+                    version = existing?.metadata?.version ?: 1,
+                    factoryDisabled = existing?.metadata?.factoryDisabled ?: false,
+                    nightModeAvailable = existing?.metadata?.nightModeAvailable ?: true,
                     official = false,
+                    linkedOfficialPackId = existing?.metadata?.linkedOfficialPackId,
+                    locale = existing?.metadata?.locale,
+                    ageMin = existing?.metadata?.ageMin,
+                    ageMax = existing?.metadata?.ageMax,
+                    durationMs = existing?.metadata?.durationMs,
                     storyCount = draft.chapters.size,
                     unchained = true,
                 ),
@@ -265,7 +304,13 @@ class CreateStoryUseCase(
         )
 
         draftStore.clear(draftId)
-        logger.info("Finalized story draft {} -> pack {} at {}", draftId, packUuid, destination)
+        logger.info(
+            "Finalized story draft {} -> pack {} at {} (replace={})",
+            draftId,
+            packUuid,
+            destination,
+            replacePackId != null,
+        )
         return packUuid
     }
 

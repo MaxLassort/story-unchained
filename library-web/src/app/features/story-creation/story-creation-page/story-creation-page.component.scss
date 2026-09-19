@@ -17,6 +17,19 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
+.story-creation__boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.story-creation__boot--error {
+  color: var(--mat-sys-error);
+}
+
 .story-creation__stepper {
   background: transparent;
 }

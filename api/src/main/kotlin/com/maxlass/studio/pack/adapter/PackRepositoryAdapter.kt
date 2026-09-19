@@ -80,12 +80,13 @@ class PackRepositoryAdapter(
         val safeOffset = offset.coerceAtLeast(0)
         val safeLimit = limit.coerceAtLeast(1)
         val searchTokens = filter.searchTokens()
-        val hasMetadataFilter = filter.official != null || searchTokens != null ||
+        val hasMetadataFilter = filter.official != null || filter.unchained != null || searchTokens != null ||
             filter.ageMin != null || filter.ageMax != null
 
         val matchingIds = if (hasMetadataFilter) {
             metadataRepository.findAll().filter { meta ->
                 (filter.official == null || meta.official == filter.official) &&
+                    (filter.unchained == null || meta.unchained == filter.unchained) &&
                     (searchTokens == null || searchTokens.any { token ->
                         meta.title?.contains(token, ignoreCase = true) == true
                     }) &&
@@ -125,6 +126,17 @@ class PackRepositoryAdapter(
             variantRepository.deleteAll(variantRepository.findAll().filter { it.id.packId == packId })
             metadataRepository.deleteById(packId)
             packRepository.deleteById(packId)
+            Unit
+        }
+    }
+
+    override suspend fun deleteVariants(packId: String, formats: Collection<PackFormat>) {
+        if (formats.isEmpty()) return
+        val names = formats.map { it.name }.toSet()
+        tx.execute {
+            variantRepository.deleteAll(
+                variantRepository.findAll().filter { it.id.packId == packId && it.id.format in names },
+            )
             Unit
         }
     }

@@ -2,6 +2,9 @@
   <mat-chip-option [selected]="showOfficial()" (selectionChange)="showOfficial.set($event.selected)">
     {{ 'Official' | translate }}
   </mat-chip-option>
+  <mat-chip-option [selected]="showUnchainedOnly()" (selectionChange)="showUnchainedOnly.set($event.selected)">
+    {{ 'Unchained' | translate }}
+  </mat-chip-option>
   <mat-chip-option [selected]="showCurrentLocale()" (selectionChange)="showCurrentLocale.set($event.selected)" class="filters__chip--lang">
     {{ 'Language only' | translate }}
   </mat-chip-option>

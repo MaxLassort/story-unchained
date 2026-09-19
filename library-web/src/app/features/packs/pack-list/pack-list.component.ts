@@ -57,6 +57,7 @@ export class PackListComponent {
   }
 
   readonly showOfficial = this.packsService.showOfficial;
+  readonly showUnchainedOnly = this.packsService.showUnchainedOnly;
   readonly showCurrentLocale = this.packsService.showCurrentLocale;
   readonly ageMin = this.packsService.ageMin;
   readonly ageMax = this.packsService.ageMax;

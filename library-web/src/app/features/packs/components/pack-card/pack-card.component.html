@@ -11,8 +11,13 @@
         }
         @if (isOfficial()) { <span class="card__official-badge">{{ 'Official' | translate }}</span> }
       </div>
-      <div class="card__flip-hint">
-        <mat-icon class="card__flip-icon">info</mat-icon> {{ 'Details' | translate }}
+      <div class="card__bottom-left">
+        @if (isUnchained()) {
+          <span class="card__unchained-badge">{{ 'Unchained' | translate }}</span>
+        }
+        <div class="card__flip-hint">
+          <mat-icon class="card__flip-icon">info</mat-icon> {{ 'Details' | translate }}
+        </div>
       </div>
 
       <div class="card__fab" (click)="$event.stopPropagation()">

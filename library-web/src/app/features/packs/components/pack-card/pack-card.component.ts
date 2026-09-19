@@ -78,6 +78,7 @@ export class PackCardComponent {
   protected readonly title = computed(() => this.pack().metadata.title ?? 'Untitled');
   protected readonly description = computed(() => this.pack().metadata.description ?? '');
   protected readonly isOfficial = computed(() => this.pack().metadata.official);
+  protected readonly isUnchained = computed(() => this.pack().metadata.unchained === true);
   protected readonly ageRange = computed(() => {
     const { ageMin, ageMax } = this.pack().metadata;
     if (ageMin != null && ageMax != null) return `${ageMin}${ageMax} ans`;
@@ -91,7 +92,11 @@ export class PackCardComponent {
   }
 
   protected edit(): void {
-    void this.router.navigate(['/packs', this.pack().id]);
+    if (this.pack().metadata.unchained) {
+      void this.router.navigate(['/stories', this.pack().id, 'edit']);
+    } else {
+      void this.router.navigate(['/packs', this.pack().id]);
+    }
   }
 
   protected async delete(): Promise<void> {

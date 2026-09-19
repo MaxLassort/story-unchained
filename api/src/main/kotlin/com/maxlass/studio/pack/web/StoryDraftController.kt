@@ -99,9 +99,13 @@ class StoryDraftController(
     @ApiResponse(responseCode = "409", description = "Draft incomplet")
     @ApiResponse(responseCode = "404", description = "Draft inconnu")
     @PostMapping("/{id}/finalize")
-    suspend fun finalizeDraft(@PathVariable id: String): ResponseEntity<FinalizedPackResponse> {
-        val packId = createStory.finalize(id)
-        return ResponseEntity.ok(FinalizedPackResponse(packId = packId))
+    suspend fun finalizeDraft(
+        @PathVariable id: String,
+        @Parameter(description = "Si fourni, réécrit ce pack Unchained existant au lieu d'en créer un nouveau")
+        @RequestParam(required = false) packId: String?,
+    ): ResponseEntity<FinalizedPackResponse> {
+        val finalizedId = createStory.finalize(id, replacePackId = packId)
+        return ResponseEntity.ok(FinalizedPackResponse(packId = finalizedId))
     }
 
     @Operation(

@@ -4,121 +4,145 @@
     {{ 'Library' | translate }}
   </a>
 
-  <h1 class="story-creation__title">{{ 'Create a story' | translate }}</h1>
+  <h1 class="story-creation__title">
+    {{ (isEditMode() ? 'Edit story' : 'Create a story') | translate }}
+  </h1>
   <p class="story-creation__subtitle">
-    {{ 'Compose your own story: title, covers, chapters, audio and images — the app will build a playable Lunii pack.' | translate }}
+    @if (isEditMode()) {
+      {{ 'Update your Unchained story: title, covers, chapters, audio and images — then save it back to your library.' | translate }}
+    } @else {
+      {{ 'Compose your own story: title, covers, chapters, audio and images — the app will build a playable Lunii pack.' | translate }}
+    }
   </p>
 
-  <mat-stepper #stepper class="story-creation__stepper" [linear]="true" [disableRipple]="true">
-    <mat-step [label]="'General Info' | translate" [completed]="detailsStep()?.complete() ?? false">
-      <mat-card class="step-card">
-        <mat-card-content>
-          <app-story-details-step />
-        </mat-card-content>
-      </mat-card>
+  @if (booting()) {
+    <div class="story-creation__boot">
+      <mat-progress-spinner diameter="40" mode="indeterminate" />
+      <p>{{ 'Loading story…' | translate }}</p>
+    </div>
+  } @else if (bootError(); as error) {
+    <div class="story-creation__boot story-creation__boot--error">
+      <p>{{ error }}</p>
+      <button mat-flat-button color="primary" type="button" (click)="cancel()">{{ 'Back' | translate }}</button>
+    </div>
+  } @else {
+    <mat-stepper #stepper class="story-creation__stepper" [linear]="true" [disableRipple]="true">
+      <mat-step [label]="'General Info' | translate" [completed]="detailsStep()?.complete() ?? false">
+        <mat-card class="step-card">
+          <mat-card-content>
+            <app-story-details-step />
+          </mat-card-content>
+        </mat-card>
 
-      <div class="step-actions">
-        <button mat-button type="button" (click)="cancel()">{{ 'Cancel' | translate }}</button>
-        <button
-          mat-flat-button
-          type="button"
-          color="primary"
-          [disabled]="!detailsStep()?.complete() || detailsStep()?.saving()"
-          (click)="saveDetailsAndNext()"
-        >
-          @if (detailsStep()?.saving()) {
-            <mat-progress-spinner diameter="18" mode="indeterminate" />
-          } @else {
-            {{ 'Next: Bulk Upload' | translate }}
-            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-          }
-        </button>
-      </div>
-    </mat-step>
+        <div class="step-actions">
+          <button mat-button type="button" (click)="cancel()">{{ 'Cancel' | translate }}</button>
+          <button
+            mat-flat-button
+            type="button"
+            color="primary"
+            [disabled]="!detailsStep()?.complete() || detailsStep()?.saving()"
+            (click)="saveDetailsAndNext()"
+          >
+            @if (detailsStep()?.saving()) {
+              <mat-progress-spinner diameter="18" mode="indeterminate" />
+            } @else {
+              {{ 'Next: Bulk Upload' | translate }}
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            }
+          </button>
+        </div>
+      </mat-step>
 
-    <mat-step [label]="'Audio Upload' | translate" [completed]="(detailsStep()?.complete() && bulkStep()?.complete()) ?? false">
-      <mat-card class="step-card">
-        <mat-card-content>
-          <app-bulk-audio-step />
-        </mat-card-content>
-      </mat-card>
+      <mat-step [label]="'Audio Upload' | translate" [completed]="(detailsStep()?.complete() && bulkStep()?.complete()) ?? false">
+        <mat-card class="step-card">
+          <mat-card-content>
+            <app-bulk-audio-step />
+          </mat-card-content>
+        </mat-card>
 
-      <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
-        <button
-          mat-flat-button
-          type="button"
-          color="primary"
-          [disabled]="!bulkStep()?.complete() || (bulkStep()?.saving() ?? false)"
-          (click)="confirmBulkAndNext()"
-        >
-          @if (bulkStep()?.saving()) {
-            <mat-progress-spinner diameter="18" mode="indeterminate" />
-          } @else {
-            {{ 'Confirm & Add to Story' | translate }}
-            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-          }
-        </button>
-      </div>
-    </mat-step>
+        <div class="step-actions">
+          <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
+          <button
+            mat-flat-button
+            type="button"
+            color="primary"
+            [disabled]="!bulkStep()?.complete() || (bulkStep()?.saving() ?? false)"
+            (click)="confirmBulkAndNext()"
+          >
+            @if (bulkStep()?.saving()) {
+              <mat-progress-spinner diameter="18" mode="indeterminate" />
+            } @else {
+              {{ 'Confirm & Add to Story' | translate }}
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            }
+          </button>
+        </div>
+      </mat-step>
 
-    <mat-step [label]="'Chapter Details' | translate" [completed]="chaptersStep()?.complete() ?? false">
-      <mat-card class="step-card">
-        <mat-card-content>
-          <app-chapters-step />
-        </mat-card-content>
-      </mat-card>
+      <mat-step [label]="'Chapter Details' | translate" [completed]="chaptersStep()?.complete() ?? false">
+        <mat-card class="step-card">
+          <mat-card-content>
+            <app-chapters-step />
+          </mat-card-content>
+        </mat-card>
 
-      <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
-        <button
-          mat-flat-button
-          type="button"
-          color="primary"
-          [disabled]="!chaptersStep()?.complete() || chaptersStep()?.saving()"
-          (click)="saveChaptersAndNext()"
-        >
-          @if (chaptersStep()?.saving()) {
-            <mat-progress-spinner diameter="18" mode="indeterminate" />
-          } @else {
-            {{ 'Next: Finalize' | translate }}
-            <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-          }
-        </button>
-      </div>
-    </mat-step>
+        <div class="step-actions">
+          <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
+          <button
+            mat-flat-button
+            type="button"
+            color="primary"
+            [disabled]="!chaptersStep()?.complete() || chaptersStep()?.saving()"
+            (click)="saveChaptersAndNext()"
+          >
+            @if (chaptersStep()?.saving()) {
+              <mat-progress-spinner diameter="18" mode="indeterminate" />
+            } @else {
+              {{ 'Next: Finalize' | translate }}
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            }
+          </button>
+        </div>
+      </mat-step>
 
-    <mat-step [label]="'Finalize' | translate">
-      <mat-card class="step-card">
-        <mat-card-content class="finalize-content">
-          <mat-icon class="finalize-content__icon" aria-hidden="true">auto_stories</mat-icon>
-          <h3 class="finalize-content__title">{{ 'Ready to create your story pack' | translate }}</h3>
-          <p class="finalize-content__text">
-            {{ 'The app will assemble your story into a playable Lunii STUdio archive and add it to your library. This can take a moment for long stories.' | translate }}
-          </p>
-          @if (finalizeError(); as error) {
-            <div class="finalize-content__error">{{ error }}</div>
-          }
-        </mat-card-content>
-      </mat-card>
+      <mat-step [label]="'Finalize' | translate">
+        <mat-card class="step-card">
+          <mat-card-content class="finalize-content">
+            <mat-icon class="finalize-content__icon" aria-hidden="true">auto_stories</mat-icon>
+            <h3 class="finalize-content__title">
+              {{ (isEditMode() ? 'Ready to update your story pack' : 'Ready to create your story pack') | translate }}
+            </h3>
+            <p class="finalize-content__text">
+              @if (isEditMode()) {
+                {{ 'The app will rebuild your story into a playable Lunii STUdio archive and replace the existing pack in your library.' | translate }}
+              } @else {
+                {{ 'The app will assemble your story into a playable Lunii STUdio archive and add it to your library. This can take a moment for long stories.' | translate }}
+              }
+            </p>
+            @if (finalizeError(); as error) {
+              <div class="finalize-content__error">{{ error }}</div>
+            }
+          </mat-card-content>
+        </mat-card>
 
-      <div class="step-actions">
-        <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
-        <button
-          mat-flat-button
-          type="button"
-          color="primary"
-          [disabled]="!canFinalize()"
-          (click)="createPack()"
-        >
-          @if (finalizing()) {
-            <mat-progress-spinner diameter="18" mode="indeterminate" />
-          } @else {
-            {{ 'Create the pack' | translate }}
-            <mat-icon aria-hidden="true">auto_stories</mat-icon>
-          }
-        </button>
-      </div>
-    </mat-step>
-  </mat-stepper>
+        <div class="step-actions">
+          <button mat-button type="button" matStepperPrevious>{{ 'Back' | translate }}</button>
+          <button
+            mat-flat-button
+            type="button"
+            color="primary"
+            [disabled]="!canFinalize()"
+            (click)="createPack()"
+          >
+            @if (finalizing()) {
+              <mat-progress-spinner diameter="18" mode="indeterminate" />
+            } @else {
+              {{ (isEditMode() ? 'Save the pack' : 'Create the pack') | translate }}
+              <mat-icon aria-hidden="true">auto_stories</mat-icon>
+            }
+          </button>
+        </div>
+      </mat-step>
+    </mat-stepper>
+  }
 </div>
