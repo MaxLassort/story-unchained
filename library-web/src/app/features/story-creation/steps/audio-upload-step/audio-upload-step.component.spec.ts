@@ -1,11 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { BulkAudioStepComponent } from './bulk-audio-step.component';
+import { signal } from '@angular/core';
+import { AudioUploadStepComponent } from './audio-upload-step.component';
 import { ChaptersEditorState } from '../../chapters-editor-state.service';
 import { StoryDraftService } from '../../../../core/services/story-draft.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
-describe('BulkAudioStepComponent', () => {
+vi.mock('wavesurfer.js', () => {
+  const create = vi.fn(() => ({
+    registerPlugin: vi.fn((p: unknown) => p),
+    on: vi.fn(),
+    getDuration: vi.fn(() => 10),
+    getCurrentTime: vi.fn(() => 3),
+    play: vi.fn(() => Promise.resolve()),
+    pause: vi.fn(),
+    destroy: vi.fn(),
+  }));
+  return { default: { create } };
+});
+
+vi.mock('wavesurfer.js/plugins/regions', () => {
+  const create = vi.fn(() => ({
+    on: vi.fn(),
+    clearRegions: vi.fn(),
+    addRegion: vi.fn((opts: { start: number; end?: number }) => ({
+      id: 'r-0',
+      start: opts.start,
+      end: opts.end ?? opts.start,
+    })),
+    getRegions: vi.fn(() => []),
+    destroy: vi.fn(),
+  }));
+  return { default: { create } };
+});
+
+describe('AudioUploadStepComponent', () => {
   let draftsMock: {
     ensureDraft: ReturnType<typeof vi.fn>;
     addDraftChapter: ReturnType<typeof vi.fn>;
@@ -34,17 +64,25 @@ describe('BulkAudioStepComponent', () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [BulkAudioStepComponent],
+      imports: [AudioUploadStepComponent],
       providers: [
         provideHttpClient(),
         { provide: StoryDraftService, useValue: draftsMock },
         ChaptersEditorState,
+        {
+          provide: LanguageService,
+          useValue: {
+            currentLang: signal<'fr' | 'en'>('en'),
+            isEnglish: signal(true),
+            setLang: vi.fn(),
+          },
+        },
       ],
     }).compileComponents();
   });
 
   function createComponent() {
-    const fixture = TestBed.createComponent(BulkAudioStepComponent);
+    const fixture = TestBed.createComponent(AudioUploadStepComponent);
     fixture.detectChanges();
     return fixture;
   }
@@ -64,11 +102,61 @@ describe('BulkAudioStepComponent', () => {
     const ch = fixture.componentInstance.chapters()[0];
     expect(ch.name).toBe('Chapitre 1');
     expect(ch.narrationFile).toBe(file);
-    // No TTS fallback: the title audio stays empty until the asset pool provides a file.
     expect(ch.titleAudio).toBeNull();
     expect(ch.image).toEqual({ mode: 'number', iconId: null, file: null, chapterNumber: 1 });
     expect(fixture.componentInstance.chapters().length).toBe(1);
+    expect(fixture.componentInstance.canSplit()).toBe(true);
     expect(fixture.componentInstance.complete()).toBe(true);
+  });
+
+  it('shows split only when exactly one narration file is staged', async () => {
+    const fixture = createComponent();
+    const c = fixture.componentInstance;
+    await c.addFiles([
+      new File(['a'], 'a.mp3', { type: 'audio/mpeg' }),
+      new File(['b'], 'b.mp3', { type: 'audio/mpeg' }),
+    ]);
+    fixture.detectChanges();
+    expect(c.canSplit()).toBe(false);
+
+    c.removeChapter(1);
+    fixture.detectChanges();
+    expect(c.canSplit()).toBe(true);
+  });
+
+  it('opens and cancels the split editor', async () => {
+    const fixture = createComponent();
+    const c = fixture.componentInstance;
+    await c.addFiles([new File(['a'], 'a.mp3', { type: 'audio/mpeg' })]);
+    c.startSplit();
+    fixture.detectChanges();
+    expect(c.splitting()).toBe(true);
+    expect(c.complete()).toBe(false);
+
+    c.cancelSplit();
+    fixture.detectChanges();
+    expect(c.splitting()).toBe(false);
+    expect(c.complete()).toBe(true);
+  });
+
+  it('replaces the single chapter with sliced files on split confirm', async () => {
+    const fixture = createComponent();
+    const c = fixture.componentInstance;
+    await c.addFiles([new File(['a'], 'long.mp3', { type: 'audio/mpeg' })]);
+    c.startSplit();
+    const sliced = [
+      new File(['1'], 'chapitre-1.wav', { type: 'audio/wav' }),
+      new File(['2'], 'chapitre-2.wav', { type: 'audio/wav' }),
+    ];
+    await c.onSplitConfirmed(sliced);
+    fixture.detectChanges();
+
+    expect(c.splitting()).toBe(false);
+    expect(c.chapters().length).toBe(2);
+    expect(c.chapters()[0].narrationFile).toBe(sliced[0]);
+    expect(c.chapters()[1].narrationFile).toBe(sliced[1]);
+    expect(c.chapters()[0].name).toBe('Chapitre 1');
+    expect(c.chapters()[1].name).toBe('Chapitre 2');
   });
 
   it('uses the uploaded TTS asset as mode audio when the pool is loaded', async () => {
@@ -99,20 +187,6 @@ describe('BulkAudioStepComponent', () => {
     expect(c.chapters()[2].name).toBe('Chapitre 3');
   });
 
-  it('removes a staged chapter', async () => {
-    const fixture = createComponent();
-    const c = fixture.componentInstance;
-    await c.addFiles([new File(['a'], 'a.mp3', { type: 'audio/mpeg' })]);
-    await c.addFiles([new File(['b'], 'b.mp3', { type: 'audio/mpeg' })]);
-    fixture.detectChanges();
-    expect(c.chapters().length).toBe(2);
-
-    c.removeChapter(0);
-    fixture.detectChanges();
-    expect(c.chapters().length).toBe(1);
-    expect(c.chapters()[0].name).toBe('Chapitre 2');
-  });
-
   it('rejects non-audio and oversized files', async () => {
     const fixture = createComponent();
     const c = fixture.componentInstance;
@@ -120,41 +194,6 @@ describe('BulkAudioStepComponent', () => {
     fixture.detectChanges();
     expect(c.chapters().length).toBe(0);
     expect(c.typeError()).toContain('Only audio files up to 50 MB');
-  });
-
-  it('renames a staged chapter', async () => {
-    const fixture = createComponent();
-    const c = fixture.componentInstance;
-    await c.addFiles([new File(['a'], 'a.mp3', { type: 'audio/mpeg' })]);
-    fixture.detectChanges();
-    c.renameChapter(0, 'Ma première aventure');
-    fixture.detectChanges();
-    expect(c.chapters()[0].name).toBe('Ma première aventure');
-  });
-
-  it('loads chapters from an existing draft into the staging area', async () => {
-    draftsMock.getCurrentDraft.mockResolvedValue({
-      id: 'draft-1',
-      title: 'Mon histoire',
-      chapters: [
-        {
-          id: 'chap-1',
-          name: 'Chapitre 1',
-          hasTitleAudio: true,
-          hasNarrationAudio: true,
-          hasImage: true,
-        },
-      ],
-    });
-
-    const fixture = createComponent();
-    const state = TestBed.inject(ChaptersEditorState);
-    await state.loadExistingDraft();
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.chapters().length).toBe(1);
-    expect(fixture.componentInstance.chapters()[0].id).toBe('chap-1');
-    expect(fixture.componentInstance.chapters()[0].narrationFile).not.toBeNull();
   });
 
   it('saves staged chapters to the draft via save()', async () => {

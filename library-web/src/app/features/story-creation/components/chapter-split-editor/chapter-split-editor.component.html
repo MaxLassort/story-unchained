@@ -1,0 +1,262 @@
+<div class="split-editor">
+  <div class="split-editor__header">
+    <h3 class="split-editor__title">{{ 'Split into chapters' | translate }}</h3>
+    <p class="split-editor__subtitle">
+      {{
+        'Set the start and end of the kept audio, then place separators between chapters. Drag the playhead or markers, or edit times (HH:MM:SS).'
+          | translate
+      }}
+    </p>
+  </div>
+
+  @if (error(); as err) {
+    <div class="split-editor__error">{{ err | translate }}</div>
+  }
+
+  <div class="split-editor__waveform-wrap">
+    @if (loading()) {
+      <div class="split-editor__loading">
+        <mat-progress-spinner diameter="28" mode="indeterminate" />
+        <span>{{ 'Loading waveform…' | translate }}</span>
+      </div>
+    }
+    <div
+      #waveform
+      class="split-editor__waveform"
+      [class.split-editor__waveform--busy]="loading()"
+      role="slider"
+      [attr.aria-label]="'Waveform playhead' | translate"
+      [attr.aria-valuemin]="0"
+      [attr.aria-valuemax]="duration()"
+      [attr.aria-valuenow]="playheadTime()"
+      [attr.aria-valuetext]="formatTime(playheadTime())"
+    ></div>
+  </div>
+
+  <div class="split-editor__toolbar">
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="loading() || duration() <= 0"
+      [class.split-editor__preview--active]="isPlayingFull()"
+      (click)="toggleFullPlayback()"
+    >
+      <mat-icon aria-hidden="true">{{ isPlayingFull() ? 'pause' : 'play_arrow' }}</mat-icon>
+      {{ (isPlayingFull() ? 'Pause' : 'Play full audio') | translate }}
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="!canAddCut() || loading()"
+      (click)="addSeparator()"
+    >
+      <mat-icon aria-hidden="true">vertical_distribute</mat-icon>
+      {{ 'Add separator' | translate }}
+    </button>
+    <button mat-button type="button" [disabled]="!playingHint()" (click)="stopPlayback()">
+      <mat-icon aria-hidden="true">stop</mat-icon>
+      {{ 'Stop' | translate }}
+    </button>
+    <span class="split-editor__duration">
+      {{ formatTime(playheadTime()) }} / {{ formatTime(duration()) }}
+    </span>
+  </div>
+
+  @if (!loading() && duration() > 0) {
+    <div class="split-editor__bounds">
+      <h4 class="split-editor__section-heading">{{ 'Content bounds' | translate }}</h4>
+      <ul class="split-editor__bounds-list">
+        <li class="split-editor__cut">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="split-editor__cut-field">
+            <mat-label>{{ 'First chapter starts at' | translate }}</mat-label>
+            <input
+              #rangeStartInput
+              matInput
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              inputmode="numeric"
+              [value]="formatTime(rangeStart())"
+              (change)="onRangeStartInput($event)"
+              (keydown)="onRangeStartKeydown($event)"
+            />
+            <span matTextSuffix class="split-editor__cut-steppers">
+              <button
+                type="button"
+                class="split-editor__step"
+                tabindex="-1"
+                [attr.aria-label]="'Increase time' | translate"
+                (click)="nudgeRangeStartFromInput(rangeStartInput, 1)"
+              >
+                <mat-icon>keyboard_arrow_up</mat-icon>
+              </button>
+              <button
+                type="button"
+                class="split-editor__step"
+                tabindex="-1"
+                [attr.aria-label]="'Decrease time' | translate"
+                (click)="nudgeRangeStartFromInput(rangeStartInput, -1)"
+              >
+                <mat-icon>keyboard_arrow_down</mat-icon>
+              </button>
+            </span>
+          </mat-form-field>
+        </li>
+        <li class="split-editor__cut">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="split-editor__cut-field">
+            <mat-label>{{ 'Last chapter ends at' | translate }}</mat-label>
+            <input
+              #rangeEndInput
+              matInput
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              inputmode="numeric"
+              [value]="formatTime(rangeEnd())"
+              (change)="onRangeEndInput($event)"
+              (keydown)="onRangeEndKeydown($event)"
+            />
+            <span matTextSuffix class="split-editor__cut-steppers">
+              <button
+                type="button"
+                class="split-editor__step"
+                tabindex="-1"
+                [attr.aria-label]="'Increase time' | translate"
+                (click)="nudgeRangeEndFromInput(rangeEndInput, 1)"
+              >
+                <mat-icon>keyboard_arrow_up</mat-icon>
+              </button>
+              <button
+                type="button"
+                class="split-editor__step"
+                tabindex="-1"
+                [attr.aria-label]="'Decrease time' | translate"
+                (click)="nudgeRangeEndFromInput(rangeEndInput, -1)"
+              >
+                <mat-icon>keyboard_arrow_down</mat-icon>
+              </button>
+            </span>
+          </mat-form-field>
+        </li>
+      </ul>
+    </div>
+  }
+
+  @if (cuts().length > 0) {
+    <div class="split-editor__cuts">
+      <h4 class="split-editor__section-heading">{{ 'Separators' | translate }}</h4>
+      <ul class="split-editor__cut-list">
+        @for (cut of cuts(); track $index; let i = $index) {
+          <li class="split-editor__cut">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="split-editor__cut-field">
+              <mat-label>{{ 'Separator' | translate }} {{ i + 1 }}</mat-label>
+              <input
+                #cutInput
+                matInput
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                inputmode="numeric"
+                [value]="formatTime(cut)"
+                (change)="onCutTimecodeInput(i, $event)"
+                (keydown)="onCutTimecodeKeydown(i, $event)"
+              />
+              <span matTextSuffix class="split-editor__cut-steppers">
+                <button
+                  type="button"
+                  class="split-editor__step"
+                  tabindex="-1"
+                  [attr.aria-label]="'Increase time' | translate"
+                  (click)="nudgeCutFromInput(i, cutInput, 1)"
+                >
+                  <mat-icon>keyboard_arrow_up</mat-icon>
+                </button>
+                <button
+                  type="button"
+                  class="split-editor__step"
+                  tabindex="-1"
+                  [attr.aria-label]="'Decrease time' | translate"
+                  (click)="nudgeCutFromInput(i, cutInput, -1)"
+                >
+                  <mat-icon>keyboard_arrow_down</mat-icon>
+                </button>
+              </span>
+            </mat-form-field>
+            <button
+              mat-icon-button
+              type="button"
+              [matTooltip]="'Remove separator' | translate"
+              [attr.aria-label]="'Remove separator' | translate"
+              (click)="removeCut(i)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  <div class="split-editor__sections">
+    <h4 class="split-editor__section-heading">
+      {{ 'Sections' | translate }} ({{ sections().length }})
+    </h4>
+    <ul class="split-editor__section-list">
+      @for (section of sections(); track $index; let i = $index) {
+        <li class="split-editor__section">
+          <div class="split-editor__section-meta">
+            <span class="split-editor__section-name">{{ 'Chapter' | translate }} {{ i + 1 }}</span>
+            <span class="split-editor__section-range">
+              {{ formatTime(section.start) }} → {{ formatTime(section.end) }}
+              ({{ formatTime(section.end - section.start) }})
+            </span>
+          </div>
+          <div class="split-editor__section-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="loading()"
+              [class.split-editor__preview--active]="playingHint() === 'start-' + i"
+              (click)="playSectionStart(section, i)"
+            >
+              <mat-icon aria-hidden="true">play_arrow</mat-icon>
+              {{ 'Listen to start' | translate }}
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="loading()"
+              [class.split-editor__preview--active]="playingHint() === 'end-' + i"
+              (click)="playSectionEnd(section, i)"
+            >
+              <mat-icon aria-hidden="true">play_arrow</mat-icon>
+              {{ 'Listen to end' | translate }}
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  </div>
+
+  <div class="split-editor__footer">
+    <button mat-button type="button" (click)="cancel()" [disabled]="slicing()">
+      {{ 'Cancel split' | translate }}
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      [disabled]="!canConfirm()"
+      (click)="confirm()"
+    >
+      @if (slicing()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+      } @else {
+        {{ 'Confirm split' | translate }}
+      }
+      @if (!slicing()) {
+        <mat-icon iconPositionEnd aria-hidden="true">content_cut</mat-icon>
+      }
+    </button>
+  </div>
+</div>

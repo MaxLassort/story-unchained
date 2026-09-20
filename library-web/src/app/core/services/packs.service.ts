@@ -1,10 +1,9 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { HttpClient, httpResource } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type {
   Pack,
   PagedPacksResponse,
-  SyncStatusEvent,
   UpdatePackMetadataRequest,
   PackConversionRequest,
   PackConversionResponse,
@@ -39,6 +38,23 @@ export class PacksService {
   readonly ageMin = signal<number | null>(null);
   readonly ageMax = signal<number | null>(null);
   readonly officialMode = signal(false);
+
+  constructor() {
+    // Changing filters must not leave the user on an empty high page (e.g. page 8
+    // with Unchained filter → only 2 results → blank grid).
+    effect(() => {
+      this.showOfficial();
+      this.showUnchainedOnly();
+      this.showCurrentLocale();
+      this.searchTerm();
+      this.ageMin();
+      this.ageMax();
+      this.officialMode();
+      this.pageSize();
+      this.lang.currentLang();
+      untracked(() => this.page.set(0));
+    });
+  }
 
   private readonly resource = httpResource<PagedPacksResponse>(() => {
     const official = this.officialMode();

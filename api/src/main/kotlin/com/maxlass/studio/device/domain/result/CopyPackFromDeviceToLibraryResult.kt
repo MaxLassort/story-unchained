@@ -7,5 +7,7 @@ sealed class CopyPackFromDeviceToLibraryResult {
     data object Success : CopyPackFromDeviceToLibraryResult()
     data object PackNotFoundOnDevice : CopyPackFromDeviceToLibraryResult()
     data object DeviceNotPlugged : CopyPackFromDeviceToLibraryResult()
+    /** Pack file/folder already present under the library path (may still need a DB re-index). */
+    data object PackAlreadyInLibrary : CopyPackFromDeviceToLibraryResult()
     data class Error(val message: String) : CopyPackFromDeviceToLibraryResult()
 }

@@ -30,6 +30,9 @@ class PackRepositoryAdapter(
     override suspend fun savePack(pack: Pack) {
         tx.execute {
             packRepository.save(PackEntity(id = pack.id))
+            val existing = metadataRepository.findById(pack.id).orElse(null)
+            // Never let a later FS/RAW scan wipe an Unchained flag set by the ARCHIVE zip.
+            val unchained = pack.metadata.unchained || (existing?.unchained == true)
             metadataRepository.deleteById(pack.id)
             val linkedId = if (pack.metadata.official) null else pack.metadata.linkedOfficialPackId
             metadataRepository.save(
@@ -48,7 +51,7 @@ class PackRepositoryAdapter(
                     ageMax = pack.metadata.ageMax,
                     durationMs = pack.metadata.durationMs,
                     storyCount = pack.metadata.storyCount,
-                    unchained = pack.metadata.unchained,
+                    unchained = unchained,
                 )
             )
             pack.variants.forEach { variant ->
@@ -116,7 +119,15 @@ class PackRepositoryAdapter(
         } else matchingIds
 
         val total = filteredIds.size.toLong()
-        val pageIds = filteredIds.drop(safeOffset).take(safeLimit)
+        // Unchained packs first (user-created stories), then stable title order — otherwise they
+        // drown in hundreds of library packs across random pages.
+        val metadataByIdForSort = metadataRepository.findAll().associateBy { it.packId }
+        val orderedIds = filteredIds.sortedWith(
+            compareByDescending<String> { metadataByIdForSort[it]?.unchained == true }
+                .thenBy { metadataByIdForSort[it]?.title?.lowercase() ?: "" }
+                .thenBy { it },
+        )
+        val pageIds = orderedIds.drop(safeOffset).take(safeLimit)
         if (pageIds.isEmpty()) return emptyList<Pack>() to total
         return loadPacks(pageIds) to total
     }

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -78,8 +79,23 @@ export class DevicePanelComponent {
       await this.devicesService.copyToLibrary(uuid);
       this.packsService.refresh();
       this.snackbar.success(translate('Copied to library', this.lang.currentLang()));
-    } catch {
-      this.snackbar.error(translate('Failed to copy to library', this.lang.currentLang()));
+    } catch (err) {
+      const body = err instanceof HttpErrorResponse ? err.error : null;
+      const code = typeof body?.error === 'string' ? body.error : null;
+      const detail = typeof body?.message === 'string' ? body.message : null;
+      // File already on disk — server re-syncs; refresh UI so orphaned packs reappear.
+      if (code === 'PACK_ALREADY_IN_LIBRARY') {
+        this.packsService.refresh();
+        this.snackbar.success(
+          translate('Pack already in library — refreshing', this.lang.currentLang()),
+        );
+      } else {
+        this.snackbar.error(
+          detail ||
+            (code && code !== 'ERROR' ? code : null) ||
+            translate('Failed to copy to library', this.lang.currentLang()),
+        );
+      }
     } finally {
       this.copying.set(false);
     }

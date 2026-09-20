@@ -7,20 +7,19 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { loadChapterTitleAudioPool, prefilledChapter } from '../../chapter-templates';
 import { ChaptersEditorState } from '../../chapters-editor-state.service';
+import { ChapterSplitEditorComponent } from '../../components/chapter-split-editor/chapter-split-editor.component';
 import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 
-/** Maximum accepted size per audio file (50 MB), per the Bulk Upload mockup. */
+/** Maximum accepted size per audio file (50 MB). */
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 /**
- * Bulk audio import step — the FIRST chapters step. Drop several narration audio files at once
- * and one pre-filled chapter is staged per file (1 file = 1 chapter). Each chapter is pre-filled
- * with a title ("Chapitre N"), a pre-rendered TTS title audio and a chapter-number image; only the
- * narration comes from the dropped file. Staged chapters are written to the shared chapters state
- * and shown / saved by the subsequent "Chapters" step.
+ * Audio upload step — drop one or more narration files.
+ * Multiple files → one pre-filled chapter each.
+ * Exactly one file → optional "Split into chapters" waveform editor.
  */
 @Component({
-  selector: 'app-bulk-audio-step',
+  selector: 'app-audio-upload-step',
   imports: [
     MatButtonModule,
     MatCardModule,
@@ -28,25 +27,27 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
     MatIconModule,
     MatInputModule,
     MatTooltipModule,
+    ChapterSplitEditorComponent,
     TranslatePipe,
   ],
-  templateUrl: './bulk-audio-step.component.html',
-  styleUrl: './bulk-audio-step.component.scss',
+  templateUrl: './audio-upload-step.component.html',
+  styleUrl: './audio-upload-step.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BulkAudioStepComponent {
+export class AudioUploadStepComponent {
   private readonly chaptersState = inject(ChaptersEditorState);
 
-  /** Chapters staged from the dropped audio files (shared with the Chapters step). */
   readonly staged = computed(() => this.chaptersState.model().chapters);
   readonly chapters = this.staged;
 
-  /** Pre-rendered TTS title audio by chapter number, loaded from the static assets. */
   readonly titleAudioPool = signal<Map<number, File>>(new Map());
   private titleAudioPoolReady?: Promise<Map<number, File>>;
 
   readonly dragging = signal(false);
   readonly typeError = signal<string | null>(null);
+  /** When true, the single-file split editor is shown instead of the staging list. */
+  readonly splitting = signal(false);
+
   readonly loading = this.chaptersState.loading;
   readonly saving = this.chaptersState.saving;
   readonly saveError = this.chaptersState.saveError;
@@ -57,22 +58,27 @@ export class BulkAudioStepComponent {
     return `${k} file${k > 1 ? 's' : ''} ready`;
   });
 
+  /** True when exactly one staged chapter has a narration file to split. */
+  readonly canSplit = computed(() => {
+    const list = this.staged();
+    return list.length === 1 && list[0]?.narrationFile != null;
+  });
+
+  readonly singleNarrationFile = computed(() => this.staged()[0]?.narrationFile ?? null);
+
   /**
-   * Whether the step is complete. Always true so the bulk step is optional (skippable): a user
-   * who does not drop any file can still pass through and create chapters manually below.
+   * Skippable when not mid-split; while the split editor is open the step is incomplete
+   * so the wizard cannot advance past an unfinished cut.
    */
-  readonly complete = computed(() => true);
+  readonly complete = computed(() => !this.splitting());
 
   constructor() {
-    // Pre-render the TTS title audio assets so staged chapters use the uploaded audio file
-    // (mode 'audio') and finalize does not need to re-synthesise each chapter title via TTS.
     void this.ensureTitleAudioPool();
   }
 
   private ensureTitleAudioPool(): Promise<Map<number, File>> {
     if (!this.titleAudioPoolReady) {
       this.titleAudioPoolReady = loadChapterTitleAudioPool().then((loaded) => {
-        // Prefer an already-populated pool (e.g. injected at test time), else use the loaded one.
         const current = this.titleAudioPool();
         if (current.size === 0) this.titleAudioPool.set(loaded);
         return current.size > 0 ? current : loaded;
@@ -84,6 +90,7 @@ export class BulkAudioStepComponent {
   async addFiles(files: File[]): Promise<void> {
     if (files.length === 0) return;
     this.typeError.set(null);
+    this.splitting.set(false);
 
     const audio = files.filter((f) => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac)$/i.test(f.name));
     const invalid = files.filter((f) => !audio.includes(f) || f.size > MAX_FILE_SIZE);
@@ -109,13 +116,44 @@ export class BulkAudioStepComponent {
     }));
   }
 
+  onChapterNameInput(index: number, event: Event): void {
+    this.renameChapter(index, (event.target as HTMLInputElement).value);
+  }
+
   removeChapter(index: number): void {
     this.chaptersState.deleteChapter(index);
+    if (!this.canSplit()) this.splitting.set(false);
   }
 
   clear(): void {
     this.chaptersState.clearChapters();
     this.typeError.set(null);
+    this.splitting.set(false);
+  }
+
+  startSplit(): void {
+    if (!this.canSplit()) return;
+    this.splitting.set(true);
+  }
+
+  cancelSplit(): void {
+    this.splitting.set(false);
+  }
+
+  async onSplitConfirmed(files: File[]): Promise<void> {
+    if (files.length === 0) {
+      this.splitting.set(false);
+      return;
+    }
+    const pool = await this.ensureTitleAudioPool();
+    this.chaptersState.clearChapters();
+    this.chaptersState.model.set({
+      chapters: files.map((file, i) => {
+        const n = i + 1;
+        return { ...prefilledChapter(n, pool.get(n) ?? null), narrationFile: file };
+      }),
+    });
+    this.splitting.set(false);
   }
 
   save(): Promise<boolean> {
@@ -129,8 +167,6 @@ export class BulkAudioStepComponent {
     if (b >= 1024) return `${Math.round(b / 1024)} KB`;
     return `${b} B`;
   }
-
-  // --- drag & drop handlers (multiple files) ---
 
   onDragOver(event: DragEvent): void {
     event.preventDefault();

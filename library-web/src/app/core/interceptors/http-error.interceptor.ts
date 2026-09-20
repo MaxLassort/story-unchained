@@ -22,7 +22,13 @@ export const httpErrorInterceptor: HttpInterceptorFn = (req, next) => {
           .then((text: string) => {
             try {
               const parsed = JSON.parse(text);
-              snackbar.error(parsed?.error ?? parsed?.message ?? text);
+              const detail = parsed?.message;
+              const code = parsed?.error;
+              snackbar.error(
+                (typeof detail === 'string' && detail.trim() ? detail : null) ??
+                  (typeof code === 'string' && code.trim() && code !== 'ERROR' ? code : null) ??
+                  text,
+              );
             } catch {
               snackbar.error(text || translate('Network error', lang.currentLang()));
             }
@@ -31,9 +37,12 @@ export const httpErrorInterceptor: HttpInterceptorFn = (req, next) => {
             snackbar.error(err?.message ?? translate('Network error', lang.currentLang()));
           });
       } else {
+        const code = err?.error?.error;
+        const detail = err?.error?.message;
+        // Prefer human message over opaque codes like "ERROR" / "DEVICE_NOT_PLUGGED".
         const message =
-          err?.error?.error ??
-          err?.error?.message ??
+          (typeof detail === 'string' && detail.trim() ? detail : null) ??
+          (typeof code === 'string' && code.trim() && code !== 'ERROR' ? code : null) ??
           err?.message ??
           translate('Network error', lang.currentLang());
         snackbar.error(message);

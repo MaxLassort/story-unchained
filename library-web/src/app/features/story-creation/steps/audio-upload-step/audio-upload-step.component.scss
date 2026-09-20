@@ -1,27 +1,25 @@
-@use '@angular/material' as mat;
-
-.bulk-audio {
+.audio-upload {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-.bulk-audio__header {
+.audio-upload__header {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.bulk-audio__title {
+.audio-upload__title {
   margin: 0;
 }
 
-.bulk-audio__subtitle {
+.audio-upload__subtitle {
   margin: 0;
   color: var(--mat-sys-on-surface-variant);
 }
 
-.bulk-audio__error {
+.audio-upload__error {
   font-size: 0.9rem;
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
@@ -29,8 +27,7 @@
   border-radius: 0.5rem;
 }
 
-// Drop zone
-.bulk-audio__zone {
+.audio-upload__zone {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -62,47 +59,46 @@
   }
 }
 
-.bulk-audio__zone--dragging {
+.audio-upload__zone--dragging {
   border-color: var(--mat-sys-primary);
   background: var(--mat-sys-primary-container);
   transform: scale(1.01);
 }
 
-.bulk-audio__zone-icon {
+.audio-upload__zone-icon {
   width: 3rem;
   height: 3rem;
   font-size: 3rem;
   color: var(--mat-sys-primary);
 }
 
-.bulk-audio__zone-title {
+.audio-upload__zone-title {
   font-weight: 600;
   font-size: 1.125rem;
 }
 
-.bulk-audio__zone-hint {
+.audio-upload__zone-hint {
   font-size: 0.875rem;
   color: var(--mat-sys-on-surface-variant);
 }
 
-.bulk-audio__zone-browse {
+.audio-upload__zone-browse {
   color: var(--mat-sys-primary);
   font-weight: 500;
   text-decoration: underline;
 }
 
-.bulk-audio__input {
+.audio-upload__input {
   display: none;
 }
 
-// Staging area
-.bulk-audio__staging {
+.audio-upload__staging {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.bulk-audio__staging-header {
+.audio-upload__staging-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -111,47 +107,61 @@
   border-bottom: 1px solid var(--mat-sys-outline-variant);
 }
 
-.bulk-audio__staging-title {
+.audio-upload__staging-title {
   margin: 0;
   font-weight: 600;
   font-size: 1rem;
 }
 
-.bulk-audio__staging-meta {
+.audio-upload__staging-meta {
   font-size: 0.8125rem;
   color: var(--mat-sys-on-surface-variant);
 }
 
-.bulk-audio__list {
+.audio-upload__split-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--mat-sys-surface-container-low);
+  border: 1px solid var(--mat-sys-outline-variant);
+}
+
+.audio-upload__split-hint {
+  font-size: 0.8125rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.audio-upload__list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.bulk-audio__empty {
+.audio-upload__empty {
   margin: 0;
   font-size: 0.9rem;
   color: var(--mat-sys-on-surface-variant);
 }
 
-// Staged chapter card
-.bulk-card {
+.upload-card {
   overflow: visible;
 }
 
-.bulk-card__content {
+.upload-card__content {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1rem;
 }
 
-.bulk-card__check-icon {
+.upload-card__check-icon {
   color: var(--mat-sys-tertiary);
 }
 
-
-.bulk-card__main {
+.upload-card__main {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -159,12 +169,12 @@
   gap: 0.25rem;
 }
 
-.bulk-card__name {
+.upload-card__name {
   width: 100%;
   max-width: 26rem;
 }
 
-.bulk-card__file {
+.upload-card__file {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -175,18 +185,18 @@
   white-space: nowrap;
 }
 
-.bulk-card__file-icon {
+.upload-card__file-icon {
   font-size: 1.1rem;
   width: 1.1rem;
   height: 1.1rem;
   color: var(--mat-sys-on-surface-variant);
 }
 
-.bulk-card__file-size {
+.upload-card__file-size {
   color: var(--mat-sys-on-surface-variant);
 }
 
-.bulk-card__actions {
+.upload-card__actions {
   flex-shrink: 0;
   display: flex;
   gap: 0.25rem;

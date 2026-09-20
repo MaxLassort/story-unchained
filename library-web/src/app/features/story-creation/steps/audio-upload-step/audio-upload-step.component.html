@@ -1,0 +1,122 @@
+<div class="audio-upload">
+  <div class="audio-upload__header">
+    <h2 class="audio-upload__title">{{ 'Audio Upload' | translate }}</h2>
+    <p class="audio-upload__subtitle">
+      {{
+        'Upload one or more audio files. Each file becomes a chapter. With a single file, you can split it into chapters on the waveform.'
+          | translate
+      }}
+    </p>
+  </div>
+
+  @if (typeError(); as error) {
+    <div class="audio-upload__error">{{ error }}</div>
+  }
+  @if (saveError(); as error) {
+    <div class="audio-upload__error">{{ error }}</div>
+  }
+
+  @if (splitting() && singleNarrationFile(); as file) {
+    <app-chapter-split-editor
+      [file]="file"
+      (cancelled)="cancelSplit()"
+      (confirmed)="onSplitConfirmed($event)"
+    />
+  } @else {
+    <!-- Drop zone -->
+    <div
+      class="audio-upload__zone"
+      [class.audio-upload__zone--dragging]="dragging()"
+      (click)="fileInput.click()"
+      (keydown.enter)="fileInput.click()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="'Drop audio files or browse to add them' | translate"
+    >
+      <mat-icon class="audio-upload__zone-icon" aria-hidden="true">cloud_upload</mat-icon>
+      <span class="audio-upload__zone-title">{{ 'Drag & drop audio files here' | translate }}</span>
+      <span class="audio-upload__zone-hint">
+        {{ 'or' | translate }}
+        <span class="audio-upload__zone-browse">{{ 'browse' | translate }}</span>
+        — {{ 'MP3, WAV, OGG up to 50 MB each' | translate }}
+      </span>
+      <input
+        #fileInput
+        class="audio-upload__input"
+        type="file"
+        accept="audio/*"
+        multiple
+        (change)="onFileInput($event)"
+      />
+    </div>
+
+    @if (chapters().length > 0) {
+      <div class="audio-upload__staging">
+        <div class="audio-upload__staging-header">
+          <h3 class="audio-upload__staging-title">{{ 'Staging area' | translate }}</h3>
+          <span class="audio-upload__staging-meta">{{ totalSizeLabel() }}</span>
+        </div>
+
+        @if (canSplit()) {
+          <div class="audio-upload__split-cta">
+            <button mat-stroked-button type="button" color="primary" (click)="startSplit()">
+              <mat-icon aria-hidden="true">content_cut</mat-icon>
+              {{ 'Split into chapters' | translate }}
+            </button>
+            <span class="audio-upload__split-hint">
+              {{ 'Cut this single audio into several chapters with separators.' | translate }}
+            </span>
+          </div>
+        }
+
+        <div class="audio-upload__list">
+          @for (chapter of chapters(); track chapter.id || i; let i = $index) {
+            <mat-card class="upload-card" appearance="outlined">
+              <mat-card-content class="upload-card__content">
+                <mat-icon class="upload-card__check-icon">check_circle</mat-icon>
+
+                <div class="upload-card__main">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="upload-card__name">
+                    <mat-label>{{ 'Chapter' | translate }} {{ i + 1 }} — {{ 'Name' | translate }}</mat-label>
+                    <input
+                      matInput
+                      [value]="chapter.name"
+                      (input)="onChapterNameInput(i, $event)"
+                      autocomplete="off"
+                    />
+                  </mat-form-field>
+                  @if (chapter.narrationFile; as narrFile) {
+                    <span class="upload-card__file">
+                      <mat-icon class="upload-card__file-icon" aria-hidden="true">audio_file</mat-icon>
+                      {{ narrFile.name }}
+                      <span class="upload-card__file-size">{{ fileSizeLabel(narrFile) }}</span>
+                    </span>
+                  }
+                </div>
+
+                <div class="upload-card__actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    [matTooltip]="'Remove chapter' | translate"
+                    [attr.aria-label]="'Remove chapter' | translate"
+                    (click)="removeChapter(i)"
+                  >
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          }
+        </div>
+      </div>
+    } @else {
+      <p class="audio-upload__empty">
+        {{ 'No files yet — drop or browse audio files to stage chapters.' | translate }}
+      </p>
+    }
+  }
+</div>

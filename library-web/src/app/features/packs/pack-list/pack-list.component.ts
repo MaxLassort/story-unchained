@@ -158,6 +158,10 @@ export class PackListComponent implements OnInit {
   private sortPacks(packs: Pack[]): Pack[] {
     const order = this.sortOrder();
     return [...packs].sort((a, b) => {
+      // Keep Unchained above other library packs within the page (server also sorts this way).
+      const ua = a.metadata.unchained === true ? 1 : 0;
+      const ub = b.metadata.unchained === true ? 1 : 0;
+      if (ua !== ub) return ub - ua;
       const ta = (a.metadata.title ?? '').toLowerCase();
       const tb = (b.metadata.title ?? '').toLowerCase();
       return order === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);

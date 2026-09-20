@@ -353,6 +353,7 @@ class DriverDeviceConnector(
         val durationMs = System.currentTimeMillis() - start
         when (result) {
             is CopyPackFromDeviceToLibraryResult.Success -> logger.info("[Transfert device] copyFromDeviceToLibrary(packId={}, driver={}) terminé en {} ms", packId, state.driver, durationMs)
+            is CopyPackFromDeviceToLibraryResult.PackAlreadyInLibrary -> logger.info("[Transfert device] copyFromDeviceToLibrary(packId={}): déjà présent en bibliothèque", packId)
             is CopyPackFromDeviceToLibraryResult.Error -> logger.warn("[Transfert device] copyFromDeviceToLibrary(packId={}) échec: {}", packId, result.message)
             else -> {}
         }
@@ -363,7 +364,11 @@ class DriverDeviceConnector(
         val dir = File(libraryPath)
         if (!dir.exists()) dir.mkdirs()
         val destFile = File(dir, "$packId.$PACK_EXT_RAW")
-        if (destFile.exists()) return CopyPackFromDeviceToLibraryResult.Error("Un pack avec cet ID existe déjà dans la bibliothèque.")
+        if (destFile.exists()) {
+            // File on disk but maybe absent from DB (cleared index) — re-register so it shows up.
+            devicePackRepository.registerVariant(packId, PackFormat.RAW.name, destFile.absolutePath)
+            return CopyPackFromDeviceToLibraryResult.PackAlreadyInLibrary
+        }
         return runCatching {
             FileOutputStream(destFile).use { out -> rawDriver.downloadPack(packId, out) }
             devicePackRepository.registerVariant(packId, PackFormat.RAW.name, destFile.absolutePath)
@@ -377,7 +382,10 @@ class DriverDeviceConnector(
         val dir = File(libraryPath)
         if (!dir.exists()) dir.mkdirs()
         val destDir = File(dir, packId)
-        if (destDir.exists()) return CopyPackFromDeviceToLibraryResult.Error("Un pack avec cet ID existe déjà dans la bibliothèque.")
+        if (destDir.exists()) {
+            devicePackRepository.registerVariant(packId, PackFormat.FS.name, destDir.absolutePath)
+            return CopyPackFromDeviceToLibraryResult.PackAlreadyInLibrary
+        }
         return runCatching {
             fsDriver.downloadPack(packId, dir.absolutePath)
             devicePackRepository.registerVariant(packId, PackFormat.FS.name, destDir.absolutePath)

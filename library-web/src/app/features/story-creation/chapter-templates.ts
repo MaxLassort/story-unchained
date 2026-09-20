@@ -35,7 +35,7 @@ export function chapterTitleForChapter(n: number): string {
 /**
  * Builds a chapter already pre-filled: name, title audio (pre-selected uploaded asset) and image
  * (chapter-number render) are set; only the chapter narration is left empty for the user (or the
- * bulk-audio step) to fill in. The title audio always comes from the uploaded asset file (mode
+ * audio-upload step) to fill in. The title audio always comes from the uploaded asset file (mode
  * 'audio') — no TTS fallback, so finalize never re-synthesises a chapter title. When no
  * [titleAudioFile] is available (e.g. beyond the pre-rendered pool) the title audio stays empty.
  */

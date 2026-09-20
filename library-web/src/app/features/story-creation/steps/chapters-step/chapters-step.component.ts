@@ -97,7 +97,7 @@ export class ChaptersStepComponent {
   /**
    * Adds a chapter pre-filled with the default title, a pre-selected title audio (uploaded
    * TTS asset) and the chapter-number image. Only the narration audio is left empty — that is
-   * the piece the bulk-audio step (and the user) fills in.
+   * the piece the audio-upload step (and the user) fills in.
    */
   addChapter(): void {
     const nextNumber = this.model().chapters.length + 1;

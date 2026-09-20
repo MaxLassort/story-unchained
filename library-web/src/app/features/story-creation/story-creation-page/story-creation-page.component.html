@@ -46,17 +46,19 @@
             @if (detailsStep()?.saving()) {
               <mat-progress-spinner diameter="18" mode="indeterminate" />
             } @else {
-              {{ 'Next: Bulk Upload' | translate }}
-              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              <ng-container>
+                {{ 'Next: Audio Upload' | translate }}
+                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              </ng-container>
             }
           </button>
         </div>
       </mat-step>
 
-      <mat-step [label]="'Audio Upload' | translate" [completed]="(detailsStep()?.complete() && bulkStep()?.complete()) ?? false">
+      <mat-step [label]="'Audio Upload' | translate" [completed]="(detailsStep()?.complete() && uploadStep()?.complete()) ?? false">
         <mat-card class="step-card">
           <mat-card-content>
-            <app-bulk-audio-step />
+            <app-audio-upload-step />
           </mat-card-content>
         </mat-card>
 
@@ -66,14 +68,16 @@
             mat-flat-button
             type="button"
             color="primary"
-            [disabled]="!bulkStep()?.complete() || (bulkStep()?.saving() ?? false)"
-            (click)="confirmBulkAndNext()"
+            [disabled]="!uploadStep()?.complete() || (uploadStep()?.saving() ?? false)"
+            (click)="confirmUploadAndNext()"
           >
-            @if (bulkStep()?.saving()) {
+            @if (uploadStep()?.saving()) {
               <mat-progress-spinner diameter="18" mode="indeterminate" />
             } @else {
-              {{ 'Confirm & Add to Story' | translate }}
-              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              <ng-container>
+                {{ 'Confirm & Add to Story' | translate }}
+                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              </ng-container>
             }
           </button>
         </div>
@@ -98,8 +102,10 @@
             @if (chaptersStep()?.saving()) {
               <mat-progress-spinner diameter="18" mode="indeterminate" />
             } @else {
-              {{ 'Next: Finalize' | translate }}
-              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              <ng-container>
+                {{ 'Next: Finalize' | translate }}
+                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              </ng-container>
             }
           </button>
         </div>
@@ -137,8 +143,10 @@
             @if (finalizing()) {
               <mat-progress-spinner diameter="18" mode="indeterminate" />
             } @else {
-              {{ (isEditMode() ? 'Save the pack' : 'Create the pack') | translate }}
-              <mat-icon aria-hidden="true">auto_stories</mat-icon>
+              <ng-container>
+                {{ (isEditMode() ? 'Save the pack' : 'Create the pack') | translate }}
+                <mat-icon aria-hidden="true">auto_stories</mat-icon>
+              </ng-container>
             }
           </button>
         </div>

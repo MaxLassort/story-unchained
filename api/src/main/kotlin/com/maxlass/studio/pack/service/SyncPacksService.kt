@@ -18,6 +18,7 @@ import com.maxlass.studio.pack.domain.dto.SyncStatusEvent
 import com.maxlass.studio.pack.port.external.SyncEventPublisher
 import com.maxlass.studio.pack.port.persistence.PackRepositoryPort
 import com.maxlass.studio.pack.util.readThumbnailBytes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,7 +45,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private const val DEFAULT_BATCH_SIZE = 50
 private const val DEFAULT_PARALLELISM = 6
-private const val ENTRY_TIMEOUT_MS = 30_000L
+/** Per-entry budget; large ARCHIVE zips must finish hashing without being quarantined. */
+private const val ENTRY_TIMEOUT_MS = 120_000L
 
 data class ProcessResult(
     val synchronizedCount: Int = 0,
@@ -309,6 +311,10 @@ class SyncPacksService(
                     meta.thumbnail = cover
                     changed = true
                 }
+                if (archiveMeta.unchained && !meta.unchained) {
+                    meta.unchained = true
+                    changed = true
+                }
                 if (changed) packMetadataJpaRepository.save(meta)
             }
         }
@@ -352,42 +358,59 @@ class SyncPacksService(
         file: File,
         invalidPacksDir: File,
         officialCache: Map<String, OfficialMetadataDto>
-    ): ProcessResult = runCatching {
-        val snapshot = fingerprinter.buildSnapshot(file)
-        val existing = fingerprinter.getIndexByPath(snapshot.path)
+    ): ProcessResult {
+        return try {
+            val snapshot = fingerprinter.buildSnapshot(file)
+            val existing = fingerprinter.getIndexByPath(snapshot.path)
 
-        if (!fingerprinter.shouldProcessEntry(snapshot, existing)) {
-            fingerprinter.upsertIndex(snapshot, existing?.contentHash, INDEX_VALID, existing?.packId, existing?.detectedFormat)
-            fingerprinter.refreshOfficialMetadataIfPossible(existing?.packId, officialCache)
-            return ProcessResult()
+            if (!fingerprinter.shouldProcessEntry(snapshot, existing)) {
+                fingerprinter.upsertIndex(snapshot, existing?.contentHash, INDEX_VALID, existing?.packId, existing?.detectedFormat)
+                fingerprinter.refreshOfficialMetadataIfPossible(existing?.packId, officialCache)
+                return ProcessResult()
+            }
+
+            val detected = inspector.detectFormatAndMetadata(file)
+            if (detected == null) {
+                // Only quarantine junk that clearly is not a pack. Valid-looking archives/FS folders
+                // that fail metadata reads stay put so a timeout/parse glitch cannot delete them.
+                val looksLikePack = when {
+                    file.isDirectory -> inspector.looksLikeFsDirectory(file)
+                    file.isFile && file.extension.equals("zip", ignoreCase = true) ->
+                        inspector.looksLikeArchiveZip(file)
+                    else -> false
+                }
+                if (looksLikePack) {
+                    log.warn(
+                        "Entrée ressemble à un pack mais métadonnées illisibles — laissée en place: {}",
+                        file.absolutePath,
+                    )
+                    return ProcessResult(failedCount = 1)
+                }
+                val moved = moveInvalidEntry(file, invalidPacksDir, "Format de pack non reconnu")
+                fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_INVALID, null, null)
+                return if (moved) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
+            }
+
+            val (format, meta) = detected
+            val pack = extractor.buildPack(
+                file,
+                meta,
+                format,
+                officialCache,
+                existingThumbnail = packMetadataJpaRepository.findById(meta.uuid).orElse(null)?.thumbnail,
+                hasArchiveVariant = variantRepository.findAll()
+                    .any { it.id.packId == meta.uuid && it.id.format == PackFormat.ARCHIVE.name },
+            )
+            packRepository.savePack(pack)
+            fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_VALID, meta.uuid, format.name)
+            ProcessResult(synchronizedCount = 1)
+        } catch (e: CancellationException) {
+            // Timeouts / job cancel must not quarantine packs (structured concurrency).
+            throw e
+        } catch (e: Exception) {
+            log.error("Erreur traitement entrée (pack laissé en place): {}", file.absolutePath, e)
+            ProcessResult(failedCount = 1)
         }
-
-        val detected = inspector.detectFormatAndMetadata(file)
-        val (format, meta) = detected ?: run {
-            val moved = moveInvalidEntry(file, invalidPacksDir, "Format de pack non reconnu")
-            fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_INVALID, null, null)
-            return if (moved) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
-        }
-
-        val pack = extractor.buildPack(
-            file,
-            meta,
-            format,
-            officialCache,
-            existingThumbnail = packMetadataJpaRepository.findById(meta.uuid).orElse(null)?.thumbnail,
-            hasArchiveVariant = variantRepository.findAll()
-                .any { it.id.packId == meta.uuid && it.id.format == PackFormat.ARCHIVE.name },
-        )
-        packRepository.savePack(pack)
-        fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_VALID, meta.uuid, format.name)
-        ProcessResult(synchronizedCount = 1)
-    }.getOrElse { e ->
-        log.error("Erreur traitement entrée: {}", file.absolutePath, e)
-        val snapshot = fingerprinter.buildSnapshot(file)
-        val reason = e.message?.take(500) ?: "Erreur de traitement"
-        val moved = moveInvalidEntry(file, invalidPacksDir, reason)
-        fingerprinter.upsertIndex(snapshot, fingerprinter.computeContentHash(file), INDEX_INVALID, null, null)
-        if (moved) ProcessResult(invalidQueuedCount = 1) else ProcessResult(failedCount = 1)
     }
 
     internal fun moveInvalidEntry(entry: File, invalidPacksDir: File, reason: String): Boolean {

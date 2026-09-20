@@ -31,31 +31,36 @@ export async function blobToWavFile(blob: Blob, filename = 'recording.wav'): Pro
 }
 
 /**
- * Encodes an AudioBuffer as a 16-bit PCM mono WAV ArrayBuffer.
+ * Mixes an AudioBuffer down to mono Float32 samples.
  */
-function encodeWav(buffer: AudioBuffer): ArrayBuffer {
-  const numChannels = 1; // mono
-  const sampleRate = buffer.sampleRate;
+export function mixToMono(buffer: AudioBuffer): Float32Array {
+  const length = buffer.length;
+  const monoData = new Float32Array(length);
+  const n = buffer.numberOfChannels;
+  for (let ch = 0; ch < n; ch++) {
+    const channelData = buffer.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      monoData[i] += channelData[i] / n;
+    }
+  }
+  return monoData;
+}
+
+/**
+ * Encodes mono Float32 PCM as a 16-bit little-endian WAV ArrayBuffer.
+ */
+export function encodeMonoPcmWav(monoData: Float32Array, sampleRate: number): ArrayBuffer {
+  const numChannels = 1;
   const bitsPerSample = 16;
   const bytesPerSample = bitsPerSample / 8;
   const blockAlign = numChannels * bytesPerSample;
-
-  // Mix down to mono
-  const length = buffer.length;
-  const monoData = new Float32Array(length);
-  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-    const channelData = buffer.getChannelData(ch);
-    for (let i = 0; i < length; i++) {
-      monoData[i] += channelData[i] / buffer.numberOfChannels;
-    }
-  }
+  const length = monoData.length;
 
   const dataSize = length * bytesPerSample;
   const bufferSize = 44 + dataSize;
   const arrayBuffer = new ArrayBuffer(bufferSize);
   const view = new DataView(arrayBuffer);
 
-  // WAV header
   writeString(view, 0, 'RIFF');
   view.setUint32(4, 36 + dataSize, true);
   writeString(view, 8, 'WAVE');
@@ -70,15 +75,21 @@ function encodeWav(buffer: AudioBuffer): ArrayBuffer {
   writeString(view, 36, 'data');
   view.setUint32(40, dataSize, true);
 
-  // Write PCM samples (16-bit signed, little-endian)
   let offset = 44;
   for (let i = 0; i < length; i++) {
-    const sample = Math.max(-1, Math.min(1, monoData[i]));
+    const sample = Math.max(-1, Math.min(1, monoData[i]!));
     view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
     offset += 2;
   }
 
   return arrayBuffer;
+}
+
+/**
+ * Encodes an AudioBuffer as a 16-bit PCM mono WAV ArrayBuffer.
+ */
+export function encodeWav(buffer: AudioBuffer): ArrayBuffer {
+  return encodeMonoPcmWav(mixToMono(buffer), buffer.sampleRate);
 }
 
 function writeString(view: DataView, offset: number, str: string): void {

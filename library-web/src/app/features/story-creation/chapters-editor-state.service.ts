@@ -7,9 +7,10 @@ import type { TitleAudioSelection } from './components/title-audio-input/title-a
 import type { ChaptersFormModel } from './chapter-templates';
 
 /**
- * Shared, wizard-scoped state holding the chapters being configured. The Bulk Upload step
- * pre-fills chapters here (one per dropped narration file) and the Chapters step shows and
- * saves them. Provided once on the story-creation page so both steps read/write the same list.
+ * Shared, wizard-scoped state holding the chapters being configured. The Audio Upload step
+ * pre-fills chapters here (one per dropped narration file, or several after a single-file split)
+ * and the Chapters step shows and saves them. Provided once on the story-creation page so both
+ * steps read/write the same list.
  */
 @Injectable()
 export class ChaptersEditorState {

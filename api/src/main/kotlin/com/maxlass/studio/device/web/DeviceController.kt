@@ -138,6 +138,7 @@ class DeviceController(
         summary = "Copier un pack de la Lunii vers la bibliothèque",
         description = "Importe le pack de l'appareil dans le dossier bibliothèque puis " +
             "resynchronise. Erreurs : PACK_NOT_FOUND_ON_DEVICE (404), " +
+            "PACK_ALREADY_IN_LIBRARY (409 — fichier déjà sur disque, resync lancée), " +
             "DEVICE_NOT_PLUGGED (409).",
     )
     @ApiResponse(responseCode = "200", description = "Pack importé dans la bibliothèque")
@@ -241,6 +242,14 @@ class DeviceController(
                 ResponseEntity.status(HttpStatus.NOT_FOUND).body(CopyPackResponse(ok = false, error = "PACK_NOT_FOUND_ON_DEVICE", message = "Pack non présent sur la Lunii"))
             is CopyPackFromDeviceToLibraryResult.DeviceNotPlugged ->
                 ResponseEntity.status(HttpStatus.CONFLICT).body(CopyPackResponse(ok = false, error = "DEVICE_NOT_PLUGGED"))
+            is CopyPackFromDeviceToLibraryResult.PackAlreadyInLibrary ->
+                ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    CopyPackResponse(
+                        ok = false,
+                        error = "PACK_ALREADY_IN_LIBRARY",
+                        message = "Ce pack est déjà dans la bibliothèque",
+                    ),
+                )
             is CopyPackFromDeviceToLibraryResult.Error ->
                 ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CopyPackResponse(ok = false, error = "ERROR", message = result.message))
         }

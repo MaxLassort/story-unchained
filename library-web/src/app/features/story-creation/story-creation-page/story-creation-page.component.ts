@@ -9,7 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { StoryDraftService } from '../../../core/services/story-draft.service';
 import { StoryDetailsStepComponent } from '../steps/story-details-step/story-details-step.component';
-import { BulkAudioStepComponent } from '../steps/bulk-audio-step/bulk-audio-step.component';
+import { AudioUploadStepComponent } from '../steps/audio-upload-step/audio-upload-step.component';
 import { ChaptersStepComponent } from '../steps/chapters-step/chapters-step.component';
 import { ChaptersEditorState } from '../chapters-editor-state.service';
 import { TranslatePipe } from '../../../core/pipes/translate.pipe';
@@ -25,7 +25,7 @@ import { TranslatePipe } from '../../../core/pipes/translate.pipe';
     MatSnackBarModule,
     MatStepperModule,
     StoryDetailsStepComponent,
-    BulkAudioStepComponent,
+    AudioUploadStepComponent,
     ChaptersStepComponent,
     TranslatePipe,
   ],
@@ -42,7 +42,7 @@ export class StoryCreationPageComponent implements OnInit {
   private readonly chaptersState = inject(ChaptersEditorState);
 
   readonly detailsStep = viewChild(StoryDetailsStepComponent);
-  readonly bulkStep = viewChild(BulkAudioStepComponent);
+  readonly uploadStep = viewChild(AudioUploadStepComponent);
   readonly chaptersStep = viewChild(ChaptersStepComponent);
   readonly stepper = viewChild(MatStepper);
 
@@ -115,9 +115,9 @@ export class StoryCreationPageComponent implements OnInit {
     }
   }
 
-  /** Bulk step pre-fills the shared chapters state; confirming saves staged chapters and moves to Chapters step. */
-  async confirmBulkAndNext(): Promise<void> {
-    const step = this.bulkStep();
+  /** Upload step pre-fills the shared chapters state; confirming saves staged chapters and moves to Chapters step. */
+  async confirmUploadAndNext(): Promise<void> {
+    const step = this.uploadStep();
     if (!step) return;
     const ok = await step.save();
     if (ok) {

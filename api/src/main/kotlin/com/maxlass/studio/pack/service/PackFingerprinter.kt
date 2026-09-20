@@ -54,7 +54,15 @@ class PackFingerprinter(
     fun computeContentHash(file: File): String? = runCatching {
         val digest = MessageDigest.getInstance("SHA-256")
         if (file.isFile) {
-            digest.update(Files.readAllBytes(file.toPath()))
+            // Stream — never load a multi‑MB ARCHIVE zip entirely into heap.
+            Files.newInputStream(file.toPath()).use { input ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
         } else if (file.isDirectory) {
             Files.walk(file.toPath()).use { stream ->
                 stream

@@ -30,11 +30,19 @@ class CopyPackFromDeviceToLibraryUseCase(
     suspend operator fun invoke(packId: String): CopyPackFromDeviceToLibraryResult {
         val libraryPath = settingsService.getLibraryPath()
         val result = copyFromDevicePort.copyFromDeviceToLibrary(packId, libraryPath)
-        if (result is CopyPackFromDeviceToLibraryResult.Success) {
+        // Success writes a new file; AlreadyInLibrary means the file is on disk but may be
+        // missing from the DB index (e.g. after clearPacks / crashed sync) — always re-sync.
+        if (result is CopyPackFromDeviceToLibraryResult.Success ||
+            result is CopyPackFromDeviceToLibraryResult.PackAlreadyInLibrary
+        ) {
+            if (result is CopyPackFromDeviceToLibraryResult.Success) {
+                runCatching {
+                    withContext(ioDispatcher) { refreshOfficialMetadataUseCase.invoke() }
+                }.onFailure { log.warn("Refresh official metadata after copy failed", it) }
+            }
             runCatching {
-                withContext(ioDispatcher) { refreshOfficialMetadataUseCase.invoke() }
-            }.onFailure { log.warn("Refresh official metadata after copy failed", it) }
-            syncPacksService.invoke(libraryPath)
+                syncPacksService.invoke(libraryPath)
+            }.onFailure { log.warn("Library sync after copy-from-device failed", it) }
         }
         return result
     }
