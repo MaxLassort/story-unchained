@@ -1,3 +1,4 @@
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDragPlaceholder, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -21,6 +22,10 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 @Component({
   selector: 'app-audio-upload-step',
   imports: [
+    CdkDrag,
+    CdkDragHandle,
+    CdkDragPlaceholder,
+    CdkDropList,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -118,6 +123,22 @@ export class AudioUploadStepComponent {
 
   onChapterNameInput(index: number, event: Event): void {
     this.renameChapter(index, (event.target as HTMLInputElement).value);
+  }
+
+  /** Reorder staged chapters; keep number-mode images aligned with the new index. */
+  reorderChapters(event: CdkDragDrop<unknown>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    this.chaptersState.model.update((m) => {
+      const chapters = [...m.chapters];
+      moveItemInArray(chapters, event.previousIndex, event.currentIndex);
+      return {
+        chapters: chapters.map((ch, i) => {
+          const n = i + 1;
+          if (ch.image?.mode !== 'number') return ch;
+          return { ...ch, image: { ...ch.image, chapterNumber: n } };
+        }),
+      };
+    });
   }
 
   removeChapter(index: number): void {

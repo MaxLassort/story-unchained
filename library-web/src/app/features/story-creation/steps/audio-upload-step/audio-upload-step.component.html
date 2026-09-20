@@ -72,11 +72,30 @@
           </div>
         }
 
-        <div class="audio-upload__list">
+        @if (chapters().length > 1) {
+          <p class="audio-upload__reorder-hint">{{ 'Drag chapters to change their order.' | translate }}</p>
+        }
+
+        <div
+          class="audio-upload__list"
+          cdkDropList
+          (cdkDropListDropped)="reorderChapters($event)"
+        >
           @for (chapter of chapters(); track chapter.id || i; let i = $index) {
-            <mat-card class="upload-card" appearance="outlined">
+            <mat-card class="upload-card" appearance="outlined" cdkDrag>
+              <div class="upload-card__placeholder" *cdkDragPlaceholder></div>
               <mat-card-content class="upload-card__content">
-                <mat-icon class="upload-card__check-icon">check_circle</mat-icon>
+                <button
+                  type="button"
+                  class="upload-card__drag-handle"
+                  cdkDragHandle
+                  [matTooltip]="'Drag to reorder' | translate"
+                  [attr.aria-label]="'Drag to reorder' | translate"
+                >
+                  <mat-icon aria-hidden="true">drag_indicator</mat-icon>
+                </button>
+
+                <mat-icon class="upload-card__check-icon" aria-hidden="true">check_circle</mat-icon>
 
                 <div class="upload-card__main">
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="upload-card__name">

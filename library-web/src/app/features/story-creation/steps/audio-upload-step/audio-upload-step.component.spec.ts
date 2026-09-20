@@ -124,6 +124,23 @@ describe('AudioUploadStepComponent', () => {
     expect(c.canSplit()).toBe(true);
   });
 
+  it('reorders staged chapters and updates number-mode images', async () => {
+    const fixture = createComponent();
+    const c = fixture.componentInstance;
+    const a = new File(['a'], 'a.mp3', { type: 'audio/mpeg' });
+    const b = new File(['b'], 'b.mp3', { type: 'audio/mpeg' });
+    await c.addFiles([a, b]);
+    fixture.detectChanges();
+
+    c.reorderChapters({ previousIndex: 0, currentIndex: 1 } as never);
+    fixture.detectChanges();
+
+    expect(c.chapters()[0].narrationFile).toBe(b);
+    expect(c.chapters()[1].narrationFile).toBe(a);
+    expect(c.chapters()[0].image?.chapterNumber).toBe(1);
+    expect(c.chapters()[1].image?.chapterNumber).toBe(2);
+  });
+
   it('opens and cancels the split editor', async () => {
     const fixture = createComponent();
     const c = fixture.componentInstance;
