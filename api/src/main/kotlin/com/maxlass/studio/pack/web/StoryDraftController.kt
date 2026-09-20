@@ -44,9 +44,10 @@ import org.springframework.web.server.ResponseStatusException
  */
 @RestController
 @RequestMapping("/stories/drafts")
-@Tag(name = "Stories - Draft", description = "Brouillons d'histoire sur disque dans le dossier " +
-    "temp (plusieurs à la fois) : création → remplissage (chapitres, audio ou texte TTS, " +
-    "image) → finalisation en zip. Les drafts disparaissent au redémarrage de l'appli.")
+@Tag(name = "Stories - Draft", description = "Brouillons d'histoire sur disque (plusieurs à la fois) : " +
+    "création → remplissage (chapitres, audio ou texte TTS, image) → finalisation en zip. " +
+    "Les brouillons survivent au redémarrage de l'appli ; ils sont purgés à la suppression " +
+    "explicite ou après une finalisation réussie.")
 class StoryDraftController(
     private val store: StoryDraftStore,
     private val createStory: CreateStoryUseCase,
@@ -252,8 +253,7 @@ class StoryDraftController(
 
     @Operation(
         summary = "Supprimer le brouillon",
-        description = "Supprime le brouillon (fichiers du dossier temp, équivalent à quitter " +
-            "l'appli).",
+        description = "Supprime le brouillon et ses fichiers sur disque.",
     )
     @ApiResponse(responseCode = "204", description = "Brouillon supprimé")
     @ApiResponse(responseCode = "404", description = "Brouillon inconnu")

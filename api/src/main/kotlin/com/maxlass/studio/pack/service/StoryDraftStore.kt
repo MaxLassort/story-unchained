@@ -12,14 +12,15 @@ import java.nio.file.Path
 import java.util.UUID
 
 /**
- * Story draft store backed entirely by the temp folder. Multiple drafts may coexist
+ * Story draft store backed entirely by the drafts folder on disk. Multiple drafts may coexist
  * (one directory per draft under `drafts/{id}/`).
  *
  * Nothing is kept in memory: the structured state lives in `drafts/{id}/draft.json` and
  * every binary payload (audio, images) is a plain file under `drafts/{id}/`. Every
  * mutation reads the JSON, applies the change and rewrites it, so a multi-hour story never
- * saturates the JVM heap. The whole drafts directory is **cleaned at every startup**
- * (crash leftovers); individual drafts are removed on delete or successful finalization.
+ * saturates the JVM heap. Drafts **survive process restarts**; they are only removed when
+ * the user deletes them or finalization succeeds. At startup, orphan folders without a
+ * readable `draft.json` are pruned.
  */
 @Service
 class StoryDraftStore(
@@ -37,11 +38,44 @@ class StoryDraftStore(
 
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
-    /** Removes all leftover draft files from previous runs. */
+    /**
+     * Ensures the drafts directory exists and removes orphan folders that have no readable
+     * `draft.json` (corrupt leftovers). Valid drafts are kept across restarts.
+     */
     @PostConstruct
     fun cleanAtStartup() {
-        logger.info("Cleaning story draft temp dir {}", studioProperties.draftsDir)
-        studioProperties.draftsDir.toFile().deleteRecursively()
+        Files.createDirectories(studioProperties.draftsDir)
+        synchronized(lock) {
+            val dir = studioProperties.draftsDir
+            var pruned = 0
+            try {
+                Files.list(dir).use { stream ->
+                    stream.filter { Files.isDirectory(it) }.forEach { child ->
+                        val id = child.fileName.toString()
+                        if (readState(id) == null) {
+                            logger.info("Removing orphan draft folder without valid state: {}", child)
+                            child.toFile().deleteRecursively()
+                            pruned++
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                logger.warn("Could not prune orphan drafts in {}: {}", dir, e.message)
+            }
+            val kept = try {
+                Files.list(dir).use { stream ->
+                    stream.filter { Files.isDirectory(it) }.count().toInt()
+                }
+            } catch (_: Exception) {
+                0
+            }
+            logger.info(
+                "Story drafts ready at {} ({} draft(s) restored, {} orphan(s) pruned)",
+                dir,
+                kept,
+                pruned,
+            )
+        }
     }
 
     /**
@@ -96,7 +130,7 @@ class StoryDraftStore(
         Files.readAllBytes(file)
     }
 
-    /** Removes one draft and its temp dir. */
+    /** Removes one draft and its on-disk directory. */
     fun clear(id: String): Boolean = synchronized(lock) {
         if (readState(id) == null) {
             false

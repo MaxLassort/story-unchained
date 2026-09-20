@@ -80,7 +80,7 @@ export class PackListComponent implements OnInit {
   protected readonly isPlugged = this.sseService.isPlugged;
   protected readonly metadataRefreshing = this.metadataService.refreshing;
 
-  /** In-progress story drafts shown as temporary pack cards. */
+  /** In-progress story drafts shown as pack cards (persisted on disk across restarts). */
   readonly draftPacks = signal<Pack[]>([]);
 
   readonly showOfficial = this.packsService.showOfficial;

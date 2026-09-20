@@ -40,6 +40,11 @@ class StoryDraftControllerTest : StringSpec({
     val controller = StoryDraftController(store, createStory)
     val validator: Validator = Validation.buildDefaultValidatorFactory().validator
 
+    beforeTest {
+        // Drafts persist on disk — clear between cases so list/get assertions stay isolated.
+        store.listAll().forEach { store.clear(it.id) }
+    }
+
     "createDraft returns a new draft id" {
         runBlocking {
             val response = controller.createDraft()
@@ -48,13 +53,14 @@ class StoryDraftControllerTest : StringSpec({
         }
     }
 
-    "creating a new draft replaces the previous one" {
+    "creating a new draft keeps previous drafts" {
         runBlocking {
             val first = controller.createDraft().body!!.draftId
             val second = controller.createDraft().body!!.draftId
 
-            shouldThrow<ResponseStatusException> { controller.getDraft(first) }
+            controller.getDraft(first).id shouldBe first
             controller.getDraft(second).id shouldBe second
+            controller.listDrafts().map { it.id }.toSet() shouldBe setOf(first, second)
         }
     }
 

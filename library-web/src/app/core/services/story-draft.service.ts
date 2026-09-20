@@ -13,9 +13,10 @@ import { environment } from '../../../environments/environment';
 
 /**
  * Story draft lifecycle: one or more in-progress story drafts (chapters, audio or
- * TTS text, images) held on disk in the temp folder until finalization. Owns the
- * shared `draftId` signal consumed by the story-creation stepper for the draft
- * currently being edited in the wizard.
+ * TTS text, images) held on disk under the app storage dir until finalization or
+ * explicit delete. Drafts survive API/process restarts. Owns the shared `draftId`
+ * signal consumed by the story-creation stepper for the draft currently being
+ * edited in the wizard.
  *
  * All requests use {@link silentHttpContext}: errors are handled inline by the
  * story-creation flow (saveError/finalizeError) or silently tolerated (missing

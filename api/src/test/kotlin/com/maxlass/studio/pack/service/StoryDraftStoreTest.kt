@@ -19,21 +19,49 @@ class StoryDraftStoreTest : StringSpec({
         root.toFile().deleteRecursively()
     }
 
+    beforeTest {
+        // Drafts now persist across store instances — isolate each case.
+        val drafts = StudioProperties(storageDir = root).draftsDir
+        if (Files.exists(drafts)) drafts.toFile().deleteRecursively()
+    }
+
     fun newStore(): StoryDraftStore {
         val tts = mockk<TtsEngine>()
         coEvery { tts.synthesize(any(), any(), any()) } returns byteArrayOf(1, 2, 3)
         return StoryDraftStore(StudioProperties(storageDir = root), tts)
     }
 
-    "cleanAtStartup removes leftovers from previous runs" {
+    "cleanAtStartup keeps valid drafts and removes orphan folders" {
         val props = StudioProperties(storageDir = root)
-        val leftovers = props.draftsDir.resolve("leftover")
-        Files.createDirectories(leftovers)
-        Files.write(leftovers.resolve("old.mp3"), byteArrayOf(1))
+        val store = StoryDraftStore(props, mockk(relaxed = true))
+        val draft = store.create()
+        store.updateMetadata(draft.id, "Survit", null)
 
-        StoryDraftStore(props, mockk(relaxed = true)).cleanAtStartup()
+        val orphan = props.draftsDir.resolve("orphan-no-json")
+        Files.createDirectories(orphan)
+        Files.write(orphan.resolve("old.mp3"), byteArrayOf(1))
 
-        props.draftsDir.toFile().exists() shouldBe false
+        store.cleanAtStartup()
+
+        store.get(draft.id).shouldNotBeNull()
+        store.get(draft.id)!!.title shouldBe "Survit"
+        Files.exists(orphan) shouldBe false
+        Files.exists(props.draftsDir) shouldBe true
+    }
+
+    "drafts survive a new store instance (process restart)" {
+        val props = StudioProperties(storageDir = root)
+        val first = StoryDraftStore(props, mockk(relaxed = true))
+        val draft = first.create()
+        first.updateMetadata(draft.id, "Après kill", "desc")
+
+        val restarted = StoryDraftStore(props, mockk(relaxed = true))
+        restarted.cleanAtStartup()
+
+        val restored = restarted.get(draft.id)
+        restored.shouldNotBeNull()
+        restored!!.title shouldBe "Après kill"
+        restored.description shouldBe "desc"
     }
 
     "creating a draft keeps previous drafts (multiple drafts allowed)" {

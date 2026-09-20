@@ -16,7 +16,7 @@ data class StudioProperties(
     val metadataDbDir: Path
         get() = storageDir.resolve("db")
 
-    /** Temporary draft binaries (audio, images), cleaned at startup and per-draft. */
+    /** Temporary draft binaries (audio, images). Persist across restarts; removed on delete/finalize. */
     val draftsDir: Path
         get() = storageDir.resolve("drafts")
 
