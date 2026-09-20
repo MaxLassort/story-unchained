@@ -134,6 +134,7 @@
   "SETTINGS_DB_SAVE_HINT": "Enregistrez pour appliquer le nouveau chemin de la base",
   "SETTINGS_OPENAI_HINT": "Votre propre clé OpenAI, stockée localement dans le fichier de paramètres",
   "SETTINGS_ELEVENLABS_HINT": "Votre propre clé ElevenLabs, stockée localement dans le fichier de paramètres",
+  "SETTINGS_ELEVENLABS_PERMS": "Permissions requises pour la clé API ElevenLabs",
 
   "DIALOG_DELETE_TITLE": "Supprimer le pack",
   "DIALOG_DELETE_CONFIRM": "Êtes-vous sûr de vouloir supprimer <strong>{{title}}</strong> ?",

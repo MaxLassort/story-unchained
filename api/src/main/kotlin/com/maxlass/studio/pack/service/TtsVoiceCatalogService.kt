@@ -76,27 +76,39 @@ class TtsVoiceCatalogService(
                 .apiKey(apiKey)
                 .build()
             val voices = api.getVoices().body?.voices().orEmpty()
-            val filtered = voices.filter { voice ->
-                // Free tier accounts cannot use community library voices via API (HTTP 402 paid_plan_required).
-                // Keep PREMADE, CLONED, GENERATED.
-                voice.category() in setOf(
-                    ElevenLabsVoicesApi.CategoryEnum.PREMADE,
-                    ElevenLabsVoicesApi.CategoryEnum.CLONED,
-                    ElevenLabsVoicesApi.CategoryEnum.GENERATED,
-                )
-            }
-            if (filtered.isEmpty()) {
+            if (voices.isEmpty()) {
                 defaultElevenLabsVoices() to true
             } else {
-                filtered
-                    .sortedBy { it.name() }
-                    .map { TtsVoiceDto(id = it.voiceId(), name = it.name()) }
+                // Keep every voice the key can see: premade, cloned, generated, professional,
+                // and any custom/user voice (category may be null). Filtering by category used to
+                // hide the user's own voices.
+                voices
+                    .sortedBy { it.name().orEmpty().lowercase() }
+                    .map { voice ->
+                        TtsVoiceDto(
+                            id = voice.voiceId(),
+                            name = voice.name().orEmpty(),
+                            language = resolveLanguage(voice),
+                        )
+                    }
                     .let { it to false }
             }
         } catch (e: Exception) {
             logger.warn("Could not fetch ElevenLabs voices ({}), using built-in default voices", e.message)
             defaultElevenLabsVoices() to true
         }
+    }
+
+    /** Prefer `labels.language`, then first verified language, then fine-tuning language. */
+    private fun resolveLanguage(voice: ElevenLabsVoicesApi.Voice): String? {
+        voice.labels()?.get("language")?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        voice.verifiedLanguages()
+            ?.firstOrNull()
+            ?.language()
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+        return voice.fineTuning()?.language()?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     /** Well-known ElevenLabs premade voice ids (public, stable). Used when the live list is unavailable. */

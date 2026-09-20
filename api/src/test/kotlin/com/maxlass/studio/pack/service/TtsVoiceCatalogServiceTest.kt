@@ -82,4 +82,57 @@ class TtsVoiceCatalogServiceTest : StringSpec({
             unmockkStatic(ElevenLabsVoicesApi::class)
         }
     }
+
+    "returns all live voices including custom ones with language labels" {
+        coEvery { settingsService.getSettings() } returns settings(elevenLabsApiKey = "el-key")
+        val premade = mockk<ElevenLabsVoicesApi.Voice> {
+            every { voiceId() } returns "21m00Tcm4TlvDq8ikWAM"
+            every { name() } returns "Rachel"
+            every { labels() } returns mapOf("language" to "en")
+            every { verifiedLanguages() } returns emptyList()
+            every { fineTuning() } returns mockk { every { language() } returns "" }
+        }
+        val custom = mockk<ElevenLabsVoicesApi.Voice> {
+            every { voiceId() } returns "customVictoriaId12345"
+            every { name() } returns "Victoria"
+            every { labels() } returns mapOf("language" to "fr")
+            every { verifiedLanguages() } returns emptyList()
+            every { fineTuning() } returns mockk { every { language() } returns "" }
+        }
+        val professional = mockk<ElevenLabsVoicesApi.Voice> {
+            every { voiceId() } returns "proVoiceIdAAAAAAAAAA"
+            every { name() } returns "Paul K — Deep French Narrator"
+            every { labels() } returns emptyMap()
+            every { verifiedLanguages() } returns listOf(
+                mockk { every { language() } returns "fr" },
+            )
+            every { fineTuning() } returns mockk { every { language() } returns "" }
+        }
+        val body = mockk<ElevenLabsVoicesApi.Voices> {
+            every { voices() } returns listOf(premade, custom, professional)
+        }
+        val api = mockk<ElevenLabsVoicesApi>()
+        val builder = mockk<ElevenLabsVoicesApi.Builder>()
+        mockkStatic(ElevenLabsVoicesApi::class)
+        every { ElevenLabsVoicesApi.builder() } returns builder
+        every { builder.apiKey("el-key") } returns builder
+        every { builder.build() } returns api
+        every { api.getVoices() } returns org.springframework.http.ResponseEntity.ok(body)
+
+        try {
+            val response = runBlocking { service().getVoices("ELEVENLABS") }
+
+            response.fallback shouldBe false
+            response.voices.size shouldBe 3
+            response.voices shouldContain TtsVoiceDto(id = "customVictoriaId12345", name = "Victoria", language = "fr")
+            response.voices shouldContain TtsVoiceDto(id = "21m00Tcm4TlvDq8ikWAM", name = "Rachel", language = "en")
+            response.voices shouldContain TtsVoiceDto(
+                id = "proVoiceIdAAAAAAAAAA",
+                name = "Paul K — Deep French Narrator",
+                language = "fr",
+            )
+        } finally {
+            unmockkStatic(ElevenLabsVoicesApi::class)
+        }
+    }
 })

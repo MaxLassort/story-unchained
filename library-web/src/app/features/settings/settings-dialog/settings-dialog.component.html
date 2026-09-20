@@ -112,6 +112,21 @@
       <mat-hint>{{ 'Your own OpenAI key, stored locally in the settings file' | translate }}</mat-hint>
     </mat-form-field>
   } @else if (model().ttsProvider === 'ELEVENLABS') {
+    <div class="settings-dialog__help">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>{{ 'Required ElevenLabs API key permissions' | translate }}</strong>
+        <ul>
+          <li>text_to_speech</li>
+          <li>voices</li>
+          <li>voices_generation</li>
+          <li>forced_alignment</li>
+          <li>models</li>
+          <li>user</li>
+          <li>workspace</li>
+        </ul>
+      </div>
+    </div>
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ 'ElevenLabs API key' | translate }}</mat-label>
       <input
@@ -130,7 +145,13 @@
       <mat-label>{{ 'Voice' | translate }}</mat-label>
       <mat-select [formField]="form.ttsVoice">
         @for (voice of voices(); track voice.id) {
-          <mat-option [value]="voice.id">{{ voice.name }}</mat-option>
+          <mat-option [value]="voice.id">
+            @if (voice.language) {
+              {{ voice.name }} ({{ voice.language }})
+            } @else {
+              {{ voice.name }}
+            }
+          </mat-option>
         }
       </mat-select>
       @if (voicesLoading()) {

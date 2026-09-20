@@ -199,6 +199,7 @@
   "OpenAI API key": "Clé API OpenAI",
   "Your own OpenAI key, stored locally in the settings file": "Votre propre clé OpenAI, stockée localement dans le fichier de paramètres",
   "ElevenLabs API key": "Clé API ElevenLabs",
+  "Required ElevenLabs API key permissions": "Permissions requises pour la clé API ElevenLabs",
   "Your own ElevenLabs key, stored locally in the settings file": "Votre propre clé ElevenLabs, stockée localement dans le fichier de paramètres",
   "Voice": "Voix",
   "Default voices (live list unavailable: your API key may lack the voices_read permission)": "Voix par défaut (liste en temps réel indisponible : votre clé API peut manquer de la permission voices_read)",

@@ -12,6 +12,8 @@ export interface Settings {
 export interface TtsVoice {
   id: string;
   name: string;
+  /** ISO language code when known (ElevenLabs), else omitted/null. */
+  language?: string | null;
 }
 
 export interface TtsVoicesResponse {

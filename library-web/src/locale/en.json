@@ -134,6 +134,7 @@
   "SETTINGS_DB_SAVE_HINT": "Save to apply the new DB path",
   "SETTINGS_OPENAI_HINT": "Your own OpenAI key, stored locally in the settings file",
   "SETTINGS_ELEVENLABS_HINT": "Your own ElevenLabs key, stored locally in the settings file",
+  "SETTINGS_ELEVENLABS_PERMS": "Required ElevenLabs API key permissions",
 
   "DIALOG_DELETE_TITLE": "Delete Pack",
   "DIALOG_DELETE_CONFIRM": "Are you sure you want to delete <strong>{{title}}</strong>?",

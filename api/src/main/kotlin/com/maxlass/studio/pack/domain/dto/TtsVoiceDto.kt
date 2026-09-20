@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 data class TtsVoiceDto(
     val id: String,
     val name: String,
+    /** ISO language code when known (ElevenLabs `labels.language`), else null. */
+    val language: String? = null,
 )
 
 /** List of available voices for a TTS provider. [fallback] is true when the provider voice
