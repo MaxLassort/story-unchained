@@ -10,15 +10,15 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '../../../../../environments/environment';
+import { TranslatePipe } from '../../../../core/pipes/translate.pipe';
 import { StoryImageService } from '../../../../core/services/story-image.service';
 import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '../../../../core/models';
 
 /**
  * Reusable Lunii node image picker (Signal Forms `FormValueControl`): the user
  * either selects a Lucide icon from the catalog (searchable) or uploads a custom
- * PNG/JPEG image. The uploaded image is validated against the expected Lunii
- * node dimensions (320×240 by default). The value holds both fields so switching
- * modes does not lose the previous selection.
+ * image. Uploaded PNG/JPEG are auto-prepared for the device (320×240, high-contrast
+ * grayscale on black) via the backend — any source size is accepted.
  */
 @Component({
   selector: 'app-node-image-input',
@@ -31,6 +31,7 @@ import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '..
     MatProgressSpinnerModule,
     MatSliderModule,
     MatTooltipModule,
+    TranslatePipe,
   ],
   templateUrl: './node-image-input.component.html',
   styleUrl: './node-image-input.component.scss',
@@ -52,11 +53,10 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
 
   readonly strokeMultiplier = model(1.0);
 
-
   readonly imageSpecTooltip = computed(() =>
-    `Custom images must be PNG or JPEG (or an SVG that will be converted to PNG), ` +
-    `exactly ${this.expectedWidth()}×${this.expectedHeight()} px. ` +
-    'This is the native Lunii display resolution. Images are converted to 4-bpp RLE on the device.',
+    'Any PNG or JPEG is accepted and converted automatically for the Lunii ' +
+    `(${this.expectedWidth()}×${this.expectedHeight()} px, black background, high contrast). ` +
+    'SVG files are rendered as white-on-black icons. Images are converted to 4-bpp RLE on the device.',
   );
 
   readonly chapterNumberTooltip =
@@ -73,8 +73,6 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
   readonly searchQuery = signal('');
   readonly dragging = signal(false);
   readonly typeError = signal<string | null>(null);
-  readonly dimensionError = signal<string | null>(null);
-  readonly validating = signal(false);
   readonly converting = signal(false);
   readonly convertError = signal<string | null>(null);
   readonly previewUrl = signal<string | null>(null);
@@ -125,7 +123,6 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
   onModeChange(next: NodeImageMode | null | undefined): void {
     if (!next || next === this.mode()) return;
     this.typeError.set(null);
-    this.dimensionError.set(null);
     this.convertError.set(null);
     if (next === 'number') {
       this.selectChapterNumber();
@@ -181,7 +178,6 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
 
   onFileSelected(file: File | null): void {
     this.typeError.set(null);
-    this.dimensionError.set(null);
     this.convertError.set(null);
     if (!file) {
       this.value.update((v) => ({
@@ -200,7 +196,7 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
       this.typeError.set('PNG, JPEG or SVG only.');
       return;
     }
-    void this.validateAndSet(file);
+    void this.prepareAndSet(file);
   }
 
   onDragOver(event: DragEvent): void {
@@ -225,24 +221,25 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     this.onFileSelected(null);
   }
 
-  private async validateAndSet(file: File): Promise<void> {
-    this.validating.set(true);
+  private async prepareAndSet(file: File): Promise<void> {
+    this.converting.set(true);
+    this.convertError.set(null);
     try {
-      const ok = await this.checkDimensions(file);
-      if (!ok) {
-        this.dimensionError.set(
-          `Image must be ${this.expectedWidth()}\u00d7${this.expectedHeight()} px.`,
-        );
-        return;
-      }
+      const blob = await this.images.prepareDeviceImage(file);
+      const base = file.name.replace(/\.[^.]+$/, '');
+      const png = new File([blob], `${base}-lunii.png`, {
+        type: blob.type || 'image/png',
+      });
       this.value.update((v) => ({
         mode: v?.mode ?? 'image',
         iconId: v?.iconId ?? null,
-        file,
+        file: png,
         chapterNumber: v?.chapterNumber ?? null,
       }));
+    } catch {
+      this.convertError.set('Could not prepare this image for the Lunii. Please try another file.');
     } finally {
-      this.validating.set(false);
+      this.converting.set(false);
     }
   }
 
@@ -267,24 +264,6 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
       this.convertError.set('Could not convert this SVG. Please try another file.');
     } finally {
       this.converting.set(false);
-    }
-  }
-
-  private async checkDimensions(file: File): Promise<boolean> {
-    const url = URL.createObjectURL(file);
-    try {
-      return await new Promise<boolean>((resolve) => {
-        const img = new Image();
-        img.onload = () =>
-          resolve(
-            img.naturalWidth === this.expectedWidth() &&
-              img.naturalHeight === this.expectedHeight(),
-          );
-        img.onerror = () => resolve(false);
-        img.src = url;
-      });
-    } finally {
-      URL.revokeObjectURL(url);
     }
   }
 

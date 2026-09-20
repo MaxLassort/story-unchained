@@ -55,4 +55,19 @@ export class StoryImageService {
       }),
     );
   }
+
+  /**
+   * Local (non-AI) stylization: any PNG/JPEG/BMP → 320×240 high-contrast
+   * grayscale PNG suitable for the Lunii screen preview and pack assets.
+   */
+  async prepareDeviceImage(file: File): Promise<Blob> {
+    const form = new FormData();
+    form.append('file', file);
+    return firstValueFrom(
+      this.http.post(`${this.imagesUrl}/prepare-device`, form, {
+        responseType: 'blob',
+        context: silentHttpContext(),
+      }),
+    );
+  }
 }

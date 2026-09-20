@@ -1,24 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { NodeImageInputComponent } from './node-image-input.component';
 import { StoryImageService } from '../../../../core/services/story-image.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 describe('NodeImageInputComponent', () => {
   let imagesMock: {
     renderSvg: ReturnType<typeof vi.fn>;
+    prepareDeviceImage: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     imagesMock = {
       renderSvg: vi.fn().mockResolvedValue(new Blob(['x'], { type: 'image/png' })),
+      prepareDeviceImage: vi.fn().mockResolvedValue(new Blob(['prepared'], { type: 'image/png' })),
     };
   });
 
   async function createComponent() {
     await TestBed.configureTestingModule({
       imports: [NodeImageInputComponent],
-      providers: [provideHttpClient(), { provide: StoryImageService, useValue: imagesMock }],
+      providers: [
+        provideHttpClient(),
+        { provide: StoryImageService, useValue: imagesMock },
+        { provide: LanguageService, useValue: { currentLang: signal<'fr' | 'en'>('en') } },
+      ],
     }).compileComponents();
     const fixture = TestBed.createComponent(NodeImageInputComponent);
     fixture.componentInstance.value.set(null);
@@ -163,6 +171,39 @@ describe('NodeImageInputComponent', () => {
     expect(url).toContain('chapterNumber=7');
   });
 
+  it('auto-prepares a PNG of any size via prepare-device and stores the result', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.onModeChange('image');
+    fixture.detectChanges();
+
+    const png = new File(['raw'], 'cover.png', { type: 'image/png' });
+    component.onFileSelected(png);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(component.value()?.file).not.toBeNull());
+
+    expect(imagesMock.prepareDeviceImage).toHaveBeenCalledWith(png);
+    expect(component.value()?.mode).toBe('image');
+    expect(component.value()?.file?.name).toBe('cover-lunii.png');
+    expect(component.convertError()).toBeNull();
+  });
+
+  it('surfaces an error when device prepare fails', async () => {
+    imagesMock.prepareDeviceImage.mockRejectedValueOnce(new Error('boom'));
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.onModeChange('image');
+    fixture.detectChanges();
+
+    const png = new File(['raw'], 'bad.png', { type: 'image/png' });
+    component.onFileSelected(png);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(component.convertError()).not.toBeNull());
+
+    expect(component.value()?.file).toBeNull();
+    expect(component.convertError()).toContain('Could not prepare');
+  });
+
   it('converts an SVG through the render endpoint and stores the PNG', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
@@ -174,7 +215,7 @@ describe('NodeImageInputComponent', () => {
     fixture.detectChanges();
     await vi.waitFor(() => expect(component.value()?.file).not.toBeNull());
 
-    expect(imagesMock.renderSvg).toHaveBeenCalledWith(svg);
+    expect(imagesMock.renderSvg).toHaveBeenCalledWith(svg, 1);
     expect(component.value()?.mode).toBe('image');
     expect(component.value()?.file?.name).toBe('icon.png');
   });

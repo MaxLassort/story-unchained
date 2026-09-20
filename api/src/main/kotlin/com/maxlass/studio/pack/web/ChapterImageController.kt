@@ -2,6 +2,7 @@ package com.maxlass.studio.pack.web
 
 import com.maxlass.studio.pack.domain.dto.ChapterIconsResponse
 import com.maxlass.studio.pack.format.utils.ChapterImageGenerator
+import com.maxlass.studio.pack.format.utils.LuniiImagePrepare
 import com.maxlass.studio.pack.format.utils.SvgIconRenderer
 import com.maxlass.studio.pack.service.ChapterIconCatalogService
 import io.swagger.v3.oas.annotations.Operation
@@ -132,6 +133,37 @@ class ChapterImageController(
             SvgIconRenderer.render(svg, strokeMultiplier = strokeMultiplier)
         } catch (e: IllegalArgumentException) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid SVG: ${e.message}")
+        }
+        return ResponseEntity.ok()
+            .contentType(MediaType.IMAGE_PNG)
+            .body(png)
+    }
+
+    @Operation(
+        summary = "Préparer une image pour l'écran Lunii",
+        description = "Upload multipart (PNG/JPEG/BMP) → PNG 320×240 stylisé localement " +
+            "(fond noir, contraste, palette courte, sans IA) pour un aperçu fidèle à l'appareil.",
+    )
+    @ApiResponse(responseCode = "200", description = "Image PNG préparée", content = [Content(mediaType = "image/png")])
+    @ApiResponse(responseCode = "400", description = "Fichier vide ou image illisible")
+    @PostMapping(value = ["/prepare-device"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun prepareDevice(
+        @Parameter(
+            description = "Image source (PNG, JPEG ou BMP)",
+            schema = Schema(type = "string", format = "binary"),
+        )
+        @RequestPart("file") file: MultipartFile,
+    ): ResponseEntity<ByteArray> {
+        if (file.isEmpty) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file is empty")
+        }
+        val png = try {
+            LuniiImagePrepare.prepare(file.bytes)
+        } catch (e: Exception) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Could not prepare image: ${e.message}",
+            )
         }
         return ResponseEntity.ok()
             .contentType(MediaType.IMAGE_PNG)

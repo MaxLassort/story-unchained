@@ -146,9 +146,9 @@
         </button>
       } @else {
         <mat-icon class="node-image__zone-icon">upload_file</mat-icon>
-        <span class="node-image__zone-title">Drag and drop image here or click to browse</span>
+        <span class="node-image__zone-title">{{ 'Drag and drop image here or click to browse' | translate }}</span>
         <span class="node-image__zone-hint">
-          PNG/JPEG — {{ expectedWidth() }}×{{ expectedHeight() }} px, or SVG to convert
+          {{ 'PNG/JPEG any size — auto-converted for Lunii, or SVG to convert' | translate }}
         </span>
       }
       <input
@@ -163,19 +163,18 @@
     @if (converting()) {
       <span class="node-image__hint">
         <mat-icon class="node-image__spinner-icon" aria-hidden="true">settings</mat-icon>
-        Converting SVG to PNG…
+        {{ 'Converting for Lunii display…' | translate }}
       </span>
     }
-    @if (validating()) {
-      <span class="node-image__hint">Validating dimensions…</span>
+    @if (previewUrl() && !converting()) {
+      <span class="node-image__hint">
+        {{ 'Converted automatically for the Lunii (black background, high contrast).' | translate }}
+      </span>
     }
     @if (convertError(); as error) {
       <span class="node-image__error">{{ error }}</span>
     }
     @if (typeError(); as error) {
-      <span class="node-image__error">{{ error }}</span>
-    }
-    @if (dimensionError(); as error) {
       <span class="node-image__error">{{ error }}</span>
     }
   }

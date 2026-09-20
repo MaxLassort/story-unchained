@@ -25,9 +25,44 @@ object ImageConversion {
     private const val PNG_FORMAT = "PNG"
     private const val BITMAP_RLE4_COMPRESSION = "BI_RLE4"
 
+    const val DEVICE_WIDTH = 320
+    const val DEVICE_HEIGHT = 240
+
     fun anyToBitmap(data: ByteArray): ByteArray = convertImage(data, BITMAP_FORMAT)
 
     fun bitmapToPng(bmpData: ByteArray): ByteArray = convertImage(bmpData, PNG_FORMAT)
+
+    /**
+     * Aspect-fit [source] onto a black [DEVICE_WIDTH]×[DEVICE_HEIGHT] canvas (letterbox).
+     * Shared by FS conformity and [LuniiImagePrepare].
+     */
+    fun letterboxToDevice(source: BufferedImage): BufferedImage {
+        val canvas = BufferedImage(DEVICE_WIDTH, DEVICE_HEIGHT, BufferedImage.TYPE_INT_RGB)
+        val g: Graphics2D = canvas.createGraphics()
+        try {
+            g.color = Color.BLACK
+            g.fillRect(0, 0, DEVICE_WIDTH, DEVICE_HEIGHT)
+            val scale = minOf(
+                DEVICE_WIDTH.toFloat() / source.width,
+                DEVICE_HEIGHT.toFloat() / source.height,
+            )
+            val w = (source.width * scale).toInt().coerceAtLeast(1)
+            val h = (source.height * scale).toInt().coerceAtLeast(1)
+            g.drawImage(source, (DEVICE_WIDTH - w) / 2, (DEVICE_HEIGHT - h) / 2, w, h, null)
+        } finally {
+            g.dispose()
+        }
+        return canvas
+    }
+
+    /** Letterbox to device size and encode as uncompressed BMP (for FS re-encode input). */
+    fun scaleTo320x240(data: ByteArray): ByteArray? = runCatching {
+        val source = ImageIO.read(ByteArrayInputStream(data)) ?: return@runCatching null
+        val canvas = letterboxToDevice(source)
+        val out = ByteArrayOutputStream()
+        if (!ImageIO.write(canvas, BITMAP_FORMAT, out)) return@runCatching null
+        out.toByteArray()
+    }.getOrNull()
 
     fun convertImage(data: ByteArray, format: String): ByteArray {
         val inputImage = ImageIO.read(ByteArrayInputStream(data))

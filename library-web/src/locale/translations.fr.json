@@ -256,5 +256,11 @@
   "invalid": "invalides",
   "failed": "échoués",
 
-  "Network error": "Erreur réseau"
+  "Network error": "Erreur réseau",
+
+  "Drag and drop image here or click to browse": "Glissez-déposez une image ici ou cliquez pour parcourir",
+  "PNG/JPEG any size — auto-converted for Lunii, or SVG to convert": "PNG/JPEG toute taille — converti automatiquement pour la Lunii, ou SVG à convertir",
+  "Converting for Lunii display…": "Conversion pour l'affichage Lunii…",
+  "Converted automatically for the Lunii (black background, high contrast).": "Converti automatiquement pour la Lunii (fond noir, fort contraste).",
+  "Could not prepare this image for the Lunii. Please try another file.": "Impossible de préparer cette image pour la Lunii. Essayez un autre fichier."
 }

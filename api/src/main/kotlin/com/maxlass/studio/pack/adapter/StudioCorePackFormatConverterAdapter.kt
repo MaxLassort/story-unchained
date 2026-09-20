@@ -14,17 +14,11 @@ import com.maxlass.studio.pack.format.writer.BinaryStoryPackWriter
 import com.maxlass.studio.pack.format.writer.FsStoryPackWriter
 import com.maxlass.studio.pack.port.external.PackFormatConverterPort
 import org.slf4j.LoggerFactory
-import java.awt.Color
-import java.awt.Graphics2D
-import java.awt.image.BufferedImage
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import javax.imageio.ImageIO
 
 /**
  * Conversion adapter based on studio-core readers/writers.
@@ -131,24 +125,7 @@ class StudioCorePackFormatConverterAdapter : PackFormatConverterPort {
         }
     }
 
-    private fun scaleTo320x240(bytes: ByteArray): ByteArray? = runCatching {
-        val source = ImageIO.read(ByteArrayInputStream(bytes)) ?: return@runCatching null
-        val canvas = BufferedImage(320, 240, BufferedImage.TYPE_INT_RGB)
-        val g: Graphics2D = canvas.createGraphics()
-        try {
-            g.color = Color.BLACK
-            g.fillRect(0, 0, 320, 240)
-            val scale = minOf(320f / source.width, 240f / source.height)
-            val w = (source.width * scale).toInt().coerceAtLeast(1)
-            val h = (source.height * scale).toInt().coerceAtLeast(1)
-            g.drawImage(source, (320 - w) / 2, (240 - h) / 2, w, h, null)
-        } finally {
-            g.dispose()
-        }
-        val out = ByteArrayOutputStream()
-        ImageIO.write(canvas, "bmp", out)
-        out.toByteArray()
-    }.getOrNull()
+    private fun scaleTo320x240(bytes: ByteArray): ByteArray? = ImageConversion.scaleTo320x240(bytes)
 
     private fun readIntLE(bytes: ByteArray, offset: Int): Int =
         (bytes[offset].toInt() and 0xFF) or
