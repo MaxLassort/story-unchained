@@ -53,6 +53,7 @@ object LuniiImagePrepare {
     /**
      * Converts any ImageIO-readable image (PNG/JPEG/BMP…) into a stylized
      * 320×240 PNG optimized for the Lunii display.
+     * Note: the wizard prefers front-end ImageTracer; this remains for the API / Swagger.
      */
     fun prepare(data: ByteArray): ByteArray {
         val source = ImageIO.read(ByteArrayInputStream(data))

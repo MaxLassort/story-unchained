@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { silentHttpContext } from './http-context';
 import { environment } from '../../../environments/environment';
+import { prepareLuniiImageWithTracer } from '../utils/lunii-image-tracer';
 
 /**
  * Chapter image generation: Lucide icon previews, chapter-number rendering and
@@ -57,17 +58,10 @@ export class StoryImageService {
   }
 
   /**
-   * Local (non-AI) stylization: any PNG/JPEG/BMP → 320×240 high-contrast
-   * grayscale PNG suitable for the Lunii screen preview and pack assets.
+   * Client-side ImageTracer prepare: any browser-decodable image → 320×240
+   * flat greyscale PNG for the Lunii (API `/prepare-device` kept for Swagger).
    */
   async prepareDeviceImage(file: File): Promise<Blob> {
-    const form = new FormData();
-    form.append('file', file);
-    return firstValueFrom(
-      this.http.post(`${this.imagesUrl}/prepare-device`, form, {
-        responseType: 'blob',
-        context: silentHttpContext(),
-      }),
-    );
+    return prepareLuniiImageWithTracer(file);
   }
 }

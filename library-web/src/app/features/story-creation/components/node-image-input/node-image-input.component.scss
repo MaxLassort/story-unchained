@@ -205,10 +205,16 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
-.node-image__zone-remove {
+.node-image__zone-actions {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
+  display: flex;
+  gap: 0.125rem;
+}
+
+.node-image__zone-remove {
+  background: color-mix(in srgb, var(--mat-sys-surface) 85%, transparent);
 }
 
 .node-image__file-input {

@@ -19,6 +19,7 @@
     "@angular/material": "^22.1.1",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
+    "imagetracerjs": "^1.2.6",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "wavesurfer.js": "^7.12.12"

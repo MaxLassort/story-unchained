@@ -135,15 +135,17 @@
       @if (previewUrl(); as url) {
         <img [src]="url" alt="" class="node-image__zone-preview" />
         <span class="node-image__zone-replace">Click or drop to replace</span>
-        <button
-          mat-icon-button
-          type="button"
-          class="node-image__zone-remove"
-          aria-label="Remove image"
-          (click)="clearFile(); $event.stopPropagation()"
-        >
-          <mat-icon>delete</mat-icon>
-        </button>
+        <div class="node-image__zone-actions">
+          <button
+            mat-icon-button
+            type="button"
+            class="node-image__zone-remove"
+            aria-label="Remove image"
+            (click)="clearFile(); $event.stopPropagation()"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
       } @else {
         <mat-icon class="node-image__zone-icon">upload_file</mat-icon>
         <span class="node-image__zone-title">{{ 'Drag and drop image here or click to browse' | translate }}</span>

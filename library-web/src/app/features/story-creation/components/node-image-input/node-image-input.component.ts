@@ -17,8 +17,8 @@ import type { ChapterIconsResponse, NodeImageMode, NodeImageSelection } from '..
 /**
  * Reusable Lunii node image picker (Signal Forms `FormValueControl`): the user
  * either selects a Lucide icon from the catalog (searchable) or uploads a custom
- * image. Uploaded PNG/JPEG are auto-prepared for the device (320×240, high-contrast
- * grayscale on black) via the backend — any source size is accepted.
+ * image. Uploaded PNG/JPEG are auto-prepared for the device (320×240 flat greys
+ * on black) client-side via ImageTracer — any source size is accepted.
  */
 @Component({
   selector: 'app-node-image-input',
@@ -225,6 +225,7 @@ export class NodeImageInputComponent implements FormValueControl<NodeImageSelect
     this.converting.set(true);
     this.convertError.set(null);
     try {
+      // ImageTracer (client) → solid flat regions (cleaner than pixel posterize).
       const blob = await this.images.prepareDeviceImage(file);
       const base = file.name.replace(/\.[^.]+$/, '');
       const png = new File([blob], `${base}-lunii.png`, {

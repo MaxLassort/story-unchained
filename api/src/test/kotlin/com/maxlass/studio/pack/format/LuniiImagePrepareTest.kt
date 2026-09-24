@@ -31,10 +31,9 @@ class LuniiImagePrepareTest : StringSpec({
         val img = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until height) {
             for (x in 0 until width) {
-                img.setRGB(x, y, 0x00000000) // transparent
+                img.setRGB(x, y, 0x00000000)
             }
         }
-        // Opaque white square in the center
         for (y in height / 4 until 3 * height / 4) {
             for (x in width / 4 until 3 * width / 4) {
                 img.setRGB(x, y, 0xFFFFFFFF.toInt())
@@ -61,7 +60,6 @@ class LuniiImagePrepareTest : StringSpec({
                 colors.add(image.getRGB(x, y) and 0xFFFFFF)
             }
         }
-        // Solid mid-color after contrast → few palette entries; letterbox adds black.
         colors.size shouldBeGreaterThan 0
         (colors.size <= 5) shouldBe true
         colors.all { c ->
@@ -75,7 +73,6 @@ class LuniiImagePrepareTest : StringSpec({
     "prepare letterboxes with black margins for wide images" {
         val png = LuniiImagePrepare.prepare(solidRgbPng(640, 100, 0xFFFFFF))
         val image = readPng(png)
-        // Top and bottom rows should be mostly black (letterbox).
         var blackTop = 0
         for (x in 0 until image.width) {
             if ((image.getRGB(x, 0) and 0xFFFFFF) == 0) blackTop++
@@ -107,7 +104,6 @@ class LuniiImagePrepareTest : StringSpec({
                 img.setRGB(x, y, 0xFFFFFF)
             }
         }
-        // Saturated subject that must survive flood-fill.
         for (y in 60 until 180) {
             for (x in 50 until 150) {
                 img.setRGB(x, y, 0xCC2244)
@@ -117,7 +113,6 @@ class LuniiImagePrepareTest : StringSpec({
         ImageIO.write(img, "PNG", baos)
         val prepared = readPng(LuniiImagePrepare.prepare(baos.toByteArray()))
 
-        // Pillarbox / margins and former white bg must be black, not a white slab.
         var black = 0
         var nonBlack = 0
         for (y in 0 until prepared.height step 2) {
@@ -129,7 +124,6 @@ class LuniiImagePrepareTest : StringSpec({
         black shouldBeGreaterThan nonBlack
         nonBlack shouldBeGreaterThan 0
 
-        // Left edge of the canvas must be black (no white letterbox slab).
         var leftBlack = 0
         for (y in 0 until prepared.height) {
             if ((prepared.getRGB(0, y) and 0xFFFFFF) == 0) leftBlack++
@@ -156,7 +150,6 @@ class LuniiImagePrepareTest : StringSpec({
 
     "palette tones stay within the fixed set" {
         val allowed = setOf(0x000000, 0x404040, 0x808080, 0xC0C0C0, 0xFFFFFF)
-        // Gradient so multiple tones appear
         val img = BufferedImage(320, 240, BufferedImage.TYPE_INT_RGB)
         val g = img.createGraphics()
         try {

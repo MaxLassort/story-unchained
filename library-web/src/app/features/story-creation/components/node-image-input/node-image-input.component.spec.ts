@@ -171,7 +171,7 @@ describe('NodeImageInputComponent', () => {
     expect(url).toContain('chapterNumber=7');
   });
 
-  it('auto-prepares a PNG of any size via prepare-device and stores the result', async () => {
+  it('prepares a PNG via ImageTracer and stores the result', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
     component.onModeChange('image');
@@ -188,7 +188,7 @@ describe('NodeImageInputComponent', () => {
     expect(component.convertError()).toBeNull();
   });
 
-  it('surfaces an error when device prepare fails', async () => {
+  it('surfaces an error when ImageTracer prepare fails', async () => {
     imagesMock.prepareDeviceImage.mockRejectedValueOnce(new Error('boom'));
     const fixture = await createComponent();
     const component = fixture.componentInstance;
@@ -200,7 +200,7 @@ describe('NodeImageInputComponent', () => {
     fixture.detectChanges();
     await vi.waitFor(() => expect(component.convertError()).not.toBeNull());
 
-    expect(component.value()?.file).toBeNull();
+    expect(component.value()?.file ?? null).toBeNull();
     expect(component.convertError()).toContain('Could not prepare');
   });
 
@@ -224,13 +224,11 @@ describe('NodeImageInputComponent', () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
 
-    // Set up number mode with chapter 2.
     fixture.componentRef.setInput('chapterNumber', 2);
     await component.selectChapterNumber();
     fixture.detectChanges();
     expect(component.value()?.chapterNumber).toBe(2);
 
-    // A preceding chapter is removed -> reindexed to 1.
     fixture.componentRef.setInput('chapterNumber', 1);
     fixture.detectChanges();
     await vi.waitFor(() => expect(component.value()?.chapterNumber).toBe(1));
@@ -242,13 +240,11 @@ describe('NodeImageInputComponent', () => {
     component.onModeChange('image');
     fixture.detectChanges();
 
-    // "photo.png" detected as SVG by mime (no .svg in the name).
     component.onFileSelected(new File(['<svg/>'], 'photo.png', { type: 'image/svg+xml' }));
     fixture.detectChanges();
     await vi.waitFor(() => expect(component.value()?.file).not.toBeNull());
     expect(component.value()?.file?.name).toBe('photo.png');
 
-    // Case variant "cat.SVG".
     component.onFileSelected(new File(['<svg/>'], 'cat.SVG', { type: 'image/svg+xml' }));
     fixture.detectChanges();
     await vi.waitFor(() => expect(component.value()?.file?.name).toBe('cat.png'));
